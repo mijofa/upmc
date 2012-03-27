@@ -5,12 +5,14 @@ try: # I would like this to run on Android as well, this section is needed for t
 	android.init() # Usually this and the next line would be put into an if statement after this, I didn't see the point and put it here instead.
 	android.map_key(android.KEYCODE_BACK, pygame.K_ESCAPE)
 except ImportError: android = None
+except AttributeError: # I have a module on my desktop called "android" I suspect this is part of the SDK and meant for testing, I dont really care at the moment.
+	del android
+	android = None
 
 global screenupdates
 screenupdates = []
 global running
 running = True
-
 
 def quit():
 	global running
@@ -104,7 +106,7 @@ class filemenu():
 	itemsinfo = {}
 	items = []
 	cwd = './'
-	def find(self, directory = self.cwd, filetype = ''):
+	def find(self, directory = cwd, filetype = ''):
 		dirs = []
 		files = []
 		if filetype == '':
@@ -177,7 +179,7 @@ class filemenu():
 			item = filename.rpartition('.')[0]
 			if self.itemsinfo[item]:
 				self.itemsinfo[item]['thumb'] = filename
-	def render(self, directory = self.cwd):
+	def render(self, directory = cwd):
 		global screenupdates
 		screen.blit(background, (0,0))
 		pygame.display.update()
@@ -186,7 +188,11 @@ class filemenu():
 		itemwidth = screen.get_width()/6
 		itemhdist = screen.get_width/7
 		for item in self.items:
-			self.itemsinfo[item]['surface'] = pygame.Surface(
+			if itemsinfo[item][thumb]:
+				s = pygame.image.load(itemsinfo[item][thumb])
+				r = s.get_rect().fit((0,0,itemwidth,itemheight))
+				self.itemsinfo[item]['surface'] = pygame.trasform.scale(s, (r[2], r[3])).convert()
+				
 
 ##### End class filemenu()
 
