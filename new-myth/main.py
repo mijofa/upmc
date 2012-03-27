@@ -81,7 +81,6 @@ class textmenu():
 			elif direction == True:
 				try: self.selected = self.realmenuitems[self.realmenuitems.index(self.selected)+1]
 				except IndexError: self.selected = self.realmenuitems[0]
-			print self.realmenuitems.index(self.selected)
 		s = pygame.Surface(self.selected[2][2:4], pygame.SRCALPHA)
 		s.fill((0,0,0,50))
 		s.blit(self.selected[0], (0,0))
@@ -100,6 +99,96 @@ class textmenu():
 				return self.selected[1]()
 ##### End class textmenu()
 
+class filemenu():
+	clickables = {}
+	itemsinfo = {}
+	items = []
+	cwd = './'
+	def find(self, directory = self.cwd, filetype = ''):
+		dirs = []
+		files = []
+		if filetype == '':
+			for f in os.listdir(directory):
+				if os.path.isdir(f):
+					dirs.append(f + '/')
+				else:
+					files.append(f)
+			dirs.sort()
+			files.sort()
+			return dirs + files
+		elif filetype == 'directory' or filetype == 'dir' or filetype == 'd':
+			for f in os.listdir(directory):
+				if os.path.isdir(f):
+					dirs.append(f)
+			dirs.sort()
+			return dirs
+		elif filetype == 'file' or filetype == 'f':
+			for f in os.listdir(directory):
+				if not os.path.isdir(f):
+					files.append(f)
+			files.sort()
+			return files
+		elif filetype.__contains__('/'):
+			mime = magic.open(magic.MAGIC_MIME)
+			mime.load()
+			out = []
+			for f in os.listdir(directory):
+				if mime.file(f).split(';')[0] == filetype:
+					out.append(f)
+			out.sort()
+			return out
+		elif not filetype.__contains__('/'):
+			mime = magic.open(magic.MAGIC_MIME)
+			mime.load()
+			out = []
+			for f in os.listdir(directory):
+				if mime.file(f).split('/')[0] == filetype:
+					out.append(f)
+			out.sort()
+			return out
+		else:
+			raise Exception("WTF did you do? That's not even possible. O.o")
+	def builditems(self):
+		itemnum = -1
+		self.itemsinfo = {}
+		self.items = []
+		for item in self.find(filetype='directory'):
+			itemnum += 1
+			self.items.append(item)
+			if not self.itemsinfo[item]:
+				self.itemsinfo[item] = {}
+			self.itemsinfo[item]['file'] = False
+			self.itemsinfo[item]['itemnum'] = itemnum
+			self.itemsinfo[item]['filename'] = item + '/'
+			for thumb in self.find(item, 'image'):
+				if thumb.startswith('folder.'):
+					items[item]['thumb'] = item + '/' + thumb
+					break
+		for filename in self.find(filetype='video'):
+			item = filename.rpartition('.')[0]
+			itemnum += 1
+			self.items.append(item)
+			if not self.itemsinfo[item]:
+				self.itemsinfo[item] = {}
+			self.itemsinfo[item]['file'] = True
+			self.itemsinfo[item]['itemnum'] = itemnum
+			self.itemsinfo[item]['filename'] = filename
+		for filename in self.find(filetype='image'):
+			item = filename.rpartition('.')[0]
+			if self.itemsinfo[item]:
+				self.itemsinfo[item]['thumb'] = filename
+	def render(self, directory = self.cwd):
+		global screenupdates
+		screen.blit(background, (0,0))
+		pygame.display.update()
+		itemheight = screen.get_height()/4
+		itemvdist = screen.get_height()/5
+		itemwidth = screen.get_width()/6
+		itemhdist = screen.get_width/7
+		for item in self.items:
+			self.itemsinfo[item]['surface'] = pygame.Surface(
+
+##### End class filemenu()
 
 ## The Pygame modules need to be initialised before they can be used.
 ### The Pygame docs say to just initialise *everything* at once, I thing this is wasteful and am only initialising the bits I'm using.
