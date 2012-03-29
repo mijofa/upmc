@@ -14,14 +14,11 @@ screenupdates = []
 global running
 running = True
 
-def quit():
-	global running
-	running = False
-	print 'User quit... Bye.'
-	pygame.quit()
+def userquit():
+	pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
 
 class textmenu():
-	menuitems = [('Videos', "Videos menu has not been coded yet."), ('Extra item', 'testing'), ('Quit', quit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
+	menuitems = [('Videos', "Videos menu has not been coded yet."), ('Extra item', 'testing'), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
 	clickables = {}
 	realmenuitems = []
 	selected = None
@@ -160,6 +157,7 @@ class filemenu():
 			if not self.itemsinfo[item]:
 				self.itemsinfo[item] = {}
 			self.itemsinfo[item]['file'] = False
+			self.itemsinfo[item]['title'] = item
 			self.itemsinfo[item]['itemnum'] = itemnum
 			self.itemsinfo[item]['filename'] = item + '/'
 			for thumb in self.find(item, 'image'):
@@ -173,6 +171,7 @@ class filemenu():
 			if not self.itemsinfo[item]:
 				self.itemsinfo[item] = {}
 			self.itemsinfo[item]['file'] = True
+			self.itemsinfo[item]['title'] = item
 			self.itemsinfo[item]['itemnum'] = itemnum
 			self.itemsinfo[item]['filename'] = filename
 		for filename in self.find(filetype='image'):
@@ -190,14 +189,17 @@ class filemenu():
 		for item in self.items:
 			if itemsinfo[item][thumb]:
 				s = pygame.image.load(itemsinfo[item][thumb])
-				r = s.get_rect().fit((0,0,itemwidth,itemheight))
-				self.itemsinfo[item]['surface'] = pygame.trasform.scale(s, (r[2], r[3])).convert()
+			else:
+				s = font.render(itemsinfo[item]['title'], 1, (255,255,255))
+			r = s.get_rect().fit((0,0,itemwidth,itemheight))
+			self.itemsinfo[item]['surface'] = pygame.trasform.scale(s, (r[2], r[3])).convert()
+
 				
 
 ##### End class filemenu()
 
 ## The Pygame modules need to be initialised before they can be used.
-### The Pygame docs say to just initialise *everything* at once, I thing this is wasteful and am only initialising the bits I'm using.
+### The Pygame docs say to just initialise *everything* at once, I think this is wasteful and am only initialising the bits I'm using.
 #pygame.init()
 pygame.font.init()
 #pygame.image.init() # Doesn't have an '.init()' funtion.
@@ -224,11 +226,12 @@ menu = textmenu()
 
 ## These should avoid going through the loop unnecessarily (and wasting resources) when there is events that I'm not going to use anyway.
 pygame.event.set_allowed(None) # This says to not put *any* events into the event queue.
+pygame.event.set_allowed([pygame.QUIT])
 pygame.event.set_allowed([pygame.MOUSEMOTION,pygame.MOUSEBUTTONDOWN,pygame.MOUSEBUTTONUP,pygame.KEYDOWN]) # This says to put the events I want to see into the event queue, this needs to be updated anytime I want to monitor more events.
 while running == True:
 	event = pygame.event.wait()
 	if event.type == pygame.QUIT:
-		running = 0
+		running = False
 		pygame.quit()
 	elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
 		released = False
