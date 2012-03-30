@@ -108,6 +108,7 @@ class filemenu():
 	def __init__(self):
 		self.builditems()
 		self.render()
+		self.loop()
 	def find(self, directory = cwd, filetype = ''):
 		dirs = []
 		files = []
@@ -172,7 +173,6 @@ class filemenu():
 					if thumb.startswith('folder.'):
 						items[item]['thumb'] = item + '/' + thumb
 						break
-		print itemnum
 		for filename in self.find(filetype='file'):
 			if not filename.startswith('.'):
 				item = filename.rpartition('.')
@@ -188,7 +188,6 @@ class filemenu():
 				self.itemsinfo[item]['title'] = item
 				self.itemsinfo[item]['itemnum'] = itemnum
 				self.itemsinfo[item]['filename'] = filename
-		print itemnum
 		for filename in self.find(filetype='image'):
 			if not filename.startswith('.'):
 				item = filename.rpartition('.')[0]
@@ -198,18 +197,44 @@ class filemenu():
 					item = item[2]
 				if self.itemsinfo.has_key(item):
 					self.itemsinfo[item]['thumb'] = filename
-		print itemnum
-		print self.itemsinfo
 	def render(self, directory = cwd):
 		global screenupdates
 		screen.blit(background, (0,0))
 		pygame.display.update()
-		itemheight = screen.get_height()/7
-		itemydist = screen.get_width()/6
-		itemwidth = screen.get_width()/5
-		itemxdist = screen.get_height()/4
-		print itemheight, itemydist, itemwidth, itemxdist
-		from time import sleep
+		screenheight = screen.get_height()
+		screenwidth = screen.get_width()
+		itemheight = 190 #280 = 5 on 1050 vertical resolution
+		itemwidth = 120 #210 = 6 on 1680 horizontal resolution
+		pagecols = [None]*(screenwidth/itemwidth)
+		pagerows = [pagecols]*(screenheight/itemheight)
+		rowspace = (screenheight-(len(pagerows)*itemheight))/len(pagerows)
+		colspace = (screenwidth-(len(pagecols)*itemwidth))/len(pagecols)
+		itemnum = -1
+		for row in xrange(len(pagerows)):
+			for col in xrange(len(pagerows[row])):
+				itemnum += 1
+				item = self.items[itemnum]
+#				if self.itemsinfo[item].has_key('thumb'):
+#					s = pygame.image.load(self.itemsinfo[item]['thumb'])
+#				else:
+#	
+				f = font.render(self.itemsinfo[item]['title'], 1, (255,255,255))
+				r = f.get_rect().fit((0,0,itemwidth,itemheight))
+				s = pygame.Surface((itemwidth,itemheight), pygame.SRCALPHA)
+				s.fill((0,0,0,50))
+				f = pygame.transform.scale(f, (r[2], r[3]))
+				s.blit(f, (0,0))
+				self.itemsinfo[item]['surface'] = s #pygame.transform.scale(s, (r[2], r[3]))
+				top = (row*itemheight)+(row*rowspace)+(rowspace/2)
+				left = (col*itemwidth)+(col*colspace)+(colspace/2)
+				self.itemsinfo[item]['buttonloc'] = self.itemsinfo[item]['surface'].get_rect(top=top, left=left)
+				screen.blit(self.itemsinfo[item]['surface'], self.itemsinfo[item]['buttonloc'])
+				screenupdates.append(self.itemsinfo[item]['buttonloc'])
+		pygame.display.update()
+		screenupdates = []
+		return
+		"""
+#		from time import sleep
 		for item in self.items:
 #			if self.itemsinfo[item].has_key('thumb'):
 #				s = pygame.image.load(self.itemsinfo[item]['thumb'])
@@ -243,6 +268,9 @@ class filemenu():
 #			except KeyboardInterrupt:
 #				event = userquit()
 #				break
+		"""
+	def loop(self):
+		pass
 ##### End class filemenu()
 
 def vidsmenu():
@@ -257,8 +285,8 @@ pygame.display.init()
 #pygame.transform.init() # Doesn't have an '.init()' funtion.
 #pygame.event.init() # Doesn't have an '.init()' funtion.
 
-screen = pygame.display.set_mode((640,480)) # Create a new window.
-#screen = pygame.display.set_mode((800,600)) # Create a new window.
+#screen = pygame.display.set_mode((640,480)) # Create a new window.
+screen = pygame.display.set_mode((800,600)) # Create a new window.
 try: background = pygame.transform.scale(pygame.image.load('Retro/ui/background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
 	background = pygame.Surface(screen.get_size()).convert() 
