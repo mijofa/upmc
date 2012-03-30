@@ -1,6 +1,8 @@
 #!/usr/bin/python
+from time import sleep
 import os
-import magic
+try: import magic
+except: magic = None; import mimetypes
 import pygame
 try: # I would like this to run on Android as well, this section is needed for that to work.
 	import android
@@ -134,22 +136,40 @@ class filemenu():
 			files.sort()
 			return files
 		elif filetype.__contains__('/'):
-			mime = magic.open(magic.MAGIC_MIME)
-			mime.load()
+			if magic:
+				mime = magic.open(magic.MAGIC_MIME)
+				mime.load()
+			else:
+				mime = False
 			out = []
 			for f in os.listdir(directory):
 				if not os.path.isdir(directory+'/'+f):
-					if mime.file(directory+'/'+f).split(';')[0] == filetype:
+					if mime:
+						ftype = mime.file(directory+'/'+f)
+					else:
+						ftype = mimetypes.guess_type(directory+'/'+f)[0]
+					if not ftype:
+						ftype = 'Unknown'
+					if ftype.split(';')[0] == filetype:
 						out.append(directory+'/'+f)
 			out.sort()
 			return out
 		elif not filetype.__contains__('/'):
-			mime = magic.open(magic.MAGIC_MIME)
-			mime.load()
+			if magic:
+				mime = magic.open(magic.MAGIC_MIME)
+				mime.load()
+			else:
+				mime = False
 			out = []
 			for f in os.listdir(directory):
 				if not os.path.isdir(directory+'/'+f):
-					if mime.file(directory+'/'+f).split('/')[0] == filetype:
+					if mime:
+						ftype = mime.file(directory+'/'+f)
+					else:
+						ftype = mimetypes.guess_type(directory+'/'+f)[0]
+					if not ftype:
+						ftype = 'Unknown'
+					if ftype.split('/')[0] == filetype:
 						out.append(directory+'/'+f)
 			out.sort()
 			return out
@@ -210,10 +230,14 @@ class filemenu():
 		rowspace = (screenheight-(len(pagerows)*itemheight))/len(pagerows)
 		colspace = (screenwidth-(len(pagecols)*itemwidth))/len(pagecols)
 		itemnum = -1
+		brake = False
 		for row in xrange(len(pagerows)):
 			for col in xrange(len(pagerows[row])):
 				itemnum += 1
-				item = self.items[itemnum]
+				try: item = self.items[itemnum]
+				except IndexError:
+					brake = True
+					break
 #				if self.itemsinfo[item].has_key('thumb'):
 #					s = pygame.image.load(self.itemsinfo[item]['thumb'])
 #				else:
@@ -230,7 +254,11 @@ class filemenu():
 				self.itemsinfo[item]['buttonloc'] = self.itemsinfo[item]['surface'].get_rect(top=top, left=left)
 				screen.blit(self.itemsinfo[item]['surface'], self.itemsinfo[item]['buttonloc'])
 				screenupdates.append(self.itemsinfo[item]['buttonloc'])
-		pygame.display.update()
+				pygame.display.update(screenupdates)
+				screenupdates = []
+			if brake:
+				break
+		pygame.display.update(screenupdates)
 		screenupdates = []
 		return
 		"""
@@ -270,6 +298,7 @@ class filemenu():
 #				break
 		"""
 	def loop(self):
+#		sleep(10)
 		pass
 ##### End class filemenu()
 
@@ -285,8 +314,8 @@ pygame.display.init()
 #pygame.transform.init() # Doesn't have an '.init()' funtion.
 #pygame.event.init() # Doesn't have an '.init()' funtion.
 
-#screen = pygame.display.set_mode((640,480)) # Create a new window.
-screen = pygame.display.set_mode((800,600)) # Create a new window.
+screen = pygame.display.set_mode((640,480)) # Create a new window.
+#screen = pygame.display.set_mode((800,600)) # Create a new window.
 try: background = pygame.transform.scale(pygame.image.load('Retro/ui/background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
 	background = pygame.Surface(screen.get_size()).convert() 
@@ -301,7 +330,7 @@ if android:
 else:
 	font = pygame.font.Font(pygame.font.match_font(u'trebuchetms'), 36) # Might want to use a non-MS font.
 
-menuitems = [('Videos', vidsmenu), ('Extra item', 'testing'), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
+menuitems = [('Videos', filemenu), ('Extra item', 'testing'), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
 menu = textmenu(menuitems)
 
 ## These should avoid going through the loop unnecessarily (and wasting resources) when there is events that I'm not going to use anyway.
