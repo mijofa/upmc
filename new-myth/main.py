@@ -105,6 +105,8 @@ class textmenu():
 class filemenu():
 	clickables = {}
 	itemsinfo = {}
+	selected = (None, None)
+	pagerows = [[]]
 	items = []
 	cwd = './'
 	def __init__(self):
@@ -226,13 +228,13 @@ class filemenu():
 		itemheight = 190 #280 = 5 on 1050 vertical resolution
 		itemwidth = 120 #210 = 6 on 1680 horizontal resolution
 		pagecols = [None]*(screenwidth/itemwidth)
-		pagerows = [pagecols]*(screenheight/itemheight)
-		rowspace = (screenheight-(len(pagerows)*itemheight))/len(pagerows)
+		self.pagerows = [pagecols]*(screenheight/itemheight)
+		rowspace = (screenheight-(len(self.pagerows)*itemheight))/len(self.pagerows)
 		colspace = (screenwidth-(len(pagecols)*itemwidth))/len(pagecols)
 		itemnum = -1
 		brake = False
-		for row in xrange(len(pagerows)):
-			for col in xrange(len(pagerows[row])):
+		for row in xrange(len(self.pagerows)):
+			for col in xrange(len(self.pagerows[row])):
 				itemnum += 1
 				try: item = self.items[itemnum]
 				except IndexError:
@@ -252,6 +254,7 @@ class filemenu():
 				top = (row*itemheight)+(row*rowspace)+(rowspace/2)
 				left = (col*itemwidth)+(col*colspace)+(colspace/2)
 				self.itemsinfo[item]['buttonloc'] = self.itemsinfo[item]['surface'].get_rect(top=top, left=left)
+				self.pagerows[row][col] = item
 				screen.blit(self.itemsinfo[item]['surface'], self.itemsinfo[item]['buttonloc'])
 				screenupdates.append(self.itemsinfo[item]['buttonloc'])
 				pygame.display.update(screenupdates)
@@ -260,45 +263,67 @@ class filemenu():
 				break
 		pygame.display.update(screenupdates)
 		screenupdates = []
-		return
-		"""
-#		from time import sleep
-		for item in self.items:
-#			if self.itemsinfo[item].has_key('thumb'):
-#				s = pygame.image.load(self.itemsinfo[item]['thumb'])
-#			else:
-			f = font.render(self.itemsinfo[item]['title'], 1, (255,255,255))
-			r = f.get_rect().fit((0,0,itemwidth,itemheight))
-			s = pygame.Surface((itemwidth,itemheight), pygame.SRCALPHA)
-			s.fill((0,0,0,50))
-			f = pygame.transform.scale(f, (r[2], r[3]))
-			s.blit(f, (0,0))
-			self.itemsinfo[item]['surface'] = s #pygame.transform.scale(s, (r[2], r[3]))
-#			screen.blit(pygame.transform.scale(s, (r[2], r[3])), s.get_rect(centerx=screen.get_width()/2,centery=screen.get_height()/2))
-#			pygame.display.update()
-#			if int(self.itemsinfo[item]['itemnum']/2) != 0:
-#				centerx=((itemydist*self.itemsinfo[item]['itemnum'])/int(self.itemsinfo[item]['itemnum']/2))+(itemydist/2)-(itemydist*2)
-#				print int(self.itemsinfo[item]['itemnum']/2), itemydist*self.itemsinfo[item]['itemnum'], (itemydist*self.itemsinfo[item]['itemnum'])/int(self.itemsinfo[item]['itemnum']/2)
-			centerx=(itemxdist*(self.itemsinfo[item]['itemnum']-(int(self.itemsinfo[item]['itemnum']/4)*4)))+(itemxdist)
-#			else:
-#				centerx=(itemydist*self.itemsinfo[item]['itemnum'])+(itemydist/2)
-			centery=(itemydist*int(self.itemsinfo[item]['itemnum']/4))+(itemydist/2)
-			print centery
-#			print centery, centerx
-			self.itemsinfo[item]['screenpos'] = self.itemsinfo[item]['surface'].get_rect(centerx=centerx,centery=centery)# =centerx)
-#			print itemxdist, int(self.itemsinfo[item]['itemnum']/4), (itemxdist/2), (itemydist*self.itemsinfo[item]['itemnum'])+(itemydist/2)
-#			print self.itemsinfo[item]['itemnum'], self.itemsinfo[item]['title'], self.itemsinfo[item]['surface'], self.itemsinfo[item]['screenpos']
-			screen.blit(self.itemsinfo[item]['surface'], self.itemsinfo[item]['screenpos'])
-			screenupdates.append(self.itemsinfo[item]['screenpos'])
-			pygame.display.update(screenupdates)
-			screenupdates = []
-#			try: sleep(1)
-#			except KeyboardInterrupt:
-#				event = userquit()
-#				break
-		"""
+	def mouseselect(self, mousepos):
+		pass
+	def keyselect(self, direction):
+		print direction
+		if not self.selected[0] or self.selected[1]:
+			if direction == 0:
+				self.selected = (self.pagerows[-1], self.pagerows[-1][0])
+			elif direction == 1:
+				self.selected = (self.pagerows[0], self.pagerows[0][0])
+			elif direction == 2:
+				self.selected = (self.pagerows[-1], self.pagerows[-1][-1])
+			elif direction == 3:
+				self.selected = (self.pagerows[0], self.pagerows[0][0])
+			print self.selected
+		elif self.selected:
+			screen.blit(background, (0,0))
+			screen.blit(self.itemsinfo[item]['surface'], self.itemsinfo[item]['buttonloc'])
+			screenupdates.append(self.itemsinfo[item]['buttonloc'])
+			if direction == 0:
+				try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
+				except IndexError: self.selected[0] = self.pagerows[-1]
+			elif direction == 1:
+				try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])+1]
+				except IndexError: self.selected[0] = self.pagerows[0]
+			elif direction == 2:
+				try: self.selected[1] = self.selected[0][self.selected[0].index(self.selected[1])-1]
+				except IndexError:
+					try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])+1]
+					except IndexError: self.selected[0] = self.pagerows[0]
+					self.selected[1] = self.selected[0][-1]
+			elif direction == 3:
+				try: self.selected[1] = self.selected[0][self.selected[0].index(self.selected[1])+1]
+				except IndexError:
+					try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
+					except IndexError: self.selected[0] = self.pagerows[-1]
+					self.selected[1] = self.selected[0][0]
+			print self.selected
 	def loop(self):
 #		sleep(10)
+		global running
+		while running == True:
+			try: event = pygame.event.wait()
+			except KeyboardInterrupt: event = userquit()
+			print event
+			if event.type == pygame.QUIT:
+				running = False
+				pygame.quit()
+			elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
+				self.keyselect(0)
+			elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
+				self.keyselect(1)
+			elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
+				self.keyselect(2)
+			elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
+				self.keyselect(3)
+			elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+				self.action()
+			elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+				userquit()
+			else:
+				pass
 		pass
 ##### End class filemenu()
 
@@ -314,8 +339,8 @@ pygame.display.init()
 #pygame.transform.init() # Doesn't have an '.init()' funtion.
 #pygame.event.init() # Doesn't have an '.init()' funtion.
 
-screen = pygame.display.set_mode((640,480)) # Create a new window.
-#screen = pygame.display.set_mode((800,600)) # Create a new window.
+#screen = pygame.display.set_mode((640,480)) # Create a new window.
+screen = pygame.display.set_mode((800,600)) # Create a new window.
 try: background = pygame.transform.scale(pygame.image.load('Retro/ui/background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
 	background = pygame.Surface(screen.get_size()).convert() 
