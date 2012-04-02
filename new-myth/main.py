@@ -1,8 +1,15 @@
 #!/usr/bin/python
 from time import sleep
 import os
-try: import magic
-except: magic = None; import mimetypes
+import subprocess
+try:
+	import magic_nonexistent # this ended up being too slow, I have disabled it, for now atleast.
+	mime = magic.open(magic.MAGIC_MIME)
+	mime.load()
+except ImportError:
+	magic = None
+	import mimetypes
+	mime = False
 import pygame
 try: # I would like this to run on Android as well, this section is needed for that to work.
 	import android
@@ -17,6 +24,7 @@ global screenupdates
 screenupdates = []
 global running
 running = True
+rootdir = os.getcwd()
 
 def userquit():
 	pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
@@ -116,19 +124,23 @@ class filemenu():
 	def find(self, directory = cwd, filetype = ''):
 		dirs = []
 		files = []
-		if filetype == '':
+		if filetype == '' or filetype == 'all':
 			for f in os.listdir(directory):
+				print f
 				if os.path.isdir(f):
 					dirs.append(f + '/')
 				else:
 					files.append(f)
 			dirs.sort()
 			files.sort()
-			return dirs + files
+			if filetype == 'all':
+				return dirs, files
+			else:
+				return dirs + files
 		elif filetype == 'directory' or filetype == 'dir' or filetype == 'd':
 			for f in os.listdir(directory):
 				if os.path.isdir(f):
-					dirs.append(f)
+					dirs.append(f + '/')
 			dirs.sort()
 			return dirs
 		elif filetype == 'file' or filetype == 'f':
@@ -138,51 +150,68 @@ class filemenu():
 			files.sort()
 			return files
 		elif filetype.__contains__('/'):
-			if magic:
-				mime = magic.open(magic.MAGIC_MIME)
-				mime.load()
-			else:
-				mime = False
 			out = []
 			for f in os.listdir(directory):
 				if not os.path.isdir(directory+'/'+f):
 					if mime:
 						ftype = mime.file(directory+'/'+f)
+						"""while ftype == 'application/x-symlink':
+							if not newf: newf = fV
+							else: newf = os.readlink(f)
+							ftype = mime.file(directory+'/'+newf)"""
 					else:
 						ftype = mimetypes.guess_type(directory+'/'+f)[0]
+						"""while ftype == 'application/x-symlink':
+							if not newf: newf = fV
+							else: newf = os.readlink(f)
+							ftype = mimetypes.guess_type(directory+'/'+newf)[0]"""
 					if not ftype:
 						ftype = 'Unknown'
 					if ftype.split(';')[0] == filetype:
-						out.append(directory+'/'+f)
+						out.append(f)
 			out.sort()
 			return out
 		elif not filetype.__contains__('/'):
-			if magic:
-				mime = magic.open(magic.MAGIC_MIME)
-				mime.load()
-			else:
-				mime = False
 			out = []
 			for f in os.listdir(directory):
 				if not os.path.isdir(directory+'/'+f):
 					if mime:
 						ftype = mime.file(directory+'/'+f)
+						if not ftype:
+							ftype = 'Unknown'
+						"""while ftype == 'application/x-symlink':
+							if not newf: newf = fV
+							else: newf = os.readlink(f)
+							ftype = mime.file(directory+'/'+newf)"""
 					else:
 						ftype = mimetypes.guess_type(directory+'/'+f)[0]
-					if not ftype:
-						ftype = 'Unknown'
+						if not ftype:
+							ftype = 'Unknown'
+						"""while ftype == 'application/x-symlink':
+							if not newf: newf = fV
+							else: newf = os.readlink(f)
+							ftype = mimetypes.guess_type(directory+'/'+newf)[0]"""
 					if ftype.split('/')[0] == filetype:
-						out.append(directory+'/'+f)
+						out.append(f)
 			out.sort()
 			return out
 		else:
 			raise Exception("WTF did you do? That's not even possible. O.o")
 	def builditems(self):
-		itemnum = -1
+		itemnum = 0
 		self.itemsinfo = {}
 		self.items = []
+		if os.getcwd() != rootdir:
+			self.items.append('../')
+			self.itemsinfo['../'] = {}
+			self.itemsinfo['../']['file'] = False
+			self.itemsinfo['../']['title'] = '../'
+			self.itemsinfo['../']['itemnum'] = 0
+			self.itemsinfo['../']['filename'] = '../'
+#		dirs, files = self.find(filetype='all')
 		for item in self.find(filetype='directory'):
 			if not item.startswith('.'):
+				print item
 				itemnum += 1
 				self.items.append(item)
 				if not self.itemsinfo.has_key(item):
@@ -193,10 +222,12 @@ class filemenu():
 				self.itemsinfo[item]['filename'] = item + '/'
 				for thumb in self.find(item, 'image'):
 					if thumb.startswith('folder.'):
-						items[item]['thumb'] = item + '/' + thumb
+						print item
+						self.itemsinfo[item]['thumb'] = item + '/' + thumb
 						break
-		for filename in self.find(filetype='file'):
+		for filename in self.find(filetype='video'): # Update the filetype when you have proper test files
 			if not filename.startswith('.'):
+				print filename
 				item = filename.rpartition('.')
 				if item[1] == '.':
 					item = item[0]
@@ -212,7 +243,8 @@ class filemenu():
 				self.itemsinfo[item]['filename'] = filename
 		for filename in self.find(filetype='image'):
 			if not filename.startswith('.'):
-				item = filename.rpartition('.')[0]
+				print item
+				item = filename.rpartition('.')
 				if item[1] == '.':
 					item = item[0]
 				else:
@@ -244,20 +276,20 @@ class filemenu():
 				except IndexError:
 					brake = True
 					break
-#				if self.itemsinfo[item].has_key('thumb'):
-#					s = pygame.image.load(self.itemsinfo[item]['thumb'])
-#				else:
-#	
-				f = font.render(self.itemsinfo[item]['title'], 1, (255,255,255))
-				r = f.get_rect().fit((0,0,itemwidth,itemheight))
+				if self.itemsinfo[item].has_key('thumb'):
+					i = pygame.image.load(self.itemsinfo[item]['thumb'])
+				else:
+					i = font.render(self.itemsinfo[item]['title'], 1, (255,255,255))
+				r = i.get_rect().fit((0,0,itemwidth,itemheight))
 				s = pygame.Surface((itemwidth,itemheight), pygame.SRCALPHA)
 				s.fill((0,0,0,50))
-				f = pygame.transform.scale(f, (r[2], r[3]))
-				s.blit(f, (0,0))
+				i = pygame.transform.smoothscale(i.convert_alpha(), (r[2], r[3]))
+				s.blit(i, ((itemwidth-r[2])/2, (itemheight-r[3])/2))
 				self.itemsinfo[item]['surface'] = s #pygame.transform.scale(s, (r[2], r[3]))
 				top = (rownum*itemheight)+(rownum*rowspace)+(rowspace/2)
 				left = (colnum*itemwidth)+(colnum*colspace)+(colspace/2)
 				self.itemsinfo[item]['buttonloc'] = self.itemsinfo[item]['surface'].get_rect(top=top, left=left)
+				self.clickables.update({tuple(self.itemsinfo[item]['buttonloc'][0:4]): item})
 				col = item
 				screen.blit(self.itemsinfo[item]['surface'], self.itemsinfo[item]['buttonloc'])
 				screenupdates.append(self.itemsinfo[item]['buttonloc'])
@@ -265,13 +297,55 @@ class filemenu():
 				screenupdates = []
 				row.append(col)
 			self.pagerows.append(row)
-			print self.pagerows
 			if brake:
 				break
 		pygame.display.update(screenupdates)
 		screenupdates = []
 	def mouseselect(self, mousepos):
-		pass
+		global screenupdates
+		try: item = pygame.Rect(mousepos[0],mousepos[1],0,0).collidedict(self.clickables)[1]
+		except TypeError: item = None
+		if item and item != self.selected[1]:
+			if self.selected[1]:
+				screen.blit(background, (0,0))
+				screen.blit(self.itemsinfo[self.selected[1]]['surface'], self.itemsinfo[self.selected[1]]['buttonloc'])
+				screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
+			b = pygame.Surface(self.itemsinfo[item]['buttonloc'][2:4], pygame.SRCALPHA)
+			b.fill((0,0,0,50))
+			s = pygame.Surface(self.itemsinfo[item]['buttonloc'][2:4], pygame.SRCALPHA)
+			s.blit(self.itemsinfo[item]['surface'], (0,0))
+			s.blit(b, (0,0))
+			screen.blit(s, self.itemsinfo[item]['buttonloc'])
+			screenupdates.append(self.itemsinfo[item]['buttonloc'])
+			pygame.display.update(screenupdates)
+			screenupdates = []
+	"""
+	def mouseselect(self, mousepos):
+		global screenupdates
+		# This will highlight an item based on the current mouse location, this should be called anytime the mouse moves.
+		item = pygame.Rect(mousepos[0],mousepos[1],0,0).collidedict(self.clickables)
+		if item and self.realmenuitems[item[1]] != self.selected:
+			if self.selected:
+				screen.blit(background, (0,0))
+				screen.blit(self.selected[0], self.selected[2])
+				screenupdates.append(self.selected[2])
+			self.selected = self.realmenuitems[item[1]]
+			s = pygame.Surface(self.selected[2][2:4], pygame.SRCALPHA)
+			s.fill((0,0,0,50))
+			s.blit(self.selected[0], (0,0))
+			screen.blit(s, self.selected[2])
+			screenupdates.append(self.selected[2])
+			pygame.display.update(screenupdates)
+			screenupdates = []
+		elif not item and self.selected != None:
+			screen.blit(background, (0,0))
+			screen.blit(self.selected[0], self.selected[2])
+			screenupdates.append(self.selected[2])
+			pygame.display.update(screenupdates)
+			screenupdates = []
+			self.selected = None
+		return self.selected
+	"""
 	def keyselect(self, direction):
 		global screenupdates
 		if not self.selected[0] or not self.selected[1]:
@@ -283,13 +357,11 @@ class filemenu():
 				self.selected = [self.pagerows[-1], self.pagerows[-1][-1]]
 			elif direction == 3:
 				self.selected = [self.pagerows[0], self.pagerows[0][0]]
-			print self.selected
 		elif self.selected[0] and self.selected[1]:
 			screen.blit(background, (0,0))
 			screen.blit(self.itemsinfo[self.selected[1]]['surface'], self.itemsinfo[self.selected[1]]['buttonloc'])
 			screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
 			if direction == 0:
-				print 'selected', self.selected
 				colnum = self.selected[0].index(self.selected[1])
 				try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
 				except IndexError: self.selected[0] = self.pagerows[-1]
@@ -313,21 +385,21 @@ class filemenu():
 					try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])+1]
 					except IndexError: self.selected[0] = self.pagerows[0]
 					self.selected[1] = self.selected[0][0]
+		b = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
+		b.fill((0,0,0,50))
 		s = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
-		s.fill((0,0,0,50))
 		s.blit(self.itemsinfo[self.selected[1]]['surface'], (0,0))
+		s.blit(b, (0,0))
 		screen.blit(s, self.itemsinfo[self.selected[1]]['buttonloc'])
 		screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
 		pygame.display.update(screenupdates)
 		screenupdates = []
-		print self.selected
 	def loop(self):
 #		sleep(10)
 		global running
 		while running == True:
 			try: event = pygame.event.wait()
 			except KeyboardInterrupt: event = userquit()
-			print event
 			if event.type == pygame.QUIT:
 				running = False
 				pygame.quit()
@@ -343,9 +415,21 @@ class filemenu():
 				self.action()
 			elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
 				userquit()
+			elif event.type == pygame.MOUSEMOTION:
+				self.mouseselect(event.pos)
 			else:
 				pass
 		pass
+	def action(self):
+		if self.itemsinfo[self.selected[1]]['file']:
+			print self.itemsinfo[self.selected[1]]
+			extprogram = subprocess.Popen(['file',self.itemsinfo[self.selected[1]]['filename']])
+			extprogram.wait()
+		elif not self.itemsinfo[self.selected[1]]['file']:
+			os.chdir(self.itemsinfo[self.selected[1]]['filename'])
+			self.selected = [None, None]
+			self.builditems()
+			self.render()
 ##### End class filemenu()
 
 def vidsmenu():
