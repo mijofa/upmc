@@ -42,10 +42,10 @@ class textmenu():
 		if not menuitems:
 			for text, item, textpos in self.realmenuitems:
 				if self.selected and self.selected[0] == text and self.selected[2] == textpos:
-					s = pygame.Surface(self.selected[2][2:4], pygame.SRCALPHA)
-					s.fill((0,0,0,50))
-					s.blit(self.selected[0], (0,0))
-					screen.blit(s, self.selected[2])
+					surf = pygame.Surface(self.selected[2][2:4], pygame.SRCALPHA)
+					surf.fill((0,0,0,50))
+					surf.blit(self.selected[0], (0,0))
+					screen.blit(surf, self.selected[2])
 				screen.blit(text, textpos)
 				screenupdates.append(textpos)
 		else:
@@ -72,10 +72,10 @@ class textmenu():
 				screen.blit(self.selected[0], self.selected[2])
 				screenupdates.append(self.selected[2])
 			self.selected = self.realmenuitems[item[1]]
-			s = pygame.Surface(self.selected[2][2:4], pygame.SRCALPHA)
-			s.fill((0,0,0,50))
-			s.blit(self.selected[0], (0,0))
-			screen.blit(s, self.selected[2])
+			surf = pygame.Surface(self.selected[2][2:4], pygame.SRCALPHA)
+			surf.fill((0,0,0,50))
+			surf.blit(self.selected[0], (0,0))
+			screen.blit(surf, self.selected[2])
 			screenupdates.append(self.selected[2])
 			pygame.display.update(screenupdates)
 			screenupdates = []
@@ -104,10 +104,10 @@ class textmenu():
 			elif direction == True:
 				try: self.selected = self.realmenuitems[self.realmenuitems.index(self.selected)+1]
 				except IndexError: self.selected = self.realmenuitems[0]
-		s = pygame.Surface(self.selected[2][2:4], pygame.SRCALPHA)
-		s.fill((0,0,0,50))
-		s.blit(self.selected[0], (0,0))
-		screen.blit(s, self.selected[2])
+		surf = pygame.Surface(self.selected[2][2:4], pygame.SRCALPHA)
+		surf.fill((0,0,0,50))
+		surf.blit(self.selected[0], (0,0))
+		screen.blit(surf, self.selected[2])
 		screenupdates.append(self.selected[2])
 		pygame.display.update(screenupdates)
 		screenupdates = []
@@ -269,8 +269,6 @@ class filemenu():
 		screenwidth = screen.get_width()
 		itemheight = 190 #280 = 5 on 1050 vertical resolution
 		itemwidth = 120 #210 = 6 on 1680 horizontal resolution
-#		pagecols = [None]*(screenwidth/itemwidth)
-#		self.pagerows = [[None]*(screenwidth/itemwidth)]*(screenheight/itemheight)
 		numcols = screenwidth/itemwidth
 		numrows = screenheight/itemheight
 		self.pagerows = []
@@ -278,18 +276,15 @@ class filemenu():
 		colspace = (screenwidth-(numcols*itemwidth))/numcols
 		if rowoffset < 0 and len(self.items) > (numrows*numcols):
 			rowoffset = -(((numrows*numcols)-len(self.items))/numcols)
-#		elif rowoffset < 0:
-#			pygame.display.update(screenupdates)
-#			screenupdates = []
 		elif rowoffset > -(((numrows*numcols)-len(self.items))/numcols):
 			rowoffset = 0
 		itemnum = -1
 		self.clickables = {}
 		brake = False
 		while True:
-			row = []
 			if not itemnum < (rowoffset*numcols)-1:
 				for rownum in xrange(numrows):
+					row = []
 					for colnum in xrange(numcols):
 						itemnum += 1
 						try: item = self.items[itemnum]
@@ -313,9 +308,7 @@ class filemenu():
 						self.clickables.update({tuple(self.itemsinfo[item]['buttonloc'][0:4]): item})
 						col = item
 						screen.blit(self.itemsinfo[item]['surface'], self.itemsinfo[item]['buttonloc'])
-						screenupdates.append(self.itemsinfo[item]['buttonloc'])
-						pygame.display.update(screenupdates)
-						screenupdates = []
+						pygame.display.update(self.itemsinfo[item]['buttonloc'])
 						row.append(col)
 					self.pagerows.append(row)
 					if brake:
@@ -323,8 +316,6 @@ class filemenu():
 				break
 			else:
 				itemnum = itemnum+numcols
-		pygame.display.update(screenupdates)
-		screenupdates = []
 		self.rowoffset = rowoffset
 	def mouseselect(self, mousepos):
 		global screenupdates
@@ -366,34 +357,49 @@ class filemenu():
 		elif self.selected[0] and self.selected[1]:
 			if direction == 0:
 				colnum = self.selected[0].index(self.selected[1])
-				try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
-				except IndexError: self.selected[0] = self.pagerows[-1]
-				self.selected[1] = self.selected[0][colnum]
+				if self.pagerows.index(self.selected[0]) == 0:
+					self.scroll(0,1)
+					try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
+					except ValueError: self.selected[0] = self.pagerows[-1]
+				else: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
+				try: self.selected[1] = self.selected[0][colnum]
+				except IndexError: self.selected[1] = self.selected[0][-1]
 			elif direction == 1:
 				colnum = self.selected[0].index(self.selected[1])
 				try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])+1]
-				except IndexError: self.selected[0] = self.pagerows[0]
-				self.selected[1] = self.selected[0][colnum]
-			elif direction == 2:
-				try: 
-					if self.selected[0].index(self.selected[1])-1 == -1: raise IndexError
-					else: self.selected[1] = self.selected[0][self.selected[0].index(self.selected[1])-1]
 				except IndexError:
-					try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
-					except IndexError: self.selected[0] = self.pagerows[0]
-					self.selected[1] = self.selected[0][-1]
+					self.scroll(1,1)
+					try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])+1]
+					except ValueError: self.selected[0] = self.pagerows[0]
+				try: self.selected[1] = self.selected[0][colnum]
+				except IndexError: self.selected[1] = self.selected[0][-1]
+			elif direction == 2:
+				if self.selected[0].index(self.selected[1]) == 0:
+					if self.pagerows.index(self.selected[0]) == 0:
+						self.scroll(0,1)
+						try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
+						except ValueError: self.selected[0] = self.pagerows[-1]
+						self.selected[1] = self.selected[0][-1]
+					else:
+						self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
+						self.selected[1] = self.selected[0][-1]
+				else:
+					self.selected[1] = self.selected[0][self.selected[0].index(self.selected[1])-1]
 			elif direction == 3:
 				try: self.selected[1] = self.selected[0][self.selected[0].index(self.selected[1])+1]
 				except IndexError:
 					try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])+1]
-					except IndexError: self.selected[0] = self.pagerows[0]
+					except IndexError:
+						self.scroll(1,1)
+						try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])+1]
+						except ValueError: self.selected[0] = self.pagerows[0]
 					self.selected[1] = self.selected[0][0]
-		b = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
-		b.fill((0,0,0,50))
-		s = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
-		s.blit(self.itemsinfo[self.selected[1]]['surface'], (0,0))
-		s.blit(b, (0,0))
-		screen.blit(s, self.itemsinfo[self.selected[1]]['buttonloc'])
+		butbg = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
+		butbg.fill((0,0,0,50))
+		surf = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
+		surf.blit(self.itemsinfo[self.selected[1]]['surface'], (0,0))
+		surf.blit(butbg, (0,0))
+		screen.blit(surf, self.itemsinfo[self.selected[1]]['buttonloc'])
 		screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
 		pygame.display.update(screenupdates)
 		screenupdates = []
@@ -404,7 +410,6 @@ class filemenu():
 			self.rowoffset = self.rowoffset-distance
 		self.render(rowoffset=self.rowoffset)
 	def loop(self):
-#		sleep(10)
 		global running
 		while running == True:
 			try: event = pygame.event.wait()
@@ -423,9 +428,9 @@ class filemenu():
 			elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
 				self.action(self.selected[1])
 			elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-				screen.blit(background, (0,0)) # Put the background on the window.
-				pygame.display.update() # Update the display.
 				if self.action('../') == pygame.QUIT:
+					screen.blit(background, (0,0)) # Put the background on the window.
+					pygame.display.update() # Update the display.
 					return
 			elif event.type == pygame.MOUSEMOTION:
 				self.mouseselect(event.pos)
