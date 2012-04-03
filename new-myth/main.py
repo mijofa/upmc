@@ -34,20 +34,32 @@ class textmenu():
 	clickables = {}
 	realmenuitems = []
 	selected = None
-	def __init__(self, menuitems):
+	def __init__(self, menuitems = None):
+		return self.render(menuitems)
+	def render(self, menuitems = None):
 		global screenupdates
 		# This puts the menu items on the screen and populates the necessary variables for selecting the items later.
-		itemheight = screen.get_height()/len(menuitems)
-		itemnum = -1
-		for item in menuitems:
-			itemnum += 1
-			text = font.render(item[0], 1, (255,255,255))
-#			textpos = text.get_rect(centerx=screen.get_width()/2,centery=(itemheight*itemnum)+(itemheight/2))
-			textpos = text.get_rect(centerx=screen.get_width()/2,centery=(itemheight*itemnum)+(itemheight/2))
-			self.clickables.update({tuple(textpos[0:4]): itemnum})#(text, item[1])})
-			self.realmenuitems.append((text, item[1], textpos))
-			screen.blit(text, textpos)
-			screenupdates.append(textpos)
+		if not menuitems:
+			for text, item, textpos in self.realmenuitems:
+				if self.selected and self.selected[0] == text and self.selected[2] == textpos:
+					s = pygame.Surface(self.selected[2][2:4], pygame.SRCALPHA)
+					s.fill((0,0,0,50))
+					s.blit(self.selected[0], (0,0))
+					screen.blit(s, self.selected[2])
+				screen.blit(text, textpos)
+				screenupdates.append(textpos)
+		else:
+			itemheight = screen.get_height()/len(menuitems)
+			itemnum = -1
+			for item in menuitems:
+				itemnum += 1
+				text = font.render(item[0], 1, (255,255,255))
+#				textpos = text.get_rect(centerx=screen.get_width()/2,centery=(itemheight*itemnum)+(itemheight/2))
+				textpos = text.get_rect(centerx=screen.get_width()/2,centery=(itemheight*itemnum)+(itemheight/2))
+				self.clickables.update({tuple(textpos[0:4]): itemnum})#(text, item[1])})
+				self.realmenuitems.append((text, item[1], textpos))
+				screen.blit(text, textpos)
+				screenupdates.append(textpos)
 		pygame.display.update(screenupdates)
 		screenupdates = []
 	def mouseselect(self, mousepos):
@@ -105,9 +117,11 @@ class textmenu():
 			print self.selected[1]
 		else:
 			if args != None:
-				return self.selected[1](args)
+				out = self.selected[1](args)
 			else:
-				return self.selected[1]()
+				out = self.selected[1]()
+			self.render()
+			return out
 ##### End class textmenu()
 
 class filemenu():
@@ -117,6 +131,7 @@ class filemenu():
 	pagerows = [[]]
 	items = []
 	cwd = './'
+	rowoffset = 0
 	def __init__(self):
 		self.builditems()
 		self.render()
@@ -126,7 +141,6 @@ class filemenu():
 		files = []
 		if filetype == '' or filetype == 'all':
 			for f in os.listdir(directory):
-				print f
 				if os.path.isdir(f):
 					dirs.append(f + '/')
 				else:
@@ -211,7 +225,6 @@ class filemenu():
 #		dirs, files = self.find(filetype='all')
 		for item in self.find(filetype='directory'):
 			if not item.startswith('.'):
-				print item
 				itemnum += 1
 				self.items.append(item)
 				if not self.itemsinfo.has_key(item):
@@ -222,12 +235,10 @@ class filemenu():
 				self.itemsinfo[item]['filename'] = item + '/'
 				for thumb in self.find(item, 'image'):
 					if thumb.startswith('folder.'):
-						print item
 						self.itemsinfo[item]['thumb'] = item + '/' + thumb
 						break
 		for filename in self.find(filetype='video'): # Update the filetype when you have proper test files
 			if not filename.startswith('.'):
-				print filename
 				item = filename.rpartition('.')
 				if item[1] == '.':
 					item = item[0]
@@ -243,7 +254,6 @@ class filemenu():
 				self.itemsinfo[item]['filename'] = filename
 		for filename in self.find(filetype='image'):
 			if not filename.startswith('.'):
-				print item
 				item = filename.rpartition('.')
 				if item[1] == '.':
 					item = item[0]
@@ -251,7 +261,7 @@ class filemenu():
 					item = item[2]
 				if self.itemsinfo.has_key(item):
 					self.itemsinfo[item]['thumb'] = filename
-	def render(self, directory = cwd):
+	def render(self, directory = cwd, rowoffset = 0):
 		global screenupdates
 		screen.blit(background, (0,0))
 		pygame.display.update()
@@ -266,41 +276,56 @@ class filemenu():
 		self.pagerows = []
 		rowspace = (screenheight-(numrows*itemheight))/numrows
 		colspace = (screenwidth-(numcols*itemwidth))/numcols
+		if rowoffset < 0 and len(self.items) > (numrows*numcols):
+			rowoffset = -(((numrows*numcols)-len(self.items))/numcols)
+#		elif rowoffset < 0:
+#			pygame.display.update(screenupdates)
+#			screenupdates = []
+		elif rowoffset > -(((numrows*numcols)-len(self.items))/numcols):
+			rowoffset = 0
 		itemnum = -1
+		self.clickables = {}
 		brake = False
-		for rownum in xrange(numrows):
+		while True:
 			row = []
-			for colnum in xrange(numcols):
-				itemnum += 1
-				try: item = self.items[itemnum]
-				except IndexError:
-					brake = True
-					break
-				if self.itemsinfo[item].has_key('thumb'):
-					i = pygame.image.load(self.itemsinfo[item]['thumb'])
-				else:
-					i = font.render(self.itemsinfo[item]['title'], 1, (255,255,255))
-				r = i.get_rect().fit((0,0,itemwidth,itemheight))
-				s = pygame.Surface((itemwidth,itemheight), pygame.SRCALPHA)
-				s.fill((0,0,0,50))
-				i = pygame.transform.smoothscale(i.convert_alpha(), (r[2], r[3]))
-				s.blit(i, ((itemwidth-r[2])/2, (itemheight-r[3])/2))
-				self.itemsinfo[item]['surface'] = s #pygame.transform.scale(s, (r[2], r[3]))
-				top = (rownum*itemheight)+(rownum*rowspace)+(rowspace/2)
-				left = (colnum*itemwidth)+(colnum*colspace)+(colspace/2)
-				self.itemsinfo[item]['buttonloc'] = self.itemsinfo[item]['surface'].get_rect(top=top, left=left)
-				self.clickables.update({tuple(self.itemsinfo[item]['buttonloc'][0:4]): item})
-				col = item
-				screen.blit(self.itemsinfo[item]['surface'], self.itemsinfo[item]['buttonloc'])
-				screenupdates.append(self.itemsinfo[item]['buttonloc'])
-				pygame.display.update(screenupdates)
-				screenupdates = []
-				row.append(col)
-			self.pagerows.append(row)
-			if brake:
+			if not itemnum < (rowoffset*numcols)-1:
+				for rownum in xrange(numrows):
+					for colnum in xrange(numcols):
+						itemnum += 1
+						try: item = self.items[itemnum]
+						except IndexError:
+							brake = True
+							break
+						if not self.itemsinfo[item].has_key('surface'):
+							if self.itemsinfo[item].has_key('thumb'):
+								thumb = pygame.image.load(self.itemsinfo[item]['thumb'])
+							else:
+								thumb = font.render(self.itemsinfo[item]['title'], 1, (255,255,255))
+							rect = thumb.get_rect().fit((0,0,itemwidth,itemheight))
+							surf = pygame.Surface((itemwidth,itemheight), pygame.SRCALPHA)
+							surf.fill((0,0,0,50))
+							thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (rect[2], rect[3]))
+							surf.blit(thumb, ((itemwidth-rect[2])/2, (itemheight-rect[3])/2))
+							self.itemsinfo[item]['surface'] = surf
+						top = (rownum*itemheight)+(rownum*rowspace)+(rowspace/2)
+						left = (colnum*itemwidth)+(colnum*colspace)+(colspace/2)
+						self.itemsinfo[item]['buttonloc'] = self.itemsinfo[item]['surface'].get_rect(top=top, left=left)
+						self.clickables.update({tuple(self.itemsinfo[item]['buttonloc'][0:4]): item})
+						col = item
+						screen.blit(self.itemsinfo[item]['surface'], self.itemsinfo[item]['buttonloc'])
+						screenupdates.append(self.itemsinfo[item]['buttonloc'])
+						pygame.display.update(screenupdates)
+						screenupdates = []
+						row.append(col)
+					self.pagerows.append(row)
+					if brake:
+						break
 				break
+			else:
+				itemnum = itemnum+numcols
 		pygame.display.update(screenupdates)
 		screenupdates = []
+		self.rowoffset = rowoffset
 	def mouseselect(self, mousepos):
 		global screenupdates
 		try: item = pygame.Rect(mousepos[0],mousepos[1],0,0).collidedict(self.clickables)[1]
@@ -310,44 +335,25 @@ class filemenu():
 				screen.blit(background, (0,0))
 				screen.blit(self.itemsinfo[self.selected[1]]['surface'], self.itemsinfo[self.selected[1]]['buttonloc'])
 				screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
-			b = pygame.Surface(self.itemsinfo[item]['buttonloc'][2:4], pygame.SRCALPHA)
-			b.fill((0,0,0,50))
-			s = pygame.Surface(self.itemsinfo[item]['buttonloc'][2:4], pygame.SRCALPHA)
-			s.blit(self.itemsinfo[item]['surface'], (0,0))
-			s.blit(b, (0,0))
-			screen.blit(s, self.itemsinfo[item]['buttonloc'])
+			self.selected = [None, item]
+			butbg = pygame.Surface(self.itemsinfo[item]['buttonloc'][2:4], pygame.SRCALPHA)
+			butbg.fill((0,0,0,50))
+			surf = pygame.Surface(self.itemsinfo[item]['buttonloc'][2:4], pygame.SRCALPHA)
+			surf.blit(self.itemsinfo[item]['surface'], (0,0))
+			surf.blit(butbg, (0,0))
+			screen.blit(surf, self.itemsinfo[item]['buttonloc'])
 			screenupdates.append(self.itemsinfo[item]['buttonloc'])
 			pygame.display.update(screenupdates)
 			screenupdates = []
-	"""
-	def mouseselect(self, mousepos):
-		global screenupdates
-		# This will highlight an item based on the current mouse location, this should be called anytime the mouse moves.
-		item = pygame.Rect(mousepos[0],mousepos[1],0,0).collidedict(self.clickables)
-		if item and self.realmenuitems[item[1]] != self.selected:
-			if self.selected:
-				screen.blit(background, (0,0))
-				screen.blit(self.selected[0], self.selected[2])
-				screenupdates.append(self.selected[2])
-			self.selected = self.realmenuitems[item[1]]
-			s = pygame.Surface(self.selected[2][2:4], pygame.SRCALPHA)
-			s.fill((0,0,0,50))
-			s.blit(self.selected[0], (0,0))
-			screen.blit(s, self.selected[2])
-			screenupdates.append(self.selected[2])
-			pygame.display.update(screenupdates)
-			screenupdates = []
-		elif not item and self.selected != None:
-			screen.blit(background, (0,0))
-			screen.blit(self.selected[0], self.selected[2])
-			screenupdates.append(self.selected[2])
-			pygame.display.update(screenupdates)
-			screenupdates = []
-			self.selected = None
-		return self.selected
-	"""
+			return self.selected[1]
+		elif item == self.selected[1]:
+			return self.selected[1]
 	def keyselect(self, direction):
 		global screenupdates
+		if self.selected[1]:
+			screen.blit(background, (0,0))
+			screen.blit(self.itemsinfo[self.selected[1]]['surface'], self.itemsinfo[self.selected[1]]['buttonloc'])
+			screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
 		if not self.selected[0] or not self.selected[1]:
 			if direction == 0:
 				self.selected = [self.pagerows[-1], self.pagerows[-1][0]]
@@ -358,9 +364,6 @@ class filemenu():
 			elif direction == 3:
 				self.selected = [self.pagerows[0], self.pagerows[0][0]]
 		elif self.selected[0] and self.selected[1]:
-			screen.blit(background, (0,0))
-			screen.blit(self.itemsinfo[self.selected[1]]['surface'], self.itemsinfo[self.selected[1]]['buttonloc'])
-			screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
 			if direction == 0:
 				colnum = self.selected[0].index(self.selected[1])
 				try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
@@ -394,6 +397,12 @@ class filemenu():
 		screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
 		pygame.display.update(screenupdates)
 		screenupdates = []
+	def scroll(self, direction, distance = 1):
+		if direction:
+			self.rowoffset = self.rowoffset+distance
+		else:
+			self.rowoffset = self.rowoffset-distance
+		self.render(rowoffset=self.rowoffset)
 	def loop(self):
 #		sleep(10)
 		global running
@@ -412,28 +421,38 @@ class filemenu():
 			elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
 				self.keyselect(3)
 			elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-				self.action()
+				self.action(self.selected[1])
 			elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-				userquit()
+				screen.blit(background, (0,0)) # Put the background on the window.
+				pygame.display.update() # Update the display.
+				if self.action('../') == pygame.QUIT:
+					return
 			elif event.type == pygame.MOUSEMOTION:
 				self.mouseselect(event.pos)
-			else:
-				pass
-		pass
-	def action(self):
-		if self.itemsinfo[self.selected[1]]['file']:
-			print self.itemsinfo[self.selected[1]]
-			extprogram = subprocess.Popen(['file',self.itemsinfo[self.selected[1]]['filename']])
+			elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+				released = False
+				item = self.mouseselect(event.pos)
+				if item:
+					while released != True:
+						event = pygame.event.wait()
+						if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+							released = True
+							if self.mouseselect(event.pos) == item:
+								self.action(self.selected[1])
+			elif event.type == pygame.MOUSEBUTTONDOWN and (event.button == 4 or event.button == 5):
+				self.scroll(event.button==5, 1)
+	def action(self, selected):
+		if selected == '../' and not self.itemsinfo.has_key(selected):
+			return pygame.QUIT
+		elif self.itemsinfo[selected]['file']:
+			extprogram = subprocess.Popen(['file',self.itemsinfo[selected]['filename']])
 			extprogram.wait()
-		elif not self.itemsinfo[self.selected[1]]['file']:
-			os.chdir(self.itemsinfo[self.selected[1]]['filename'])
+		elif not self.itemsinfo[selected]['file']:
+			os.chdir(self.itemsinfo[selected]['filename'])
 			self.selected = [None, None]
 			self.builditems()
 			self.render()
 ##### End class filemenu()
-
-def vidsmenu():
-	filemenu()
 
 ## The Pygame modules need to be initialised before they can be used.
 ### The Pygame docs say to just initialise *everything* at once, I think this is wasteful and am only initialising the bits I'm using.
@@ -473,6 +492,8 @@ while running == True:
 	if event.type == pygame.QUIT:
 		running = False
 		pygame.quit()
+	elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+		userquit()
 	elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
 		released = False
 		item = menu.mouseselect(event.pos)
@@ -483,8 +504,6 @@ while running == True:
 					released = True
 					if menu.mouseselect(event.pos) == item:
 						menu.action()
-					else:
-						print 'User changed their mind and released the button elsewhere.'
 	elif event.type == pygame.MOUSEMOTION:
 		menu.mouseselect(event.pos)
 	elif event.type == pygame.KEYDOWN and (event.key == pygame.K_UP or event.key == pygame.K_DOWN):
