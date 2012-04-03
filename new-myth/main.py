@@ -30,6 +30,136 @@ def userquit():
 	pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
 	return pygame.event.Event(pygame.QUIT, {})
 
+# draw some text into an area of a surface
+# automatically wraps words
+# returns any text that didn't get blitted
+def drawText(surface, text, color, rect, font, aa=False, bkg=None):
+    rect = pygame.Rect(rect)
+    y = rect.top
+    lineSpacing = -2
+
+    # get the height of the font
+    fontHeight = font.size("Tg")[1]
+
+    while text:
+        i = 1
+
+        # determine if the row of text will be outside our area
+        if y + fontHeight > rect.bottom:
+            break
+
+        # determine maximum width of line
+        while font.size(text[:i])[0] < rect.width and i < len(text):
+            i += 1
+
+        # if we've wrapped the text, then adjust the wrap to the last word      
+        if i < len(text): 
+            i = text.rfind(" ", 0, i) + 1
+
+        # render the line and blit it to the surface
+        if bkg:
+            image = font.render(text[:i], 1, color, bkg)
+            image.set_colorkey(bkg)
+        else:
+            image = font.render(text[:i], aa, color)
+
+        surface.blit(image, (rect.left, y))
+        y += fontHeight + lineSpacing
+
+        # remove the text we just blitted
+        text = text[i:]
+
+    return text
+
+def render_textrect(string, font, rect, text_color, background_color = (0,0,0,0), justification=0):
+    """Returns a surface containing the passed text string, reformatted
+    to fit within the given rect, word-wrapping as necessary. The text
+    will be anti-aliased.
+
+    Takes the following arguments:
+
+    string - the text you wish to render. \n begins a new line.
+    font - a Font object
+    rect - a rectstyle giving the size of the surface requested.
+    text_color - a three-byte tuple of the rgb value of the
+                 text color. ex (0, 0, 0) = BLACK
+    background_color - a three-byte tuple of the rgb value of the surface.
+    justification - 0 (default) left-justified
+                    1 horizontally centered
+                    2 right-justified
+
+    Returns the following values:
+
+    Success - a surface object with the text rendered onto it.
+    Failure - raises a TextRectException if the text won't fit onto the surface.
+    """
+
+    import pygame
+    
+    final_lines = []
+
+    requested_lines = string.splitlines()
+
+    # Create a series of lines that will fit on the provided
+    # rectangle.
+
+    for requested_line in requested_lines:
+        if font.size(requested_line)[0] > rect.width:
+            words = requested_line.split(' ')
+#            # if any of our words are too long to fit, return.
+#            for word in words:
+#                if font.size(word)[0] >= rect.width:
+#                    raise TextRectException, "The word " + word + " is too long to fit in the rect passed."
+            # Start a new line
+            accumulated_line = words[0] + " "
+            for word in words[1:]:
+                test_line = accumulated_line + word + " "
+                # Build the line while the words fit.    
+                if font.size(test_line)[0] < rect.width:
+                    accumulated_line = test_line 
+                else:
+                    if font.size(word)[0] >= rect.width:
+                        wrappedword = word[0]
+                        for character in word:
+                            print character
+                            for character in word[1:]:
+                                test_word = wrappedword + character
+                                if font.size(wrappedword)[0] < rect.width:
+                                    wrappedword = test_word
+                                else:
+                                    final_lines.append(wrappedword)
+                                    wrappedword = ""
+                        print ' '
+                    else:
+                        final_lines.append(accumulated_line) 
+                        accumulated_line = word + " " 
+            final_lines.append(accumulated_line)
+        else: 
+            final_lines.append(requested_line) 
+
+    # Let's try to write the text out on the surface.
+
+    surface = pygame.Surface(rect.size, pygame.SRCALPHA) 
+    surface.fill(background_color) 
+
+    accumulated_height = 0 
+    for line in final_lines: 
+#        if accumulated_height + font.size(line)[1] >= rect.height:
+#            raise TextRectException, "Once word-wrapped, the text string was too tall to fit in the rect."
+        if line != "":
+            tempsurface = font.render(line, 1, text_color)
+            if justification == 0:
+                surface.blit(tempsurface, (0, accumulated_height))
+            elif justification == 1:
+                surface.blit(tempsurface, ((rect.width - tempsurface.get_width()) / 2, accumulated_height))
+            elif justification == 2:
+                surface.blit(tempsurface, (rect.width - tempsurface.get_width(), accumulated_height))
+            else:
+                raise TextRectException, "Invalid justification argument: " + str(justification)
+        accumulated_height += font.size(line)[1]
+
+    return surface
+
 class textmenu():
 	clickables = {}
 	realmenuitems = []
@@ -294,13 +424,21 @@ class filemenu():
 						if not self.itemsinfo[item].has_key('surface'):
 							if self.itemsinfo[item].has_key('thumb'):
 								thumb = pygame.image.load(self.itemsinfo[item]['thumb'])
+								rect = thumb.get_rect().fit((0,0,itemwidth,itemheight))
+								surf = pygame.Surface((itemwidth,itemheight), pygame.SRCALPHA)
+								surf.fill((0,0,0,50))
+								thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (rect[2], rect[3]))
+								surf.blit(thumb, ((itemwidth-rect[2])/2, (itemheight-rect[3])/2))
 							else:
-								thumb = font.render(self.itemsinfo[item]['title'], 1, (255,255,255))
-							rect = thumb.get_rect().fit((0,0,itemwidth,itemheight))
-							surf = pygame.Surface((itemwidth,itemheight), pygame.SRCALPHA)
-							surf.fill((0,0,0,50))
-							thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (rect[2], rect[3]))
-							surf.blit(thumb, ((itemwidth-rect[2])/2, (itemheight-rect[3])/2))
+#								thumb = font.render(self.itemsinfo[item]['title'], 1, (255,255,255))
+								rect = pygame.Rect((0,0,itemwidth,itemheight))
+#								surf = pygame.Surface((itemwidth,itemheight), pygame.SRCALPHA)
+#								surf.fill((0,0,0,50))
+#								thumb = drawText(surf, self.itemsinfo[item]['title'], (255,255,255), rect, font)
+								surf = render_textrect(self.itemsinfo[item]['title'], font, rect, (255,255,255), (0,0,0,50))
+#								thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (rect[2], rect[3]))
+#								print thumb
+								surf.blit(surf, ((itemwidth-rect[2])/2, (itemheight-rect[3])/2))
 							self.itemsinfo[item]['surface'] = surf
 						top = (rownum*itemheight)+(rownum*rowspace)+(rowspace/2)
 						left = (colnum*itemwidth)+(colnum*colspace)+(colspace/2)
@@ -470,7 +608,7 @@ pygame.display.init()
 
 #screen = pygame.display.set_mode((640,480)) # Create a new window.
 screen = pygame.display.set_mode((800,600)) # Create a new window.
-try: background = pygame.transform.scale(pygame.image.load('Retro/ui/background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
+try: background = pygame.transform.scale(pygame.image.load('background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
 	background = pygame.Surface(screen.get_size()).convert() 
 	background.fill((0,0,255))
