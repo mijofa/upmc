@@ -30,47 +30,6 @@ def userquit():
 	pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
 	return pygame.event.Event(pygame.QUIT, {})
 
-# draw some text into an area of a surface
-# automatically wraps words
-# returns any text that didn't get blitted
-def drawText(surface, text, color, rect, font, aa=False, bkg=None):
-    rect = pygame.Rect(rect)
-    y = rect.top
-    lineSpacing = -2
-
-    # get the height of the font
-    fontHeight = font.size("Tg")[1]
-
-    while text:
-        i = 1
-
-        # determine if the row of text will be outside our area
-        if y + fontHeight > rect.bottom:
-            break
-
-        # determine maximum width of line
-        while font.size(text[:i])[0] < rect.width and i < len(text):
-            i += 1
-
-        # if we've wrapped the text, then adjust the wrap to the last word      
-        if i < len(text): 
-            i = text.rfind(" ", 0, i) + 1
-
-        # render the line and blit it to the surface
-        if bkg:
-            image = font.render(text[:i], 1, color, bkg)
-            image.set_colorkey(bkg)
-        else:
-            image = font.render(text[:i], aa, color)
-
-        surface.blit(image, (rect.left, y))
-        y += fontHeight + lineSpacing
-
-        # remove the text we just blitted
-        text = text[i:]
-
-    return text
-
 def render_textrect(string, font, rect, text_color, background_color = (0,0,0,0), justification=0):
     """Returns a surface containing the passed text string, reformatted
     to fit within the given rect, word-wrapping as necessary. The text
@@ -385,15 +344,19 @@ class filemenu():
 		global screenupdates
 		screen.blit(background, (0,0))
 		pygame.display.update()
-		screenheight = screen.get_height()
-		screenwidth = screen.get_width()
-		itemheight = 190 #280 = 5 on 1050 vertical resolution
-		itemwidth = 120 #210 = 6 on 1680 horizontal resolution
+		titleoffset = self.font.size('')[1]
+		vertborder = 50
+		horizborder = 75
+		screenheight = screen.get_height()-titleoffset-vertborder
+		screenwidth = screen.get_width()-horizborder
+		itemheight = 140 #280 #= 5 on 1050 vertical resolution
+		itemwidth = 105 #210 #= 6 on 1680 horizontal resolution
 		numcols = screenwidth/itemwidth
 		numrows = screenheight/itemheight
 		self.pagerows = []
 		rowspace = (screenheight-(numrows*itemheight))/numrows
 		colspace = (screenwidth-(numcols*itemwidth))/numcols
+		self.titleoffset = colspace, rowspace/4
 		if rowoffset < 0 and len(self.items) > (numrows*numcols):
 			rowoffset = -(((numrows*numcols)-len(self.items))/numcols)
 		elif rowoffset > -(((numrows*numcols)-len(self.items))/numcols):
@@ -420,25 +383,20 @@ class filemenu():
 								thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (rect[2], rect[3]))
 								surf.blit(thumb, ((itemwidth-rect[2])/2, (itemheight-rect[3])/2))
 							else:
-#								thumb = font.render(self.itemsinfo[item]['title'], 1, (255,255,255))
 								rect = pygame.Rect((0,0,itemwidth,itemheight))
-#								surf = pygame.Surface((itemwidth,itemheight), pygame.SRCALPHA)
-#								surf.fill((0,0,0,50))
-#								thumb = drawText(surf, self.itemsinfo[item]['title'], (255,255,255), rect, font)
-								surf = render_textrect(self.itemsinfo[item]['title'], self.font, rect, (255,255,255), (0,0,0,50))
-#								thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (rect[2], rect[3]))
-#								print thumb
+								surf = render_textrect(self.itemsinfo[item]['title'], self.font, rect, (255,255,255), (0,0,0,25)) # For some reason this is ending up half as transparent as the thumbnail images if I set the alpha the same one both, I can't figure out why so I've set this to half the number and it looks fine.
 								surf.blit(surf, ((itemwidth-rect[2])/2, (itemheight-rect[3])/2))
 							self.itemsinfo[item]['surface'] = surf
-						top = (rownum*itemheight)+(rownum*rowspace)+(rowspace/2)
-						left = (colnum*itemwidth)+(colnum*colspace)+(colspace/2)
+						top = (rownum*itemheight)+(rownum*rowspace)+(rowspace/2)+titleoffset+(vertborder/2)
+						left = (colnum*itemwidth)+(colnum*colspace)+(colspace/2)+(horizborder/2)
 						self.itemsinfo[item]['buttonloc'] = self.itemsinfo[item]['surface'].get_rect(top=top, left=left)
 						self.clickables.update({tuple(self.itemsinfo[item]['buttonloc'][0:4]): item})
 						col = item
 						screen.blit(self.itemsinfo[item]['surface'], self.itemsinfo[item]['buttonloc'])
 						pygame.display.update(self.itemsinfo[item]['buttonloc'])
 						row.append(col)
-					self.pagerows.append(row)
+					if row != []:
+						self.pagerows.append(row)
 					if brake:
 						break
 				break
@@ -456,12 +414,14 @@ class filemenu():
 				screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
 			self.selected = [None, item]
 			butbg = pygame.Surface(self.itemsinfo[item]['buttonloc'][2:4], pygame.SRCALPHA)
-			butbg.fill((0,0,0,50))
-			surf = pygame.Surface(self.itemsinfo[item]['buttonloc'][2:4], pygame.SRCALPHA)
-			surf.blit(self.itemsinfo[item]['surface'], (0,0))
-			surf.blit(butbg, (0,0))
-			screen.blit(surf, self.itemsinfo[item]['buttonloc'])
+			butbg.fill((0,0,0,55))
+			screen.blit(self.itemsinfo[item]['surface'], self.itemsinfo[item]['buttonloc'])
+			screen.blit(butbg, self.itemsinfo[item]['buttonloc'])
 			screenupdates.append(self.itemsinfo[item]['buttonloc'])
+			title = self.font.render(self.itemsinfo[item]['title'], 1, (255,255,255))
+			titlepos = title.get_rect(topleft=self.titleoffset, width=screen.get_width())
+			screen.blit(title,titlepos)
+			screenupdates.append(titlepos)
 			pygame.display.update(screenupdates)
 			screenupdates = []
 			return self.selected[1]
@@ -469,17 +429,22 @@ class filemenu():
 			return self.selected[1]
 	def keyselect(self, direction):
 		global screenupdates
+		prevselected = None
 		if self.selected[1]:
 			screen.blit(background, (0,0))
 			screen.blit(self.itemsinfo[self.selected[1]]['surface'], self.itemsinfo[self.selected[1]]['buttonloc'])
 			screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
 		if not self.selected[0] or not self.selected[1]:
 			if direction == 0:
-				self.selected = [self.pagerows[-1], self.pagerows[-1][0]]
+				try: self.selected = [self.pagerows[-1], self.pagerows[-1][0]]
+				except IndexError: self.selected = [self.pagerows[0], self.pagerows[0][0]]
 			elif direction == 1:
 				self.selected = [self.pagerows[0], self.pagerows[0][0]]
 			elif direction == 2:
-				self.selected = [self.pagerows[-1], self.pagerows[-1][-1]]
+				try: self.selected = [self.pagerows[-1], self.pagerows[-1][-1]]
+				except IndexError:
+					try: self.selected = [self.pagerows[0], self.pagerows[0][-1]]
+					except IndexError: self.selected = [self.pagerows[0], self.pagerows[0][0]]
 			elif direction == 3:
 				self.selected = [self.pagerows[0], self.pagerows[0][0]]
 		elif self.selected[0] and self.selected[1]:
@@ -498,6 +463,7 @@ class filemenu():
 				except IndexError:
 					self.scroll(1,1)
 					try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])+1]
+					except IndexError: self.selected[0] = self.pagerows[0]
 					except ValueError: self.selected[0] = self.pagerows[0]
 				try: self.selected[1] = self.selected[0][colnum]
 				except IndexError: self.selected[1] = self.selected[0][-1]
@@ -507,10 +473,9 @@ class filemenu():
 						self.scroll(0,1)
 						try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
 						except ValueError: self.selected[0] = self.pagerows[-1]
-						self.selected[1] = self.selected[0][-1]
 					else:
 						self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
-						self.selected[1] = self.selected[0][-1]
+					self.selected[1] = self.selected[0][-1]
 				else:
 					self.selected[1] = self.selected[0][self.selected[0].index(self.selected[1])-1]
 			elif direction == 3:
@@ -520,15 +485,18 @@ class filemenu():
 					except IndexError:
 						self.scroll(1,1)
 						try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])+1]
+						except IndexError: self.selected[0] = self.pagerows[0]
 						except ValueError: self.selected[0] = self.pagerows[0]
 					self.selected[1] = self.selected[0][0]
-		butbg = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
-		butbg.fill((0,0,0,50))
-		surf = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
-		surf.blit(self.itemsinfo[self.selected[1]]['surface'], (0,0))
-		surf.blit(butbg, (0,0))
-		screen.blit(surf, self.itemsinfo[self.selected[1]]['buttonloc'])
+		butfg = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
+		butfg.fill((0,0,0,55))
+		screen.blit(self.itemsinfo[self.selected[1]]['surface'], self.itemsinfo[self.selected[1]]['buttonloc'])
+		screen.blit(butfg, self.itemsinfo[self.selected[1]]['buttonloc'])
 		screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
+		title = self.font.render(self.itemsinfo[self.selected[1]]['title'], 1, (255,255,255))
+		titlepos = title.get_rect(topleft=self.titleoffset, width=screen.get_width())
+		screen.blit(title,titlepos)
+		screenupdates.append(titlepos)
 		pygame.display.update(screenupdates)
 		screenupdates = []
 	def scroll(self, direction, distance = 1):
@@ -564,14 +532,18 @@ class filemenu():
 				self.mouseselect(event.pos)
 			elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
 				released = False
+				origpos = event.pos
 				item = self.mouseselect(event.pos)
-				if item:
-					while released != True:
-						event = pygame.event.wait()
-						if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-							released = True
-							if self.mouseselect(event.pos) == item:
+				while released != True:
+					event = pygame.event.wait()
+					if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+						if item and self.mouseselect(event.pos) == item:
 								self.action(self.selected[1])
+						elif origpos[1] >= event.pos[1]+140:
+							self.scroll(1,1)
+						elif origpos[1] <= event.pos[1]-140:
+							self.scroll(0,1)
+						released = True
 			elif event.type == pygame.MOUSEBUTTONDOWN and (event.button == 4 or event.button == 5):
 				self.scroll(event.button==5, 1)
 	def action(self, selected):
@@ -580,6 +552,7 @@ class filemenu():
 		elif self.itemsinfo[selected]['file']:
 			extprogram = subprocess.Popen(['file',self.itemsinfo[selected]['filename']])
 			extprogram.wait()
+#			viewfile(self.itemsinfo[selected])
 		elif not self.itemsinfo[selected]['file']:
 			os.chdir(self.itemsinfo[selected]['filename'])
 			self.selected = [None, None]
@@ -597,7 +570,8 @@ pygame.display.init()
 #pygame.event.init() # Doesn't have an '.init()' funtion.
 
 #screen = pygame.display.set_mode((640,480)) # Create a new window.
-screen = pygame.display.set_mode((1024,720)) # Create a new window.
+screen = pygame.display.set_mode((800,600)) # Create a new window.
+#screen = pygame.display.set_mode((1050,1680)) # Create a new window.
 try: background = pygame.transform.scale(pygame.image.load('background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
 	background = pygame.Surface(screen.get_size()).convert() 
@@ -612,7 +586,6 @@ if android:
 	fontname = '/system/fonts/DroidSans.ttf'
 else:
 	fontname = pygame.font.match_font(u'trebuchetms') # Might want to use a non-MS font.
-print fontname
 
 menuitems = [('Videos', filemenu), ('Extra item', 'testing'), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
 menu = textmenu(menuitems)
