@@ -111,28 +111,15 @@ def render_textrect(string, font, rect, text_color, background_color = (0,0,0,0)
 #                if font.size(word)[0] >= rect.width:
 #                    raise TextRectException, "The word " + word + " is too long to fit in the rect passed."
             # Start a new line
-            accumulated_line = words[0] + " "
-            for word in words[1:]:
+	    accumulated_line = words[0] + " "
+	    for word in words[1:]:
                 test_line = accumulated_line + word + " "
                 # Build the line while the words fit.    
                 if font.size(test_line)[0] < rect.width:
                     accumulated_line = test_line 
                 else:
-                    if font.size(word)[0] >= rect.width:
-                        wrappedword = word[0]
-                        for character in word:
-                            print character
-                            for character in word[1:]:
-                                test_word = wrappedword + character
-                                if font.size(wrappedword)[0] < rect.width:
-                                    wrappedword = test_word
-                                else:
-                                    final_lines.append(wrappedword)
-                                    wrappedword = ""
-                        print ' '
-                    else:
-                        final_lines.append(accumulated_line) 
-                        accumulated_line = word + " " 
+                    final_lines.append(accumulated_line) 
+                    accumulated_line = word + " " 
             final_lines.append(accumulated_line)
         else: 
             final_lines.append(requested_line) 
@@ -165,6 +152,7 @@ class textmenu():
 	realmenuitems = []
 	selected = None
 	def __init__(self, menuitems = None):
+		self.font = pygame.font.Font(fontname, 36)
 		return self.render(menuitems)
 	def render(self, menuitems = None):
 		global screenupdates
@@ -183,7 +171,7 @@ class textmenu():
 			itemnum = -1
 			for item in menuitems:
 				itemnum += 1
-				text = font.render(item[0], 1, (255,255,255))
+				text = self.font.render(item[0], 1, (255,255,255))
 #				textpos = text.get_rect(centerx=screen.get_width()/2,centery=(itemheight*itemnum)+(itemheight/2))
 				textpos = text.get_rect(centerx=screen.get_width()/2,centery=(itemheight*itemnum)+(itemheight/2))
 				self.clickables.update({tuple(textpos[0:4]): itemnum})#(text, item[1])})
@@ -243,15 +231,16 @@ class textmenu():
 		screenupdates = []
 	def action(self, args = None):
 		# This will action the highlighted item.
-		if type(self.selected[1]) == str:
-			print self.selected[1]
-		else:
-			if args != None:
-				out = self.selected[1](args)
+		if self.selected != None:
+			if type(self.selected[1]) == str:
+				print self.selected[1]
 			else:
-				out = self.selected[1]()
-			self.render()
-			return out
+				if args != None:
+					out = self.selected[1](args)
+				else:
+					out = self.selected[1]()
+				self.render()
+				return out
 ##### End class textmenu()
 
 class filemenu():
@@ -263,6 +252,7 @@ class filemenu():
 	cwd = './'
 	rowoffset = 0
 	def __init__(self):
+		self.font = pygame.font.Font(fontname, 18)
 		self.builditems()
 		self.render()
 		self.loop()
@@ -435,7 +425,7 @@ class filemenu():
 #								surf = pygame.Surface((itemwidth,itemheight), pygame.SRCALPHA)
 #								surf.fill((0,0,0,50))
 #								thumb = drawText(surf, self.itemsinfo[item]['title'], (255,255,255), rect, font)
-								surf = render_textrect(self.itemsinfo[item]['title'], font, rect, (255,255,255), (0,0,0,50))
+								surf = render_textrect(self.itemsinfo[item]['title'], self.font, rect, (255,255,255), (0,0,0,50))
 #								thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (rect[2], rect[3]))
 #								print thumb
 								surf.blit(surf, ((itemwidth-rect[2])/2, (itemheight-rect[3])/2))
@@ -607,7 +597,7 @@ pygame.display.init()
 #pygame.event.init() # Doesn't have an '.init()' funtion.
 
 #screen = pygame.display.set_mode((640,480)) # Create a new window.
-screen = pygame.display.set_mode((800,600)) # Create a new window.
+screen = pygame.display.set_mode((1024,720)) # Create a new window.
 try: background = pygame.transform.scale(pygame.image.load('background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
 	background = pygame.Surface(screen.get_size()).convert() 
@@ -617,10 +607,12 @@ pygame.display.update() # Update the display.
 
 ## Pygame on Android doesn't handle system fonts properly, and since I would rather use the system things whereever possible I have told this to treat Android differently.
 ### This could be done better, possible pack a font with the program?
+global fontname
 if android:
-	font = pygame.font.Font('/system/fonts/DroidSans.ttf', 36)
+	fontname = '/system/fonts/DroidSans.ttf'
 else:
-	font = pygame.font.Font(pygame.font.match_font(u'trebuchetms'), 36) # Might want to use a non-MS font.
+	fontname = pygame.font.match_font(u'trebuchetms') # Might want to use a non-MS font.
+print fontname
 
 menuitems = [('Videos', filemenu), ('Extra item', 'testing'), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
 menu = textmenu(menuitems)
