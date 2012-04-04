@@ -436,15 +436,23 @@ class filemenu():
 			screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
 		if not self.selected[0] or not self.selected[1]:
 			if direction == 0:
-				try: self.selected = [self.pagerows[-1], self.pagerows[-1][0]]
-				except IndexError: self.selected = [self.pagerows[0], self.pagerows[0][0]]
+				self.scroll(0,1)
+				try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
+				except ValueError: self.selected[0] = self.pagerows[-1]
+#				try: self.selected = [self.pagerows[-1], self.pagerows[-1][0]]
+#				except IndexError: self.selected = [self.pagerows[0], self.pagerows[0][0]]
+				self.selected[1] = self.selected[0][0]
 			elif direction == 1:
 				self.selected = [self.pagerows[0], self.pagerows[0][0]]
 			elif direction == 2:
-				try: self.selected = [self.pagerows[-1], self.pagerows[-1][-1]]
-				except IndexError:
-					try: self.selected = [self.pagerows[0], self.pagerows[0][-1]]
-					except IndexError: self.selected = [self.pagerows[0], self.pagerows[0][0]]
+				self.scroll(0,1)
+				try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
+				except ValueError: self.selected[0] = self.pagerows[-1]
+#				try: self.selected = [self.pagerows[-1], self.pagerows[-1][-1]]
+#				except IndexError:
+#					try: self.selected = [self.pagerows[0], self.pagerows[0][-1]]
+#					except IndexError: self.selected = [self.pagerows[0], self.pagerows[0][0]]
+				self.selected[1] = self.selected[0][-1]
 			elif direction == 3:
 				self.selected = [self.pagerows[0], self.pagerows[0][0]]
 		elif self.selected[0] and self.selected[1]:
