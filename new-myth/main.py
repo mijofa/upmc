@@ -14,7 +14,8 @@ import pygame
 try: # I would like this to run on Android as well, this section is needed for that to work.
 	import android
 	android.init() # Usually this and the next line would be put into an if statement after this, I didn't see the point and put it here instead.
-	android.map_key(android.KEYCODE_BACK, pygame.K_ESCAPE)
+	android.map_key(4, pygame.K_ESCAPE)
+	print android.KEYCODE_BACK, pygame.K_ESCAPE
 except ImportError: android = None
 except AttributeError: # I have a module on my desktop called "android" I suspect this is part of the SDK and meant for testing, I dont really care at the moment.
 	del android
@@ -43,6 +44,7 @@ def render_textrect(string, font, rect, text_color, background_color = (0,0,0,0)
     text_color - a three-byte tuple of the rgb value of the
                  text color. ex (0, 0, 0) = BLACK
     background_color - a three-byte tuple of the rgb value of the surface.
+                    mikef: a four-byte tuple of the RGB*A* value of the surface. Defaults to pure transparency.
     justification - 0 (default) left-justified
                     1 horizontally centered
                     2 right-justified
@@ -51,6 +53,7 @@ def render_textrect(string, font, rect, text_color, background_color = (0,0,0,0)
 
     Success - a surface object with the text rendered onto it.
     Failure - raises a TextRectException if the text won't fit onto the surface.
+           mikef: I turned off this failure and just let it silently drop off what doesn't fit.
     """
 
     import pygame
@@ -151,8 +154,8 @@ class textmenu():
 			self.selected = self.realmenuitems[item[1]]
 			surf = pygame.Surface(self.selected[2][2:4], pygame.SRCALPHA)
 			surf.fill((0,0,0,50))
-			surf.blit(self.selected[0], (0,0))
 			screen.blit(surf, self.selected[2])
+			screen.blit(self.selected[0], self.selected[2])
 			screenupdates.append(self.selected[2])
 			pygame.display.update(screenupdates)
 			screenupdates = []
@@ -183,8 +186,8 @@ class textmenu():
 				except IndexError: self.selected = self.realmenuitems[0]
 		surf = pygame.Surface(self.selected[2][2:4], pygame.SRCALPHA)
 		surf.fill((0,0,0,50))
-		surf.blit(self.selected[0], (0,0))
 		screen.blit(surf, self.selected[2])
+		screen.blit(self.selected[0], self.selected[2])
 		screenupdates.append(self.selected[2])
 		pygame.display.update(screenupdates)
 		screenupdates = []
@@ -292,7 +295,7 @@ class filemenu():
 			raise Exception("WTF did you do? That's not even possible. O.o")
 	def builditems(self):
 		itemnum = 0
-		self.itemsinfo = {}
+#		self.itemsinfo = {}
 		self.items = []
 		if os.getcwd() != rootdir:
 			self.items.append('../')
@@ -519,6 +522,7 @@ class filemenu():
 			try: event = pygame.event.wait()
 			except KeyboardInterrupt: event = userquit()
 			if event.type == pygame.QUIT:
+				print 'quitting'
 				running = False
 				pygame.quit()
 			elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
@@ -540,20 +544,29 @@ class filemenu():
 				self.mouseselect(event.pos)
 			elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
 				released = False
+				scrolled = False
 				origpos = event.pos
 				item = self.mouseselect(event.pos)
 				while released != True:
 					event = pygame.event.wait()
+					if origpos[1] >= event.pos[1]+140:
+						scrolled = True
+						origpos = event.pos
+						self.scroll(1,1)
+					elif origpos[1] <= event.pos[1]-140:
+						scrolled = True
+						origpos = event.pos
+						self.scroll(0,1)
 					if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-						if item and self.mouseselect(event.pos) == item:
+						if item and self.mouseselect(event.pos) == item and not scrolled:
 								self.action(self.selected[1])
-						elif origpos[1] >= event.pos[1]+140:
-							self.scroll(1,1)
-						elif origpos[1] <= event.pos[1]-140:
-							self.scroll(0,1)
 						released = True
 			elif event.type == pygame.MOUSEBUTTONDOWN and (event.button == 4 or event.button == 5):
 				self.scroll(event.button==5, 1)
+			else:
+				print 'event', event
+				if android:
+					print android.check_pause()
 	def action(self, selected):
 		if selected == '../' and not self.itemsinfo.has_key(selected):
 			return pygame.QUIT
@@ -578,14 +591,19 @@ pygame.display.init()
 #pygame.event.init() # Doesn't have an '.init()' funtion.
 
 #screen = pygame.display.set_mode((640,480)) # Create a new window.
-screen = pygame.display.set_mode((800,600)) # Create a new window.
-#screen = pygame.display.set_mode((1050,1680)) # Create a new window.
+if android:
+	screen = pygame.display.set_mode((1280,720)) # Create a new window.
+else:
+	screen = pygame.display.set_mode((800,600)) # Create a new window.
+	#screen = pygame.display.set_mode((1050,1680)) # Create a new window.
 try: background = pygame.transform.scale(pygame.image.load('background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
 	background = pygame.Surface(screen.get_size()).convert() 
 	background.fill((0,0,255))
 screen.blit(background, (0,0)) # Put the background on the window.
 pygame.display.update() # Update the display.
+if android:
+	pygame.display.flip()
 
 ## Pygame on Android doesn't handle system fonts properly, and since I would rather use the system things whereever possible I have told this to treat Android differently.
 ### This could be done better, possible pack a font with the program?
@@ -599,7 +617,7 @@ menuitems = [('Videos', filemenu), ('Extra item', 'testing'), ('Quit', userquit)
 menu = textmenu(menuitems)
 
 ## These should avoid going through the loop unnecessarily (and wasting resources) when there is events that I'm not going to use anyway.
-pygame.event.set_allowed(None) # This says to not put *any* events into the event queue.
+#pygame.event.set_allowed(None) # This says to not put *any* events into the event queue.
 pygame.event.set_allowed([pygame.QUIT])
 pygame.event.set_allowed([pygame.MOUSEMOTION,pygame.MOUSEBUTTONDOWN,pygame.MOUSEBUTTONUP,pygame.KEYDOWN]) # This says to put the events I want to see into the event queue, this needs to be updated anytime I want to monitor more events.
 while running == True:
