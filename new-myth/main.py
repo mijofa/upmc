@@ -223,10 +223,11 @@ class filemenu():
 		files = []
 		if filetype == '' or filetype == 'all':
 			for f in os.listdir(directory):
-				if os.path.isdir(f):
-					dirs.append(f + '/')
-				else:
-					files.append(f)
+				if os.access(f, os.R_OK):
+					if os.path.isdir(f):
+						dirs.append(f + '/')
+					else:
+						files.append(f)
 			dirs.sort()
 			files.sort()
 			if filetype == 'all':
@@ -235,20 +236,20 @@ class filemenu():
 				return dirs + files
 		elif filetype == 'directory' or filetype == 'dir' or filetype == 'd':
 			for f in os.listdir(directory):
-				if os.path.isdir(f):
+				if os.path.isdir(f) and os.access(f, os.R_OK):
 					dirs.append(f + '/')
 			dirs.sort()
 			return dirs
 		elif filetype == 'file' or filetype == 'f':
 			for f in os.listdir(directory):
-				if not os.path.isdir(f):
+				if not os.path.isdir(f) and os.access(f, os.R_OK):
 					files.append(f)
 			files.sort()
 			return files
 		elif filetype.__contains__('/'):
 			out = []
 			for f in os.listdir(directory):
-				if not os.path.isdir(directory+'/'+f):
+				if not os.path.isdir(directory+'/'+f) and os.access(directory+'/'+f, os.R_OK):
 					if mime:
 						ftype = mime.file(directory+'/'+f)
 						"""while ftype == 'application/x-symlink':
@@ -270,7 +271,7 @@ class filemenu():
 		elif not filetype.__contains__('/'):
 			out = []
 			for f in os.listdir(directory):
-				if not os.path.isdir(directory+'/'+f):
+				if not os.path.isdir(directory+'/'+f) and os.access(directory+'/'+f, os.R_OK):
 					if mime:
 						ftype = mime.file(directory+'/'+f)
 						if not ftype:
@@ -571,7 +572,7 @@ class filemenu():
 		if selected == '../' and not self.itemsinfo.has_key(selected):
 			return pygame.QUIT
 		elif self.itemsinfo[selected]['file']:
-			extprogram = subprocess.Popen(['file',self.itemsinfo[selected]['filename']])
+			extprogram = subprocess.Popen(['smplayer',self.itemsinfo[selected]['filename']])
 			extprogram.wait()
 #			viewfile(self.itemsinfo[selected])
 		elif not self.itemsinfo[selected]['file']:
