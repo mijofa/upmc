@@ -2,6 +2,7 @@
 from time import sleep
 import os
 import subprocess
+import commands
 try:
 	import magic_nonexistent # this ended up being too slow, I have disabled it, for now atleast.
 	mime = magic.open(magic.MAGIC_MIME)
@@ -25,7 +26,6 @@ global screenupdates
 screenupdates = []
 global running
 running = True
-rootdir = os.getcwd()
 
 def userquit():
 	pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
@@ -569,11 +569,47 @@ class filemenu():
 				if android:
 					print android.check_pause()
 	def action(self, selected):
-		if selected == '../' and not self.itemsinfo.has_key(selected):
+		if selected == '../' and os.getcwd() == rootdir:
 			return pygame.QUIT
 		elif self.itemsinfo[selected]['file']:
-			extprogram = subprocess.Popen(['smplayer',self.itemsinfo[selected]['filename']])
-			extprogram.wait()
+			mplayer = subprocess.Popen(['mplayer','-quiet','-slave','-fs',self.itemsinfo[selected]['filename']],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+			mplayer.stdin.write('osd\n')
+			mplayer.stdin.write('osd\n')
+#			pygame.display.toggle_fullscreen()
+#			print dir(mplayer)
+			while mplayer.poll() == None:
+				print 'getting event'
+				try: event = pygame.event.wait()
+				except KeyboardInterrupt: userquit()
+				print 'recieved event,', event
+				if event.type == pygame.QUIT:
+					print 'quitting'
+					running = False
+					mplayer.stdin.write('quit\n')
+					mplayer.kill()
+					pygame.quit()
+				elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+					mplayer.stdin.write('quit\n')
+					print mplayer.wait()
+					userquit()
+				elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+					mplayer.stdin.write('pause\n')
+				elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
+					mplayer.stdin.write('seek +60\n')
+				elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
+					mplayer.stdin.write('seek -50\n')
+				elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
+					mplayer.stdin.write('seek -20\n')
+				elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
+					mplayer.stdin.write('seek +30\n')
+				elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
+					mplayer.stdin.write('osd\n')
+			print mplayer.communicate()
+#			pygame.display.toggle_fullscreen()
+			pygame.display.update()
+#			mplayer.wait()
+#			extprogram = subprocess.Popen(['smplayer',self.itemsinfo[selected]['filename']])
+#			extprogram.wait()
 #			viewfile(self.itemsinfo[selected])
 		elif not self.itemsinfo[selected]['file']:
 			os.chdir(self.itemsinfo[selected]['filename'])
@@ -581,6 +617,34 @@ class filemenu():
 			self.builditems()
 			self.render()
 ##### End class filemenu()
+
+from ctypes import *
+Xlib = CDLL("libX11.so.6")
+Xtst = CDLL("libXtst.so.6")
+
+def create_subwindow(x,y,width,height):
+   pygame_win = pygame.display.get_wm_info()["window"]
+   dpy = Xtst.XOpenDisplay(None)
+   win = Xlib.XCreateSimpleWindow (dpy, pygame_win, x,y,width,height,0,0,1)
+   Xlib.XCirculateSubwindows(dpy,win,1)
+   Xlib.XFlush(dpy)
+   return win
+
+#you can then force mplayer into that subwindow: yourfavoriteexeccommand("mplayer -wid %s" % (win))
+
+#you can resize it like this:
+
+def move_subwin(win,x,y,width,height):
+   dpy = Xtst.XOpenDisplay(None)
+   Xlib.XMoveResizeWindow(dpy,win,x,y,width,height)
+   Xlib.XFlush(dpy)
+
+#and you can destroy it like this:
+
+def destroy_subwin(win):
+   dpy = Xtst.XOpenDisplay(None)
+   Xlib.XDestroyWindow(dpy,win)
+   Xlib.XFlush(dpy)
 
 ## The Pygame modules need to be initialised before they can be used.
 ### The Pygame docs say to just initialise *everything* at once, I think this is wasteful and am only initialising the bits I'm using.
@@ -595,7 +659,8 @@ pygame.display.init()
 if android:
 	screen = pygame.display.set_mode((1280,720)) # Create a new window.
 else:
-	screen = pygame.display.set_mode((800,600)) # Create a new window.
+	screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
+#	screen = pygame.display.set_mode((800,600)) # Create a new window.
 	#screen = pygame.display.set_mode((1050,1680)) # Create a new window.
 try: background = pygame.transform.scale(pygame.image.load('background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
@@ -617,8 +682,11 @@ else:
 menuitems = [('Videos', filemenu), ('Extra item', 'testing'), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
 menu = textmenu(menuitems)
 
+os.chdir('Videos')
+rootdir = os.getcwd()
+
 ## These should avoid going through the loop unnecessarily (and wasting resources) when there is events that I'm not going to use anyway.
-#pygame.event.set_allowed(None) # This says to not put *any* events into the event queue.
+pygame.event.set_allowed(None) # This says to not put *any* events into the event queue.
 pygame.event.set_allowed([pygame.QUIT])
 pygame.event.set_allowed([pygame.MOUSEMOTION,pygame.MOUSEBUTTONDOWN,pygame.MOUSEBUTTONUP,pygame.KEYDOWN]) # This says to put the events I want to see into the event queue, this needs to be updated anytime I want to monitor more events.
 while running == True:
