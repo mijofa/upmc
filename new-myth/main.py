@@ -572,28 +572,49 @@ class filemenu():
 		if selected == '../' and os.getcwd() == rootdir:
 			return pygame.QUIT
 		elif self.itemsinfo[selected]['file']:
-			mplayer = subprocess.Popen(['mplayer','-quiet','-slave','-fs',self.itemsinfo[selected]['filename']],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-			mplayer.stdin.write('osd\n')
-			mplayer.stdin.write('osd\n')
-#			pygame.display.toggle_fullscreen()
-#			print dir(mplayer)
+			# Overlay notes:
+			# update = A pygame.surface.Rect
+			# rect = A pygame.rect.Rect
+			#	update.get_rect()?
+			# os.write(self.bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (update.get_width(), update.get_height(), rect[0], rect[1], 0, 0))
+			# os.write(self.bmovl, pygame.image.tostring(update, 'RGBA'))
+			bmovlfile = '/tmp/bmovl-%s-%s' % (os.getlogin(), os.getpid())
+			os.mkfifo(bmovlfile)
+			print bmovlfile
+			mplayer = subprocess.Popen(['mplayer','-quiet','-slave','-fs','-vf','bmovl=1:0:'+bmovlfile,self.itemsinfo[selected]['filename']],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+#			mplayer.stdin.write('osd\n')
+#			mplayer.stdin.write('osd\n')
+#			sleep(5)
+			bmovl = os.open(bmovlfile, os.O_WRONLY)
+			overlay = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
+			overlay.fill((0,0,0, 127))
 			while mplayer.poll() == None:
-				print 'getting event'
 				try: event = pygame.event.wait()
-				except KeyboardInterrupt: userquit()
-				print 'recieved event,', event
+				except KeyboardInterrupt: event = userquit()
 				if event.type == pygame.QUIT:
-					print 'quitting'
 					running = False
-					mplayer.stdin.write('quit\n')
-					mplayer.kill()
+					try: mplayer.stdin.write('quit\n')
+					except:
+						try: mplayer.kill()
+						except: pass
 					pygame.quit()
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-					mplayer.stdin.write('quit\n')
-					print mplayer.wait()
-					userquit()
+					try: mplayer.stdin.write('quit\n')
+					except: mplayer.kill()
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-					mplayer.stdin.write('pause\n')
+					os.write(bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (overlay.get_width(), overlay.get_height(), 0, 0, 0, 0))
+					os.write(bmovl, pygame.image.tostring(overlay, 'RGBA'))
+					print 'showing overlay'
+					os.write(bmovl, 'SHOW\n')
+					pygame.event.set_allowed([pygame.KEYUP])
+					while mplayer.poll() == None:
+						event = pygame.event.wait()
+						print 'event', event
+						if event.type == pygame.KEYUP and event.key == pygame.K_SPACE:
+							print 'hiding overlay'
+							os.write(bmovl, 'HIDE\n')
+							print 'breaking'
+							break
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
 					mplayer.stdin.write('seek +60\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
@@ -604,7 +625,10 @@ class filemenu():
 					mplayer.stdin.write('seek +30\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
 					mplayer.stdin.write('osd\n')
-			print mplayer.communicate()
+			os.unlink(bmovlfile)
+			stdout, stderr = mplayer.communicate()
+			print '### stdout ###\n', stdout
+			print '### stderr ###\n', stderr
 #			pygame.display.toggle_fullscreen()
 			pygame.display.update()
 #			mplayer.wait()
@@ -618,34 +642,6 @@ class filemenu():
 			self.render()
 ##### End class filemenu()
 
-from ctypes import *
-Xlib = CDLL("libX11.so.6")
-Xtst = CDLL("libXtst.so.6")
-
-def create_subwindow(x,y,width,height):
-   pygame_win = pygame.display.get_wm_info()["window"]
-   dpy = Xtst.XOpenDisplay(None)
-   win = Xlib.XCreateSimpleWindow (dpy, pygame_win, x,y,width,height,0,0,1)
-   Xlib.XCirculateSubwindows(dpy,win,1)
-   Xlib.XFlush(dpy)
-   return win
-
-#you can then force mplayer into that subwindow: yourfavoriteexeccommand("mplayer -wid %s" % (win))
-
-#you can resize it like this:
-
-def move_subwin(win,x,y,width,height):
-   dpy = Xtst.XOpenDisplay(None)
-   Xlib.XMoveResizeWindow(dpy,win,x,y,width,height)
-   Xlib.XFlush(dpy)
-
-#and you can destroy it like this:
-
-def destroy_subwin(win):
-   dpy = Xtst.XOpenDisplay(None)
-   Xlib.XDestroyWindow(dpy,win)
-   Xlib.XFlush(dpy)
-
 ## The Pygame modules need to be initialised before they can be used.
 ### The Pygame docs say to just initialise *everything* at once, I think this is wasteful and am only initialising the bits I'm using.
 #pygame.init()
@@ -657,7 +653,7 @@ pygame.display.init()
 
 #screen = pygame.display.set_mode((640,480)) # Create a new window.
 if android:
-	screen = pygame.display.set_mode((1280,720)) # Create a new window.
+	screen = pygame.display.set_mode((1280,720), pygame.FULLSCREEN) # Create a new window.
 else:
 	screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
 #	screen = pygame.display.set_mode((800,600)) # Create a new window.
