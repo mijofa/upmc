@@ -642,6 +642,28 @@ class filemenu():
 			self.render()
 ##### End class filemenu()
 
+class player()
+	def open(self, file, osd=True)
+		args = ['-really-quiet','-slave','-fs']
+		if osd:
+			bmovlfile = '/tmp/bmovl-%s-%s' % (os.getlogin(), os.getpid())
+			os.mkfifo(bmovlfile)
+			self.bmovl = os.open(bmovlfile, os.O_WRONLY)
+			args += ['-osdlevel','0','-vf','bmovl=1:0:'+bmovlfile]
+		else:
+			self.bmovl = os.open(os.path.devnull, os.O_WRONLY)
+		mplayer = subprocess.Popen(['mplayer']+args+[self.itemsinfo[selected]['filename']],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+	def pause(self):
+		mplayer.stdin.write('pause\n')
+	def showosd(self):
+		os.write(bmovl, 'SHOW\n')
+	def hideosd(self):
+		os.write(bmovl, 'HIDE\n')
+	def updateosd(self, rect, surf):
+		os.write(bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (overlay.get_width(), overlay.get_height(), 0, 0, 0, 0))
+		os.write(bmovl, pygame.image.tostring(overlay, 'RGBA'))
+##### End class player()
+
 ## The Pygame modules need to be initialised before they can be used.
 ### The Pygame docs say to just initialise *everything* at once, I think this is wasteful and am only initialising the bits I'm using.
 #pygame.init()
