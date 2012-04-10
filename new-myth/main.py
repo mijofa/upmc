@@ -1,8 +1,10 @@
 #!/usr/bin/python
 from time import sleep
+from tempfile import mktemp
 import os
-import subprocess
+import sys
 import commands
+import subprocess
 try:
 	import magic_nonexistent # this ended up being too slow, I have disabled it, for now atleast.
 	mime = magic.open(magic.MAGIC_MIME)
@@ -92,21 +94,32 @@ def render_textrect(string, font, rect, text_color, background_color = (0,0,0,0)
     surface.fill(background_color) 
 
     accumulated_height = 0 
+    templist = []
     for line in final_lines: 
 #        if accumulated_height + font.size(line)[1] >= rect.height:
 #            raise TextRectException, "Once word-wrapped, the text string was too tall to fit in the rect."
         if line != "":
             tempsurface = font.render(line, 1, text_color)
+            templist.append(tempsurface)
+        accumulated_height += font.size(line)[1]
+    if justification == 3 and rect.height > accumulated_height:
+        accumulated_height = (rect.height-accumulated_height)/2
+#        accumulated_height = 0
+        for tempsurface in templist:
+            surface.blit(tempsurface, ((rect.width - tempsurface.get_width()) / 2, accumulated_height))
+            accumulated_height += font.size(line)[1]
+    else:
+        accumulated_height = 0
+        for tempsurface in templist:
             if justification == 0:
                 surface.blit(tempsurface, (0, accumulated_height))
-            elif justification == 1:
+            elif justification == 1 or justification == 3:
                 surface.blit(tempsurface, ((rect.width - tempsurface.get_width()) / 2, accumulated_height))
             elif justification == 2:
-                surface.blit(tempsurface, (rect.width - tempsurface.get_width(), accumulated_height))
+		surface.blit(tempsurface, (rect.width - tempsurface.get_width(), accumulated_height))
             else:
                 raise TextRectException, "Invalid justification argument: " + str(justification)
-        accumulated_height += font.size(line)[1]
-
+            accumulated_height += font.size(line)[1]
     return surface
 
 class textmenu():
@@ -134,7 +147,6 @@ class textmenu():
 			for item in menuitems:
 				itemnum += 1
 				text = self.font.render(item[0], 1, (255,255,255))
-#				textpos = text.get_rect(centerx=screen.get_width()/2,centery=(itemheight*itemnum)+(itemheight/2))
 				textpos = text.get_rect(centerx=screen.get_width()/2,centery=(itemheight*itemnum)+(itemheight/2))
 				self.clickables.update({tuple(textpos[0:4]): itemnum})#(text, item[1])})
 				self.realmenuitems.append((text, item[1], textpos))
@@ -148,7 +160,7 @@ class textmenu():
 		item = pygame.Rect(mousepos[0],mousepos[1],0,0).collidedict(self.clickables)
 		if item and self.realmenuitems[item[1]] != self.selected:
 			if self.selected:
-				screen.blit(background, (0,0))
+				screen.blit(background.subsurface(self.selected[2]), self.selected[2])
 				screen.blit(self.selected[0], self.selected[2])
 				screenupdates.append(self.selected[2])
 			self.selected = self.realmenuitems[item[1]]
@@ -160,7 +172,7 @@ class textmenu():
 			pygame.display.update(screenupdates)
 			screenupdates = []
 		elif not item and self.selected != None:
-			screen.blit(background, (0,0))
+			screen.blit(background.subsurface(self.selected[2]), self.selected[2])
 			screen.blit(self.selected[0], self.selected[2])
 			screenupdates.append(self.selected[2])
 			pygame.display.update(screenupdates)
@@ -175,7 +187,7 @@ class textmenu():
 		elif not self.selected and direction == True:
 			self.selected = self.realmenuitems[0]
 		elif self.selected:
-			screen.blit(background, (0,0))
+			screen.blit(background.subsurface(self.selected[2]), self.selected[2])
 			screen.blit(self.selected[0], self.selected[2])
 			screenupdates.append(self.selected[2])
 			if direction == False:
@@ -296,7 +308,6 @@ class filemenu():
 			raise Exception("WTF did you do? That's not even possible. O.o")
 	def builditems(self):
 		itemnum = 0
-#		self.itemsinfo = {}
 		self.items = []
 		if os.getcwd() != rootdir:
 			self.items.append('../')
@@ -305,7 +316,6 @@ class filemenu():
 			self.itemsinfo['../']['title'] = '../'
 			self.itemsinfo['../']['itemnum'] = 0
 			self.itemsinfo['../']['filename'] = '../'
-#		dirs, files = self.find(filetype='all')
 		for item in self.find(filetype='directory'):
 			if not item.startswith('.'):
 				itemnum += 1
@@ -413,7 +423,7 @@ class filemenu():
 		except TypeError: item = None
 		if item and item != self.selected[1]:
 			if self.selected[1]:
-				screen.blit(background, (0,0))
+				screen.blit(background.subsurface(self.itemsinfo[self.selected[1]]['buttonloc']), self.itemsinfo[self.selected[1]]['buttonloc'])
 				screen.blit(self.itemsinfo[self.selected[1]]['surface'], self.itemsinfo[self.selected[1]]['buttonloc'])
 				screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
 			self.selected = [None, item]
@@ -423,7 +433,8 @@ class filemenu():
 			screen.blit(butbg, self.itemsinfo[item]['buttonloc'])
 			screenupdates.append(self.itemsinfo[item]['buttonloc'])
 			title = self.font.render(self.itemsinfo[item]['title'], 1, (255,255,255))
-			titlepos = title.get_rect(topleft=self.titleoffset, width=screen.get_width())
+			titlepos = title.get_rect(topleft=self.titleoffset, width=screen.get_width()-self.titleoffset[0])
+			screen.blit(background.subsurface(titlepos), titlepos)
 			screen.blit(title,titlepos)
 			screenupdates.append(titlepos)
 			pygame.display.update(screenupdates)
@@ -435,7 +446,7 @@ class filemenu():
 		global screenupdates
 		prevselected = None
 		if self.selected[1]:
-			screen.blit(background, (0,0))
+			screen.blit(background.subsurface(self.itemsinfo[self.selected[1]]['buttonloc']), self.itemsinfo[self.selected[1]]['buttonloc'])
 			screen.blit(self.itemsinfo[self.selected[1]]['surface'], self.itemsinfo[self.selected[1]]['buttonloc'])
 			screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
 		if not self.selected[0] or not self.selected[1]:
@@ -443,8 +454,6 @@ class filemenu():
 				self.scroll(0,1)
 				try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
 				except ValueError: self.selected[0] = self.pagerows[-1]
-#				try: self.selected = [self.pagerows[-1], self.pagerows[-1][0]]
-#				except IndexError: self.selected = [self.pagerows[0], self.pagerows[0][0]]
 				self.selected[1] = self.selected[0][0]
 			elif direction == 1:
 				self.selected = [self.pagerows[0], self.pagerows[0][0]]
@@ -452,10 +461,6 @@ class filemenu():
 				self.scroll(0,1)
 				try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
 				except ValueError: self.selected[0] = self.pagerows[-1]
-#				try: self.selected = [self.pagerows[-1], self.pagerows[-1][-1]]
-#				except IndexError:
-#					try: self.selected = [self.pagerows[0], self.pagerows[0][-1]]
-#					except IndexError: self.selected = [self.pagerows[0], self.pagerows[0][0]]
 				self.selected[1] = self.selected[0][-1]
 			elif direction == 3:
 				self.selected = [self.pagerows[0], self.pagerows[0][0]]
@@ -506,7 +511,8 @@ class filemenu():
 		screen.blit(butfg, self.itemsinfo[self.selected[1]]['buttonloc'])
 		screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
 		title = self.font.render(self.itemsinfo[self.selected[1]]['title'], 1, (255,255,255))
-		titlepos = title.get_rect(topleft=self.titleoffset, width=screen.get_width())
+		titlepos = title.get_rect(topleft=self.titleoffset, width=screen.get_width()-self.titleoffset[0])
+		screen.blit(background.subsurface(titlepos), titlepos)
 		screen.blit(title,titlepos)
 		screenupdates.append(titlepos)
 		pygame.display.update(screenupdates)
@@ -572,6 +578,20 @@ class filemenu():
 		if selected == '../' and os.getcwd() == rootdir:
 			return pygame.QUIT
 		elif self.itemsinfo[selected]['file']:
+			surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
+			screenbkup = screen.copy()
+			screen.blit(surf, (0,0))
+			pygame.display.update()
+			player = movieplayer(self.itemsinfo[selected]['filename'])
+			player.play()
+			player.loop()
+			screen.blit(screenbkup, (0,0))
+			pygame.display.update()
+			"""
+				surf = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
+				surf.fill((0,0,0, 127))
+				player = movieplayer(self.itemsinfo[selected]['filename'])
+				mplayer = player.play()
 			# Overlay notes:
 			# update = A pygame.surface.Rect
 			# rect = A pygame.rect.Rect
@@ -588,19 +608,17 @@ class filemenu():
 			bmovl = os.open(bmovlfile, os.O_WRONLY)
 			overlay = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
 			overlay.fill((0,0,0, 127))
-			while mplayer.poll() == None:
+			##########
+			while player.poll() == None:
 				try: event = pygame.event.wait()
 				except KeyboardInterrupt: event = userquit()
 				if event.type == pygame.QUIT:
 					running = False
-					try: mplayer.stdin.write('quit\n')
-					except:
-						try: mplayer.kill()
-						except: pass
-					pygame.quit()
+					try: player.stop()
+					except: break
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-					try: mplayer.stdin.write('quit\n')
-					except: mplayer.kill()
+					player.stop()
+					##########
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
 					os.write(bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (overlay.get_width(), overlay.get_height(), 0, 0, 0, 0))
 					os.write(bmovl, pygame.image.tostring(overlay, 'RGBA'))
@@ -615,6 +633,7 @@ class filemenu():
 							os.write(bmovl, 'HIDE\n')
 							print 'breaking'
 							break
+					##########
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
 					mplayer.stdin.write('seek +60\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
@@ -625,6 +644,7 @@ class filemenu():
 					mplayer.stdin.write('seek +30\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
 					mplayer.stdin.write('osd\n')
+			##########
 			os.unlink(bmovlfile)
 			stdout, stderr = mplayer.communicate()
 			print '### stdout ###\n', stdout
@@ -635,6 +655,7 @@ class filemenu():
 #			extprogram = subprocess.Popen(['smplayer',self.itemsinfo[selected]['filename']])
 #			extprogram.wait()
 #			viewfile(self.itemsinfo[selected])
+			"""
 		elif not self.itemsinfo[selected]['file']:
 			os.chdir(self.itemsinfo[selected]['filename'])
 			self.selected = [None, None]
@@ -642,27 +663,137 @@ class filemenu():
 			self.render()
 ##### End class filemenu()
 
-class player()
-	def open(self, file, osd=True)
+class movieplayer():
+	# I've tried to make this fairly compatible with the pygame.movie module, but there's a lot of features in this that are not in the pygame.movie module.
+	def __init__(self, filename):
+		self.filename = filename
+	def play(self, loops=None, osd=True):
+		# Starts playback of the movie. Sound and video will begin playing if they are not disabled. The optional loops argument controls how many times the movie will be repeated. A loop value of -1 means the movie will repeat forever.
 		args = ['-really-quiet','-slave','-fs']
+		if loops == 0:
+			loops = None
+		elif loops == -1:
+			loops = 0
+		if loops != None:
+			args += ['-loop', str(loops)]
 		if osd:
-			bmovlfile = '/tmp/bmovl-%s-%s' % (os.getlogin(), os.getpid())
-			os.mkfifo(bmovlfile)
-			self.bmovl = os.open(bmovlfile, os.O_WRONLY)
-			args += ['-osdlevel','0','-vf','bmovl=1:0:'+bmovlfile]
+			self.bmovlfile = os.tempnam(None, 'bmovl')
+#			bmovlfile = '/tmp/bmovl-%s-%s' % (os.getlogin(), os.getpid())
+			os.mkfifo(self.bmovlfile)
+#			self.bmovl = os.open(bmovlfile, os.O_WRONLY)
+			self.bmovl = os.open('/tmp/bmovl', os.O_WRONLY)
+			args += ['-osdlevel','0','-vf','bmovl=1:0:'+self.bmovlfile]
 		else:
 			self.bmovl = os.open(os.path.devnull, os.O_WRONLY)
-		mplayer = subprocess.Popen(['mplayer']+args+[self.itemsinfo[selected]['filename']],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+		self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+		return self.mplayer
 	def pause(self):
-		mplayer.stdin.write('pause\n')
+		# This will temporarily stop or restart movie playback.
+		self.mplayer.stdin.write('pause\n')
+	def skip(self, seconds):
+		# Advance the movie playback time in seconds. This can be called before the movie is played to set the starting playback time. This can only skip the movie forward, not backwards. The argument is a floating point number.
+		### I've added being able to go backwards.
+		if type(seconds) == float or type(seconds) == int:
+			mplayer.stdin.write('seek +%s\n' % seconds)
+		else:
+			mplayer.stdin.write('seek %s\n' % seconds)
+	def rewind(self, seconds=0):
+		# Sets the movie playback position to the start of the movie. The movie will automatically begin playing even if it stopped.
+		### I've added being able to specify how far back to go
+		if seconds == 0:
+			mplayer.stdin.write('seek 0\n')
+		elif type(seconds) == float or type(seconds) == int:
+			mplayer.stdin.write('seek -%s\n' % seconds)
+		else:
+			mplayer.stdin.write('seek %s\n' % seconds)
+	def render_frame(self,frame_number):
+		# This takes an integer frame number to render. It attempts to render the given frame from the movie to the target Surface. It returns the real frame number that got rendered.
+		### Might be worth implementing via 'jpeg' (or similar) video output driver, I can't be bothered with it for now.
+		return frame_number
+	def get_frame(self):
+		# Returns the integer frame number of the current video frame.
+		return 0
+	def get_time(self):
+		# Return the current playback time as a floating point value in seconds. This method currently seems broken and always returns 0.0.
+		### This is easy to implement so do so even though the pygame version fails.
+		return 0.0
+	def get_busy(self):
+		# Returns true if the movie is currently being played.
+		return True
+	def get_length(self):
+		# Returns the length of the movie in seconds as a floating point value.
+		return 0.0
+	def get_size(self):
+		# Gets the resolution of the movie video. The movie will be stretched to the size of any Surface, but this will report the natural video size.
+		return (0,0)
+	def has_video(self):
+		# True when the opened movie file contains a video stream.
+		return True
+	def has_audio(self):
+		# True when the opened movie file contains an audio stream.
+		return True
+	def set_volume(self,volume=None):
+		# Set the playback volume for this movie. The argument is a value between 0.0 and 1.0. If the volume is set to 0 the movie audio will not be decoded.
+		return None
+	def set_display(self,surface=None,rect=None):
+		print "Setting a display surface is not supported by MPlayer"
+		return None
 	def showosd(self):
 		os.write(bmovl, 'SHOW\n')
 	def hideosd(self):
 		os.write(bmovl, 'HIDE\n')
 	def updateosd(self, rect, surf):
-		os.write(bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (overlay.get_width(), overlay.get_height(), 0, 0, 0, 0))
-		os.write(bmovl, pygame.image.tostring(overlay, 'RGBA'))
-##### End class player()
+		os.write(bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (rect[0], rect[1], rect[2], rect[3], 0, 0))
+		surf.subsurface(rect)
+		os.write(self.bmovl, pygame.image.tostring(surf, 'RGBA'))
+	def poll(self):
+		status = self.mplayer.poll()
+		if status != None:
+			self.stop()
+		return status
+	def stop(self):
+		try:
+			self.mplayer.stdin.write('quit\n')
+			self.mplayer.stdin.close()
+		except:
+			try: self.mplayer.kill()
+			except OSError: pass
+		try:
+			os.close(self.bmovl)
+			os.unlink(self.bmovlfile)
+		except: pass
+		if self.mplayer.poll() != None:
+			return self.mplayer.wait()
+		else:
+			return self.mplayer.poll()
+	def getinfo(self):
+		self.mplayer.stdin.write('get_percent_pos\nget_time_pos\nget_time_length\nget_file_name\n')
+		print self.mplayer.stdout.readline()
+		print self.mplayer.stdout.readline()
+		print self.mplayer.stdout.readline()
+		print self.mplayer.stdout.readline()
+	def loop(self):
+		while self.poll() == None:
+			try: event = pygame.event.wait()
+			except KeyboardInterrupt: event = userquit()
+			if event.type == pygame.QUIT:
+				running = False
+				try: self.stop()
+				except: break
+			elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+				self.stop()
+			elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
+				self.mplayer.stdin.write('seek +60\n')
+			elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
+				self.mplayer.stdin.write('seek -50\n')
+			elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
+				self.mplayer.stdin.write('seek -20\n')
+			elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
+				self.mplayer.stdin.write('seek +30\n')
+			elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
+				self.mplayer.stdin.write('osd\n')
+				self.getinfo()
+##### End class movieplayer()
 
 ## The Pygame modules need to be initialised before they can be used.
 ### The Pygame docs say to just initialise *everything* at once, I think this is wasteful and am only initialising the bits I'm using.
@@ -677,8 +808,8 @@ pygame.display.init()
 if android:
 	screen = pygame.display.set_mode((1280,720), pygame.FULLSCREEN) # Create a new window.
 else:
-	screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
-#	screen = pygame.display.set_mode((800,600)) # Create a new window.
+#	screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
+	screen = pygame.display.set_mode((800,600)) # Create a new window.
 	#screen = pygame.display.set_mode((1050,1680)) # Create a new window.
 try: background = pygame.transform.scale(pygame.image.load('background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
@@ -696,6 +827,36 @@ if android:
 	fontname = '/system/fonts/DroidSans.ttf'
 else:
 	fontname = pygame.font.match_font(u'trebuchetms') # Might want to use a non-MS font.
+
+if len(sys.argv) > 1 and os.path.isfile(sys.argv[1]):
+#	surf = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
+#	surf.fill((0,0,0, 127))
+	surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
+	print surf
+	screen.blit(surf, (0,0))
+	pygame.display.update()
+	player = movieplayer(sys.argv[1])
+	mplayer = player.play()
+	while player.poll() == None:
+		try: event = pygame.event.wait()
+		except KeyboardInterrupt: event = userquit()
+		if event.type == pygame.QUIT:
+			running = False
+			try: player.stop()
+			except: break
+		elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+			player.stop()
+		elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
+			mplayer.stdin.write('seek +60\n')
+		elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
+			mplayer.stdin.write('seek -50\n')
+		elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
+			mplayer.stdin.write('seek -20\n')
+		elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
+			mplayer.stdin.write('seek +30\n')
+		elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
+			mplayer.stdin.write('osd\n')
+	quit()
 
 menuitems = [('Videos', filemenu), ('Extra item', 'testing'), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
 menu = textmenu(menuitems)
