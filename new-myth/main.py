@@ -1,5 +1,5 @@
 #!/usr/bin/python
-from time import sleep
+from time import sleep, time
 import os
 import sys
 import commands
@@ -555,7 +555,6 @@ class filemenu():
 			try: event = pygame.event.wait()
 			except KeyboardInterrupt: event = userquit()
 			if event.type == pygame.QUIT:
-				print 'quitting'
 				running = False
 				pygame.quit()
 			elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
@@ -702,7 +701,7 @@ class movieplayer():
 		self.screenbkup = screen.copy()
 		screen.blit(surf, (0,0))
 		pygame.display.update()
-		args = ['-really-quiet', '-msglevel', 'global=4','-slave','-fs','-identify','-stop-xscreensaver','-volume','95']
+		args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','global=4:input=5:statusline=5','-slave','-fs','-identify','-stop-xscreensaver','-volume','95']
 		if loops == 0:
 			loops = None
 		elif loops == -1:
@@ -715,11 +714,13 @@ class movieplayer():
 			args += ['-osdlevel','0','-vf','bmovl=1:0:'+self.bmovlfile]
 		else:
 			self.bmovl = os.open(os.path.devnull, os.O_WRONLY)
-		self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+		self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
 		self.mplayer.stdin.write('get_file_name\n')
 		response = self.mplayer.stdout.readline()
 		while not response.startswith('ANS_FILENAME') and not response == '':
 			response = self.mplayer.stdout.readline()
+		if self.mplayer.poll() != None:
+			raise Exception(self.mplayer.stdout.read())
 		if osd:
 			self.bmovl = os.open(self.bmovlfile, os.O_WRONLY)
 		return self.mplayer
@@ -816,11 +817,25 @@ class movieplayer():
 			response = self.mplayer.wait()
 		else:
 			response = self.mplayer.poll()
-		print self.mplayer.stdout.read(), self.mplayer.stderr.read()
 		screen.blit(self.screenbkup, (0,0))
 		pygame.display.update()
 		return response
 	def read(self, expect=None):
+		response = ''
+		char = self.mplayer.stdout.read(1)
+		while char != '\n' and not char == '':
+			response = response+char
+			if response[-4:] == '\x1b[J\r': break
+			char = self.mplayer.stdout.read(1)
+		if expect != None:
+			while not response.startswith(expect) and not char == '':
+				response = ''
+				char = self.mplayer.stdout.read(1)
+				while char != '\n':
+					response = response+char
+					if response[-4:] == '\x1b[J\r': break
+					char = self.mplayer.stdout.read(1)
+		return response.lstrip(expect)
 		response = self.mplayer.stdout.readline()
 		if expect != None:
 			while not response.startswith(expect) and not response == '':
@@ -848,7 +863,15 @@ class movieplayer():
 		raw = self.read('ANS_VIDEO_RESOLUTION=').strip("'")
 		return (int(raw.split(' x ')[0]), int(raw.split(' x ')[1]))
 	def loop(self):
+		actions = {}
 		while self.poll() == None:
+			for when in actions.keys():
+				if time() > when:
+					if type(actions[when]) != list:
+						actions[when]()
+					else:
+						actions[when][0](actions[when][1])
+					actions.pop(when)
 			try: events = pygame.event.get()
 			except KeyboardInterrupt: event = userquit()
 			for event in events:
@@ -870,12 +893,24 @@ class movieplayer():
 					self.mplayer.stdin.write('seek +30\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
 					self.mplayer.stdin.write('osd\n')
+					self.mplayer.stdin.write('osd\n')
+					actions.update({time()+2: [self.mplayer.stdin.write, 'osd\n']})
+					actions.update({time()+2: [self.mplayer.stdin.write, 'osd\n']})
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
 					surf, rect = self.renderosd()
 					screen.blit(surf, surf.get_rect(center=(screen.get_width()/2,screen.get_height()/2)))
 					pygame.display.update()
 					self.updateosd(surf, rect)
 					self.showosd()
+					actions.update({time()+2: self.hideosd})
+			output = self.read()
+			if output.startswith("No bind found for key '"):
+				key = output.lstrip("No bind found for key ").rstrip("'.").lstrip("'") # Strangely if I put the "'" in the first lstrip call then and "i" is the key, the "i" will be dropped completely, and I can't figure out why, but this hacky workaround which should never reach production works.
+				if key == 'ESC': key = 'ESCAPE'
+				if dir(pygame).__contains__('K_'+key):
+					pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
+				elif key == 'CLOSE_WIN':
+					pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
 ##### End class movieplayer()
 
 ## The Pygame modules need to be initialised before they can be used.
