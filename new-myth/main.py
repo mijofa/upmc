@@ -693,14 +693,16 @@ class filemenu():
 class movieplayer():
 	# I've tried to make this fairly compatible with the pygame.movie module, but there's a lot of features in this that are not in the pygame.movie module.
 	def __init__(self, filename):
+		global fontname
 		self.filename = filename
+		self.font = pygame.font.Font(fontname, 18)
 	def play(self, loops=None, osd=True):
 		# Starts playback of the movie. Sound and video will begin playing if they are not disabled. The optional loops argument controls how many times the movie will be repeated. A loop value of -1 means the movie will repeat forever.
 		surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
 		self.screenbkup = screen.copy()
 		screen.blit(surf, (0,0))
 		pygame.display.update()
-		args = ['-quiet','-slave','-fs','-identify','-stop-xscreensaver','-volume','95']
+		args = ['-really-quiet', '-msglevel', 'global=4','-slave','-fs','-identify','-stop-xscreensaver','-volume','95']
 		if loops == 0:
 			loops = None
 		elif loops == -1:
@@ -746,20 +748,20 @@ class movieplayer():
 		return frame_number
 	def get_frame(self):
 		# Returns the integer frame number of the current video frame.
+		### Would take a lot of effort to make work in Mplayer.
 		return 0
 	def get_time(self):
 		# Return the current playback time as a floating point value in seconds. This method currently seems broken and always returns 0.0.
 		### This is easy to implement so do so even though the pygame version fails.
-		return 0.0
+		return self.time_pos
 	def get_busy(self):
-		# Returns true if the movie is currently being played.
-		return True
+		return self.paused == False
 	def get_length(self):
 		# Returns the length of the movie in seconds as a floating point value.
-		return 0.0
+		return self.time_length
 	def get_size(self):
 		# Gets the resolution of the movie video. The movie will be stretched to the size of any Surface, but this will report the natural video size.
-		return (0,0)
+		return self.video_resolution
 	def has_video(self):
 		# True when the opened movie file contains a video stream.
 		return True
@@ -773,22 +775,27 @@ class movieplayer():
 		print "Setting a display surface is not supported by MPlayer"
 		return None
 	def showosd(self):
-		os.write(bmovl, 'SHOW\n')
+		os.write(self.bmovl, 'SHOW\n')
 	def hideosd(self):
-		os.write(bmovl, 'HIDE\n')
-	def updateosd(self, rect, surf):
-		os.write(bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (rect[0], rect[1], rect[2], rect[3], 0, 0))
-		surf.subsurface(rect)
+		os.write(self.bmovl, 'HIDE\n')
+	def updateosd(self, surf, rect = (0,0,0,0)):
+		os.write(self.bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (rect[0], rect[1], rect[2], rect[3], 0, 0))
+		#if surf.get_height() > rect.height and surf.get_width() > rect.width:
+#			surf.subsurface(rect)
 		os.write(self.bmovl, pygame.image.tostring(surf, 'RGBA'))
-	def displayinfo(self):
-		self.mplayer.stdin.write('get_percent_pos\n')
-		percent = self.read('ANS_PERCENT_POSITION=')
-		self.mplayer.stdin.write('get_time_pos\n')
-		time = self.read('ANS_TIME_POSITION=')
-		self.mplayer.stdin.write('get_time_length\n')
-		length = self.read('ANS_LENGTH=')
-		self.mplayer.stdin.write('get_property pause\n')
-		paused = self.read('ANS_pause=') == 'yes'
+	def renderosd(self):
+		width, height = self.video_resolution
+		rect = pygame.rect.Rect((width/2,height/2,width/2/2,height/2/2))
+		surf = pygame.surface.Surface(rect[0:2], pygame.SRCALPHA)
+		surf.fill((25,25,25,157))
+		text = self.font.render(os.path.basename(self.filename).rpartition('.')[0], 1, (255,255,255,255))
+		if text.get_width() > surf.get_width():
+			more = self.font.render('...', 1, (255,255,255,255))
+			surf.blit(text.subsurface((0,0,surf.get_width()-more.get_width(),text.get_height())), (0,0))
+			surf.blit(more, (surf.get_width()-more.get_width(), text.get_height()-more.get_height()))
+		else:
+			surf.blit(text, (0,0))
+		return surf, rect
 	def poll(self):
 		status = self.mplayer.poll()
 		if status != None:
@@ -819,15 +826,27 @@ class movieplayer():
 			while not response.startswith(expect) and not response == '':
 				response = self.mplayer.stdout.readline()
 		return response.lstrip(expect).rstrip('\n')
-	def getinfo(self):
-#		self.mplayer.stdin.write('pausing_keep get_percent_pos\n')
-#		print 'percent_pos =', self.read('ANS_PERCENT_POSITION=')
-#		self.mplayer.stdin.write('pausing_keep get_time_pos\n')
-#		print 'time_pos =', self.read('ANS_TIME_POSITION=')
-#		self.mplayer.stdin.write('pausing_keep get_time_length\n')
-#		print 'time_length =', self.read('ANS_LENGTH=')
-#		self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
-#		print 'paused =', self.read('ANS_pause=') == 'yes'
+	@property
+	def paused(self):
+		self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
+		return self.read('ANS_pause=') == 'yes'
+	@property
+	def percent_pos(self):
+		self.mplayer.stdin.write('pausing_keep_force get_property percent_pos\n')
+		return float(self.read('ANS_PERCENT_POSITION='))
+	@property
+	def time_pos(self):
+		self.mplayer.stdin.write('pausing_keep_force get_property time_pos\n')
+		return float(self.read('ANS_TIME_POSITION='))
+	@property
+	def time_length(self):
+		self.mplayer.stdin.write('pausing_keep_force get_property length\n')
+		return float(self.read('ANS_LENGTH='))
+	@property
+	def video_resolution(self):
+		self.mplayer.stdin.write('pausing_keep_force get_video_resolution\n')
+		raw = self.read('ANS_VIDEO_RESOLUTION=').strip("'")
+		return (int(raw.split(' x ')[0]), int(raw.split(' x ')[1]))
 	def loop(self):
 		while self.poll() == None:
 			try: events = pygame.event.get()
@@ -841,18 +860,6 @@ class movieplayer():
 					self.stop()
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
 					self.pause()
-#					os.write(bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (overlay.get_width(), overlay.get_height(), 0, 0, 0, 0))
-#					os.write(bmovl, pygame.image.tostring(overlay, 'RGBA'))
-#					os.write(bmovl, 'SHOW\n')
-#					pygame.event.set_allowed([pygame.KEYUP])
-#					while mplayer.poll() == None:
-#						event = pygame.event.wait()
-#						print 'event', event
-#						if event.type == pygame.KEYUP and event.key == pygame.K_SPACE:
-#							print 'hiding overlay'
-#							os.write(bmovl, 'HIDE\n')
-#							print 'breaking'
-#							break
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
 					self.mplayer.stdin.write('seek +60\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
@@ -863,7 +870,12 @@ class movieplayer():
 					self.mplayer.stdin.write('seek +30\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
 					self.mplayer.stdin.write('osd\n')
-					self.getinfo()
+				elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
+					surf, rect = self.renderosd()
+					screen.blit(surf, surf.get_rect(center=(screen.get_width()/2,screen.get_height()/2)))
+					pygame.display.update()
+					self.updateosd(surf, rect)
+					self.showosd()
 ##### End class movieplayer()
 
 ## The Pygame modules need to be initialised before they can be used.
