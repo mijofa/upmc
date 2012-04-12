@@ -1,7 +1,7 @@
 #!/usr/bin/python
-from time import sleep, time
 import os
 import sys
+import time
 import commands
 import subprocess
 try:
@@ -629,7 +629,7 @@ class filemenu():
 			mplayer = subprocess.Popen(['mplayer','-quiet','-slave','-fs','-vf','bmovl=1:0:'+bmovlfile,self.itemsinfo[selected]['filename']],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 #			mplayer.stdin.write('osd\n')
 #			mplayer.stdin.write('osd\n')
-#			sleep(5)
+#			time.sleep(5)
 			bmovl = os.open(bmovlfile, os.O_WRONLY)
 			overlay = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
 			overlay.fill((0,0,0, 127))
@@ -691,17 +691,25 @@ class filemenu():
 
 class movieplayer():
 	# I've tried to make this fairly compatible with the pygame.movie module, but there's a lot of features in this that are not in the pygame.movie module.
+	osd = None
+	osd_visible = False
+	time_pos = 0
+	percent_pos = 0
+	time_length = 0
+	osd_percentage = -1
+	osd_time_pos = -1
+	osd_last_run = -1
 	def __init__(self, filename):
 		global fontname
-		self.filename = filename
 		self.font = pygame.font.Font(fontname, 18)
+		self.filename = filename
 	def play(self, loops=None, osd=True):
 		# Starts playback of the movie. Sound and video will begin playing if they are not disabled. The optional loops argument controls how many times the movie will be repeated. A loop value of -1 means the movie will repeat forever.
 		surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
 		self.screenbkup = screen.copy()
 		screen.blit(surf, (0,0))
 		pygame.display.update()
-		args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','global=4:input=5:statusline=5','-slave','-fs','-identify','-stop-xscreensaver','-volume','95']
+		args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','global=4:input=5:statusline=5:cplayer=5','-slave','-fs','-identify','-stop-xscreensaver','-volume','95']
 		if loops == 0:
 			loops = None
 		elif loops == -1:
@@ -716,13 +724,24 @@ class movieplayer():
 			self.bmovl = os.open(os.path.devnull, os.O_WRONLY)
 		self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
 		self.mplayer.stdin.write('get_file_name\n')
+		output = ''
 		response = self.mplayer.stdout.readline()
-		while not response.startswith('ANS_FILENAME') and not response == '':
-			response = self.mplayer.stdout.readline()
+#		while not response.startswith('ANS_FILENAME') and not response == '':
+#			output = output+response+'\n'
+#			response = self.mplayer.stdout.readline()
 		if self.mplayer.poll() != None:
-			raise Exception(self.mplayer.stdout.read())
+			output = output+response+'\n'
+			while not response == '':
+				response = self.mplayer.stdout.readline()
+				output = output+response+'\n'
+			raise Exception(output)
 		if osd:
 			self.bmovl = os.open(self.bmovlfile, os.O_WRONLY)
+		self.mplayer.stdin.write('pausing_keep_force get_property length\n')
+		self.time_length = float(self.read('ANS_length='))
+		self.mplayer.stdin.write('pausing_keep_force get_video_resolution\n')
+		rawvidres = self.read('ANS_VIDEO_RESOLUTION=').strip("'")
+		self.video_resolution = (int(rawvidres.split(' x ')[0]), int(rawvidres.split(' x ')[1]))
 		return self.mplayer
 	def pause(self):
 		# This will temporarily stop or restart movie playback.
@@ -777,26 +796,79 @@ class movieplayer():
 		return None
 	def showosd(self):
 		os.write(self.bmovl, 'SHOW\n')
+		self.osd_visible = True
 	def hideosd(self):
 		os.write(self.bmovl, 'HIDE\n')
-	def updateosd(self, surf, rect = (0,0,0,0)):
-		os.write(self.bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (rect[0], rect[1], rect[2], rect[3], 0, 0))
+		self.osd_visible = False
+	def updateosd(self):
+		os.write(self.bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (self.osd_rect[0], self.osd_rect[1], self.osd_rect[2], self.osd_rect[3], 0, 0))
 		#if surf.get_height() > rect.height and surf.get_width() > rect.width:
 #			surf.subsurface(rect)
-		os.write(self.bmovl, pygame.image.tostring(surf, 'RGBA'))
+		string_surf = pygame.image.tostring(self.osd, 'RGBA')
+		os.write(self.bmovl, string_surf)
 	def renderosd(self):
 		width, height = self.video_resolution
-		rect = pygame.rect.Rect((width/2,height/2,width/2/2,height/2/2))
-		surf = pygame.surface.Surface(rect[0:2], pygame.SRCALPHA)
-		surf.fill((25,25,25,157))
-		text = self.font.render(os.path.basename(self.filename).rpartition('.')[0], 1, (255,255,255,255))
-		if text.get_width() > surf.get_width():
-			more = self.font.render('...', 1, (255,255,255,255))
-			surf.blit(text.subsurface((0,0,surf.get_width()-more.get_width(),text.get_height())), (0,0))
-			surf.blit(more, (surf.get_width()-more.get_width(), text.get_height()-more.get_height()))
-		else:
-			surf.blit(text, (0,0))
-		return surf, rect
+#		rect = pygame.rect.Rect((width/2,height/2,width/2/2,height/2/2))
+#		<rect(320, 176, 160, 88)>
+		more = self.font.render('...', 1, (255,255,255,255))
+		if not self.osd:
+			self.osd_rect = pygame.rect.Rect((240,22*3,width-240-15,15))
+			self.osd = pygame.surface.Surface(self.osd_rect[0:2], pygame.SRCALPHA)
+			self.osd.fill((25,25,25,157))
+			title = self.font.render(os.path.basename(self.filename).rpartition('.')[0], 1, (255,255,255,255))
+			if title.get_width() > self.osd.get_width():
+				self.osd.blit(title.subsurface((0,0,self.osd.get_width()-more.get_width(),title.get_height())), (0,0))
+				self.osd.blit(more, (self.osd.get_width()-more.get_width(), title.get_height()-more.get_height()))
+			else:
+				self.osd.blit(title, (0,0))
+			self.updateosd()
+		print int(self.percent_pos) == self.osd_percentage, self.osd_time_pos == int(self.time_pos)
+		if not int(self.percent_pos) == self.osd_percentage or not self.osd_time_pos == int(self.time_pos) :
+			subosd = self.osd.subsurface([0,22,240,44])
+			subosd.fill((25,25,25,157))
+			curhrs = int(self.time_pos/60.0/60.0)
+			curmins = int((self.time_pos-(curhrs*60*60))/60)
+			cursecs = int(self.time_pos-((curhrs*60*60)+(curmins*60)))
+			totalhrs = int(self.time_length/60.0/60.0)
+			totalmins = int((self.time_length-(totalhrs*60*60))/60)
+			totalsecs = int(self.time_length-((totalhrs*60*60)+(totalmins*60)))
+			if totalhrs == 0 and totalmins == 0:
+				curpos = '%02d' % (cursecs)
+				totallength = '%02d' % (totalsecs)
+			elif totalhrs == 0:
+				curpos = '%02d:%02d' % (curmins,cursecs)
+				totallength = '%02d:%02d' % (totalmins,totalsecs)
+			else:
+				curpos = '%02d:%02d:%02d' % (curhrs,curmins,cursecs)
+				totallength = '%02d:%02d:%02d' % (totalhrs,totalmins,totalsecs)
+			pos = self.font.render('%s of %s' % (curpos, totallength), 1, (255,255,255,255))
+			curtime = self.font.render(time.strftime('%I:%M:%S %p '), 1, (255,255,255,255))
+			if pos.get_width() > subosd.get_width()-curtime.get_width():
+				subosd.blit(pos.subsurface((0,0,subosd.get_width()-curtime.get_width(),0)), (0,0))
+				subosd.blit(more, (subosd.get_width()-curtime.get_width()-more.get_width(), pos.get_height()-more.get_height()))
+			else:
+				subosd.blit(pos, (0,0))
+			subosd.blit(curtime, (subosd.get_width()-curtime.get_width(), pos.get_height()-curtime.get_height()))
+			percbg = pygame.surface.Surface((subosd.get_width(), 22), pygame.SRCALPHA)
+			percbg.fill((0,0,0,255))
+			subosd.blit(percbg, (0,pos.get_height()))
+			perc = pygame.surface.Surface((subosd.get_width()/100*self.percent_pos, 22), pygame.SRCALPHA)
+			perc.fill((127,127,127,255))
+			subosd.blit(perc, (0,pos.get_height()))
+			percnum = self.font.render(str(int(self.percent_pos))+'%', 1, (255,255,255,255))
+			subosd.blit(percnum, ((subosd.get_width()/2)-(percnum.get_width()-2),pos.get_height()))
+			self.osd_percentage = int(self.percent_pos)
+			self.osd_time_pos = int(self.time_pos)
+			pygame.display.update()
+			print 'changed osd'
+			self.updateosd()
+			self.osd_last_run == int(time.time())
+		elif not self.osd_last_run == int(time.time()):
+			curtime = self.font.render(time.strftime('%I:%M:%S %p '), 1, (255,255,255,255))
+			subosd = self.osd.subsurface([self.osd.get_width()-curtime.get_width(),22,curtime.get_width(),22])
+			subosd.fill((25,25,25,157))
+			subosd.blit(curtime, (0,0))
+			self.osd_last_run == int(time.time())
 	def poll(self):
 		status = self.mplayer.poll()
 		if status != None:
@@ -821,59 +893,98 @@ class movieplayer():
 		pygame.display.update()
 		return response
 	def read(self, expect=None):
+		statusline = None
 		response = ''
-		char = self.mplayer.stdout.read(1)
-		while char != '\n' and not char == '':
-			response = response+char
-			if response[-4:] == '\x1b[J\r': break
-			char = self.mplayer.stdout.read(1)
-		if expect != None:
-			while not response.startswith(expect) and not char == '':
-				response = ''
-				char = self.mplayer.stdout.read(1)
-				while char != '\n':
-					response = response+char
-					if response[-4:] == '\x1b[J\r': break
-					char = self.mplayer.stdout.read(1)
-		return response.lstrip(expect)
-		response = self.mplayer.stdout.readline()
-		if expect != None:
-			while not response.startswith(expect) and not response == '':
-				response = self.mplayer.stdout.readline()
-		return response.lstrip(expect).rstrip('\n')
+		outputlines = []
+		while True:
+			try:
+				line = self.mplayer.stdout.next().rstrip('\n')
+				print line
+				outputlines.append(line)
+			except: break
+		print '\n'.join(outputlines)
+		for line in outputlines:
+			if line.__contains__('\x1b[J\r'):
+				outputlines.remove(line)
+				statusline = line.split('\x1b[J\r')[-1]
+				try: self.time_pos = float(statusline[statusline.index('V:')+2:statusline.index('A-V:')].strip(' '))
+				except: print statusline
+				if not self.time_pos == 0 and not self.time_length == 0:
+					self.percent_pos = self.time_pos/(self.time_length/100)
+			elif line.startswith("No bind found for key '"):
+				outputlines.remove(line)
+				key = line.lstrip("No bind found for key ").rstrip("'.").lstrip("'") # Strangely if I put the "'" in the first lstrip call then and "i" is the key, the "i" will be dropped completely, and I can't figure out why, but this hacky workaround which should never reach production works.
+				if key == 'ESC': key = 'ESCAPE'
+				if dir(pygame).__contains__('K_'+key):
+					pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
+				elif key == 'CLOSE_WIN':
+					pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
+		if not expect == None:
+			for line in outputlines:
+				if line.startswith(expect):
+					print 'returning:', line
+					return line.lstrip(expect)
+		elif expect == None:
+			print 'returning:', outputlines
+			return outputlines
+#		char = self.mplayer.stdout.read(1)
+#		while char != '\n' and not char == '':
+#			response = response+char
+#			if response[-4:] == '\x1b[J\r':
+#				statusline = response
+#				break
+#			char = self.mplayer.stdout.read(1)
+#		if response.startswith("No bind found for key '"):
+#			key = response.lstrip("No bind found for key ").rstrip("'.").lstrip("'") # Strangely if I put the "'" in the first lstrip call then and "i" is the key, the "i" will be dropped completely, and I can't figure out why, but this hacky workaround which should never reach production works.
+#			if key == 'ESC': key = 'ESCAPE'
+#			if dir(pygame).__contains__('K_'+key):
+#				pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
+#			elif key == 'CLOSE_WIN':
+#				pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
+#		if expect != None:
+#			while not response.startswith(expect) and not char == '':
+#				if response.startswith("No bind found for key '"):
+#					key = response.lstrip("No bind found for key ").rstrip("'.").lstrip("'") # Strangely if I put the "'" in the first lstrip call then and "i" is the key, the "i" will be dropped completely, and I can't figure out why, but this hacky workaround which should never reach production works.
+#					if key == 'ESC': key = 'ESCAPE'
+#					if dir(pygame).__contains__('K_'+key):
+#						pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
+#					elif key == 'CLOSE_WIN':
+#						pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
+#				response = ''
+#				char = self.mplayer.stdout.read(1)
+#				while char != '\n':
+#					response = response+char
+#					if response[-4:] == '\x1b[J\r':
+#						statusline = response
+#						break
+#					char = self.mplayer.stdout.read(1)
+#		if not statusline == None:
+#			self.time_pos = float(statusline[statusline.index('V:')+2:statusline.index('A-V:')].strip(' '))
+#			if not self.time_pos == 0 and not self.time_length == 0:
+#				self.percent_pos = self.time_pos/(self.time_length/100)
+#		if expect != None:
+#			return response.lstrip(expect[:-1]).lstrip(expect[-1]) # Same with this as with the 'key = ' lines above, although it seems asthough it applies to more than just "i" here.
+#		else:
+#			return response
 	@property
 	def paused(self):
 		self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
 		return self.read('ANS_pause=') == 'yes'
-	@property
-	def percent_pos(self):
-		self.mplayer.stdin.write('pausing_keep_force get_property percent_pos\n')
-		return float(self.read('ANS_PERCENT_POSITION='))
-	@property
-	def time_pos(self):
-		self.mplayer.stdin.write('pausing_keep_force get_property time_pos\n')
-		return float(self.read('ANS_TIME_POSITION='))
-	@property
-	def time_length(self):
-		self.mplayer.stdin.write('pausing_keep_force get_property length\n')
-		return float(self.read('ANS_LENGTH='))
-	@property
-	def video_resolution(self):
-		self.mplayer.stdin.write('pausing_keep_force get_video_resolution\n')
-		raw = self.read('ANS_VIDEO_RESOLUTION=').strip("'")
-		return (int(raw.split(' x ')[0]), int(raw.split(' x ')[1]))
 	def loop(self):
-		actions = {}
+		self.actions = {}
 		while self.poll() == None:
-			for when in actions.keys():
-				if time() > when:
-					if type(actions[when]) != list:
-						actions[when]()
-					else:
-						actions[when][0](actions[when][1])
-					actions.pop(when)
 			try: events = pygame.event.get()
 			except KeyboardInterrupt: event = userquit()
+			if events == []:
+				for when in self.actions.keys():
+					if time.time() > when:
+						if type(self.actions[when]) != list:
+							self.actions[when]()
+						else:
+							self.actions[when][0](self.actions[when][1])
+						self.actions.pop(when)
+				if self.osd_visible == True:
+					self.renderosd()
 			for event in events:
 				if event.type == pygame.QUIT:
 					running = False
@@ -894,23 +1005,27 @@ class movieplayer():
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
 					self.mplayer.stdin.write('osd\n')
 					self.mplayer.stdin.write('osd\n')
-					actions.update({time()+2: [self.mplayer.stdin.write, 'osd\n']})
-					actions.update({time()+2: [self.mplayer.stdin.write, 'osd\n']})
+					self.actions.update({time.time()+2: [self.mplayer.stdin.write, 'osd\n']})
+					self.actions.update({time.time()+2: [self.mplayer.stdin.write, 'osd\n']})
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
-					surf, rect = self.renderosd()
-					screen.blit(surf, surf.get_rect(center=(screen.get_width()/2,screen.get_height()/2)))
-					pygame.display.update()
-					self.updateosd(surf, rect)
-					self.showosd()
-					actions.update({time()+2: self.hideosd})
-			output = self.read()
-			if output.startswith("No bind found for key '"):
-				key = output.lstrip("No bind found for key ").rstrip("'.").lstrip("'") # Strangely if I put the "'" in the first lstrip call then and "i" is the key, the "i" will be dropped completely, and I can't figure out why, but this hacky workaround which should never reach production works.
-				if key == 'ESC': key = 'ESCAPE'
-				if dir(pygame).__contains__('K_'+key):
-					pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
-				elif key == 'CLOSE_WIN':
-					pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
+#					if self.osd_visible:
+#						self.hideosd()
+#						if self.actions.values().__contains__(self.hideosd):
+#							self.actions.pop(self.actions.keys()[self.actions.values().index(self.hideosd)])
+#					else:
+						self.renderosd()
+						self.showosd()
+						self.actions.update({time.time()+3: self.hideosd})
+						screen.blit(self.osd, self.osd.get_rect(center=(screen.get_width()/2,screen.get_height()/2)))
+						pygame.display.update()
+				elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
+					self.mplayer.stdin.write('step_property sub_visibility\n')
+					self.mplayer.stdin.write('get_property sub_visibility\n')
+					if self.read('ANS_sub_visibility=') == 'yes':
+						self.mplayer.stdin.write('osd_show_text "Subtitles enabled"\n')
+					else:
+						self.mplayer.stdin.write('osd_show_text "Subtitles disabled"\n')
+			self.read()
 ##### End class movieplayer()
 
 ## The Pygame modules need to be initialised before they can be used.
