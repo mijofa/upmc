@@ -634,12 +634,6 @@ class movieplayer():
 	osd_last_run = -1
 	remapped_keys = {'ESC': 'ESCAPE', 'MOUSE_BTN0': 'SPACE', 'ENTER': 'RETURN'}
 	threads = {}
-	@property
-	def time_pos(self):
-		self.time_pos_temp = None
-		self.mplayer.stdin.write('pausing_keep_force get_property time_pos\n')
-		while self.time_pos_temp == None: pass
-		return self.time_pos_temp
 	def __init__(self, filename):
 		global fontname
 		self.font = pygame.font.Font(fontname, 18)
@@ -672,9 +666,9 @@ class movieplayer():
 				elif response.startswith('length='):
 					self.time_length = float(response.split('=')[1])
 				elif response.startswith('time_pos='):
-					self.time_pos_temp= float(response.split('=')[1])
-					if not self.time_pos_temp == 0 and not self.time_length == 0:
-						self.percent_pos = self.time_pos_temp/(self.time_length/100)
+					self.time_pos = float(response.split('=')[1])
+					if not self.time_pos == 0 and not self.time_length == 0:
+						self.percent_pos = self.time_pos/(self.time_length/100)
 				elif response.startswith('VIDEO_RESOLUTION='):
 					rawvidres = response.split('=')[1].strip("'")
 					self.video_resolution = (int(rawvidres.split(' x ')[0]), int(rawvidres.split(' x ')[1]))
@@ -760,6 +754,9 @@ class movieplayer():
 	def get_time(self):
 		# Return the current playback time as a floating point value in seconds. This method currently seems broken and always returns 0.0.
 		### This is easy to implement so do so even though the pygame version fails.
+		self.time_pos = None
+		self.mplayer.stdin.write('pausing_keep_force get_property time_pos\n')
+		while self.time_pos == None: pass
 		return self.time_pos
 	def get_busy(self):
 		return self.paused == False
@@ -809,7 +806,7 @@ class movieplayer():
 			else:
 				self.osd.blit(title, (0,0))
 			self.updateosd()
-		if not int(self.percent_pos) == self.osd_percentage or not self.osd_time_pos == int(self.time_pos) :
+		if not int(self.percent_pos) == self.osd_percentage or not self.osd_time_pos == int(self.get_time()) :
 			subosd = self.osd.subsurface([0,22,240,44])
 			subosd.fill((25,25,25,157))
 			curhrs = int(self.time_pos/60.0/60.0)
@@ -933,7 +930,7 @@ class movieplayer():
 					else:
 						self.mplayer.stdin.write('osd_show_text "Subtitles disabled"\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-					save_pos = self.time_pos-10
+					save_pos = self.get_time()-10
 					open(self.filename+os.uname()[1]+'.save', 'w').write(str(save_pos))
 					save_hrs = int(save_pos/60.0/60.0)
 					save_mins = int((save_pos-(save_hrs*60*60))/60)
