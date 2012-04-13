@@ -634,6 +634,7 @@ class movieplayer():
 	osd_last_run = -1
 	remapped_keys = {'ESC': 'ESCAPE', 'MOUSE_BTN0': 'SPACE', 'MOUSE_BTN0_DBL': 'i', 'MOUSE_BTN2_DBL': 'ESCAPE', 'ENTER': 'RETURN'}
 	video_resolution = (0,0)
+	volume = 0
 	threads = {}
 	def __init__(self, filename):
 		global fontname
@@ -653,7 +654,6 @@ class movieplayer():
 					response = ''
 				char = self.mplayer.stdout.read(1)
 			response = response.replace('\r', '\n')
-			print response
 			if response.startswith("No bind found for key '"):
 				key = response.strip(' ').lstrip("No bind found for key ").rstrip("'.").lstrip("'") # Strangely if I put the "'" in the first lstrip call then and "i" is the key, the "i" will be dropped completely, and I can't figure out why, but this hacky workaround which should never reach production works.
 				if self.remapped_keys.keys().__contains__(key): key = self.remapped_keys[key]
@@ -676,6 +676,8 @@ class movieplayer():
 					self.time_pos = float(response.split('=')[1])
 					if not self.time_pos == 0 and not self.time_length == 0:
 						self.percent_pos = self.time_pos/(self.time_length/100)
+				elif response.startswith('volume='):
+					self.volume = float(response.split('=')[1])
 				elif response.startswith('video_width='):
 					self.video_resolution = (int(response.split('=')[1]), self.video_resolution[1])
 				elif response.startswith('video_height='):
@@ -691,7 +693,8 @@ class movieplayer():
 		self.screenbkup = screen.copy()
 		screen.blit(surf, (0,0))
 		pygame.display.update()
-		args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','identify=5:global=4:input=5:statusline=0:cplayer=5','-slave','-fs','-identify','-stop-xscreensaver','-volume','95']
+		args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','identify=5:global=4:input=5:statusline=0:cplayer=5','-slave','-fs','-identify','-stop-xscreensaver']
+		args += ['-volume', '95']
 		if loops == 0:
 			loops = None
 		elif loops == -1:
@@ -704,10 +707,23 @@ class movieplayer():
 			args += ['-osdlevel','0','-vf','bmovl=1:0:'+self.bmovlfile]
 		else:
 			self.bmovl = os.open(os.path.devnull, os.O_WRONLY)
-		if os.path.isfile(self.filename+os.uname()[1]+'.save'):
-			args += ['-ss', open(self.filename+os.uname()[1]+'.save', 'r').readline().split([0])]
+		if os.path.isfile('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+os.uname()[1]+'.save'):
+			starttime = open('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+os.uname()[1]+'.save', 'r').readline().strip('\n')
+			if starttime.__contains__(';'):
+				args += ['-volume', starttime.split(';')[1]]
+				starttime = starttime.split(';')[0]
+			args += ['-ss', starttime]
+			os.remove('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+os.uname()[1]+'.save')
+		elif os.path.isfile(self.filename+os.uname()[1]+'.save'):
+			starttime = open(self.filename+os.uname()[1]+'.save', 'r').readline().strip('\n')
+			if starttime.__contains__(';'):
+				args += ['-volume', starttime.split(';')[1]]
+				starttime = starttime.split(';')[0]
+			args += ['-ss', starttime]
 			os.remove(self.filename+os.uname()[1]+'.save')
+		print args
 		self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+		print 'running'
 #		self.mplayer.stdin.write('get_file_name\n')
 		output = ''
 #		response = self.mplayer.stdout.readline()
@@ -723,8 +739,9 @@ class movieplayer():
 		if osd:
 			self.bmovl = os.open(self.bmovlfile, os.O_WRONLY)
 		self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
-#		pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_i}))
-#		pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': pygame.K_i}))
+		self.mplayer.stdin.write('pausing_keep_force get_property volume\n')
+		pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_i}))
+		pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': pygame.K_i}))
 		thread = threading.Thread(target=self.procoutput, name='stdout')
 		self.threads.update({thread.name: thread})
 		thread.start()
@@ -782,7 +799,23 @@ class movieplayer():
 		return True
 	def set_volume(self,volume=None):
 		# Set the playback volume for this movie. The argument is a value between 0.0 and 1.0. If the volume is set to 0 the movie audio will not be decoded.
-		return None
+		if type(volume) == str and volume.startswith('+'):
+			if volume.endswith('%'): volume = int(volume.lstrip('+').rstrip('%'))
+			else: volume = float(volume.lstrip('+'))*100
+			self.mplayer.stdin.write('step_property volume %d\n' % volume)
+		elif type(volume) == str and volume.startswith('-'):
+			if volume.endswith('%'): volume = int(volume.lstrip('-').rstrip('%'))
+			else: volume = float(volume.lstrip('-'))*100
+			self.mplayer.stdin.write('step_property volume -%d\n' % volume)
+		elif type(volume) == int or type(volume) == float:
+			volume = volume*100
+			self.mplayer.stdin.write('set_property volume %d\n' % volume)
+		elif type(volume) == str and volume.endswith('%'):
+			volume = int(volume.rstrip('%'))
+			self.mplayer.stdin.write('set_property volume %d\n' % volume)
+		else:
+			raise Exception("Proper volume argument required. Got %s" % volume)
+		self.mplayer.stdin.write('get_property volume\n')
 	def set_display(self,surface=None,rect=None):
 		print "Setting a display surface is not supported by MPlayer"
 		return None
@@ -790,8 +823,9 @@ class movieplayer():
 		os.write(self.bmovl, 'SHOW\n')
 		self.osd_visible = True
 	def hideosd(self):
-		os.write(self.bmovl, 'HIDE\n')
-		self.osd_visible = False
+		if not self.osd_visible == False:
+			os.write(self.bmovl, 'HIDE\n')
+			self.osd_visible = False
 	def updateosd(self):
 		os.write(self.bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (self.osd_rect[0], self.osd_rect[1], self.osd_rect[2], self.osd_rect[3], 0, 0))
 		#if surf.get_height() > rect.height and surf.get_width() > rect.width:
@@ -867,7 +901,6 @@ class movieplayer():
 	def stop(self):
 		if self.osd_visible:
 			self.hideosd()
-			self.threads['hideosd'].cancel()
 		try:
 			self.mplayer.stdin.write('quit\n')
 			self.mplayer.stdin.close()
@@ -913,18 +946,14 @@ class movieplayer():
 					self.mplayer.stdin.write('seek +30\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
 					self.mplayer.stdin.write('osd\n')
-					self.mplayer.stdin.write('osd\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
 					if self.osd_visible:
 						self.hideosd()
-						self.threads['hideosd'].cancel()
 					else:
+						self.showosd()
 						thread = threading.Thread(target=self.renderosd, name='renderosd')
 						self.threads.update({thread.name: thread})
 						thread.start()
-						self.showosd()
-				elif event.type == pygame.KEYUP and event.key == pygame.K_i:
-					if self.osd_visible:
 						thread = threading.Timer(5, self.hideosd)
 						thread.name = 'hideosd'
 						self.threads.update({thread.name: thread})
@@ -941,8 +970,12 @@ class movieplayer():
 					save_hrs = int(save_pos/60.0/60.0)
 					save_mins = int((save_pos-(save_hrs*60*60))/60)
 					save_secs = int(save_pos-((save_hrs*60*60)+(save_mins*60)))
-					open(self.filename+os.uname()[1]+'.save', 'w').write('%s\n$02d:%02d:%02d' % (save_pos, save_hrs, save_mins, save_secs))
+					open('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+os.uname()[1]+'.save', 'w').write('%s;%s\n%02d:%02d:%02d volume=%d%%\n' % (save_pos, self.volume, save_hrs, save_mins, save_secs, self.volume))
 					self.mplayer.stdin.write('osd_show_text "Saved position: %02d:%02d:%02d"\n' % (save_hrs, save_mins, save_secs))
+				elif event.type == pygame.KEYDOWN and event.key == pygame.K_9:
+					self.set_volume('-0.02')
+				elif event.type == pygame.KEYDOWN and event.key == pygame.K_0:
+					self.set_volume('+0.02')
 ##### End class movieplayer()
 
 ## The Pygame modules need to be initialised before they can be used.
