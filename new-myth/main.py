@@ -625,14 +625,15 @@ class movieplayer():
 	# I've tried to make this fairly compatible with the pygame.movie module, but there's a lot of features in this that are not in the pygame.movie module.
 	osd = None
 	osd_visible = False
-	time_pos_temp = 0
-	paused_temp = False
+	time_pos = None
+	paused = None
 	percent_pos = 0
 	time_length = 0
 	osd_percentage = -1
 	osd_time_pos = -1
 	osd_last_run = -1
-	remapped_keys = {'ESC': 'ESCAPE', 'MOUSE_BTN0': 'SPACE', 'ENTER': 'RETURN'}
+	remapped_keys = {'ESC': 'ESCAPE', 'MOUSE_BTN0': 'SPACE', 'MOUSE_BTN0_DBL': 'i', 'MOUSE_BTN2_DBL': 'ESCAPE', 'ENTER': 'RETURN'}
+	video_resolution = (0,0)
 	threads = {}
 	def __init__(self, filename):
 		global fontname
@@ -652,32 +653,36 @@ class movieplayer():
 					response = ''
 				char = self.mplayer.stdout.read(1)
 			response = response.replace('\r', '\n')
+			print response
 			if response.startswith("No bind found for key '"):
 				key = response.strip(' ').lstrip("No bind found for key ").rstrip("'.").lstrip("'") # Strangely if I put the "'" in the first lstrip call then and "i" is the key, the "i" will be dropped completely, and I can't figure out why, but this hacky workaround which should never reach production works.
 				if self.remapped_keys.keys().__contains__(key): key = self.remapped_keys[key]
 				if dir(pygame).__contains__('K_'+key):
 					pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
+					pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
 				elif key == 'CLOSE_WIN':
 					pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
-			elif response.startswith('ANS_'):
-				response = response.lstrip('ANS_')
-				if response.startswith('pause='):
-					self.paused_temp = response == 'yes'
+			elif response.startswith('ANS_') or response.startswith('ID_'):
+				response = response.lstrip('ANS_').lstrip('ID_').lower()
+				if response.startswith('exit'):
+					break
+				elif response == 'paused':
+					self.paused = True
+				elif response.startswith('pause='):
+					self.paused = response == 'yes'
 				elif response.startswith('length='):
 					self.time_length = float(response.split('=')[1])
 				elif response.startswith('time_pos='):
 					self.time_pos = float(response.split('=')[1])
 					if not self.time_pos == 0 and not self.time_length == 0:
 						self.percent_pos = self.time_pos/(self.time_length/100)
-				elif response.startswith('VIDEO_RESOLUTION='):
+				elif response.startswith('video_width='):
+					self.video_resolution = (int(response.split('=')[1]), self.video_resolution[1])
+				elif response.startswith('video_height='):
+					self.video_resolution = (self.video_resolution[0], int(response.split('=')[1]))
+				elif response.startswith('video_resolution='):
 					rawvidres = response.split('=')[1].strip("'")
 					self.video_resolution = (int(rawvidres.split(' x ')[0]), int(rawvidres.split(' x ')[1]))
-			elif response.startswith('ID_'):
-				response = response.lstrip('ID_')
-				if response == 'PAUSED':
-					self.paused_temp = True
-				elif response.startswith('EXIT'):
-					break
 			response = ''
 			char = self.mplayer.stdout.read(1)
 	def play(self, loops=None, osd=True):
@@ -686,7 +691,7 @@ class movieplayer():
 		self.screenbkup = screen.copy()
 		screen.blit(surf, (0,0))
 		pygame.display.update()
-		args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','global=4:input=5:statusline=0:cplayer=5','-slave','-fs','-identify','-stop-xscreensaver','-volume','95']
+		args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','identify=5:global=4:input=5:statusline=0:cplayer=5','-slave','-fs','-identify','-stop-xscreensaver','-volume','95']
 		if loops == 0:
 			loops = None
 		elif loops == -1:
@@ -700,15 +705,15 @@ class movieplayer():
 		else:
 			self.bmovl = os.open(os.path.devnull, os.O_WRONLY)
 		if os.path.isfile(self.filename+os.uname()[1]+'.save'):
-			args += ['-ss', open(self.filename+os.uname()[1]+'.save', 'r').read()]
+			args += ['-ss', open(self.filename+os.uname()[1]+'.save', 'r').readline().split([0])]
 			os.remove(self.filename+os.uname()[1]+'.save')
 		self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-		self.mplayer.stdin.write('get_file_name\n')
+#		self.mplayer.stdin.write('get_file_name\n')
 		output = ''
-		response = self.mplayer.stdout.readline()
-		while not response.startswith('ANS_FILENAME') and not response == '':
-			output = output+response+'\n'
-			response = self.mplayer.stdout.readline()
+#		response = self.mplayer.stdout.readline()
+#		while not response.startswith('ANS_FILENAME') and not response == '':
+#			output = output+response+'\n'
+#			response = self.mplayer.stdout.readline()
 		if self.mplayer.poll() != None:
 			output = output+response+'\n'
 			while not response == '':
@@ -717,9 +722,9 @@ class movieplayer():
 			raise Exception(output)
 		if osd:
 			self.bmovl = os.open(self.bmovlfile, os.O_WRONLY)
-		self.mplayer.stdin.write('pausing_keep_force get_property length\n')
-		self.mplayer.stdin.write('pausing_keep_force get_video_resolution\n')
 		self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
+#		pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_i}))
+#		pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': pygame.K_i}))
 		thread = threading.Thread(target=self.procoutput, name='stdout')
 		self.threads.update({thread.name: thread})
 		thread.start()
@@ -759,7 +764,10 @@ class movieplayer():
 		while self.time_pos == None: pass
 		return self.time_pos
 	def get_busy(self):
-		return self.paused == False
+		self.paused = None
+		self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
+		while self.paused == None: pass
+		return self.paused
 	def get_length(self):
 		# Returns the length of the movie in seconds as a floating point value.
 		return self.time_length
@@ -806,7 +814,7 @@ class movieplayer():
 			else:
 				self.osd.blit(title, (0,0))
 			self.updateosd()
-		if not int(self.percent_pos) == self.osd_percentage or not self.osd_time_pos == int(self.get_time()) :
+		if not self.osd_time_pos == int(self.get_time()) or not int(self.percent_pos) == self.osd_percentage:
 			subosd = self.osd.subsurface([0,22,240,44])
 			subosd.fill((25,25,25,157))
 			curhrs = int(self.time_pos/60.0/60.0)
@@ -857,6 +865,9 @@ class movieplayer():
 			self.stop()
 		return status
 	def stop(self):
+		if self.osd_visible:
+			self.hideosd()
+			self.threads['hideosd'].cancel()
 		try:
 			self.mplayer.stdin.write('quit\n')
 			self.mplayer.stdin.close()
@@ -874,10 +885,6 @@ class movieplayer():
 		screen.blit(self.screenbkup, (0,0))
 		pygame.display.update()
 		return response
-	@property
-	def paused(self):
-		self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
-		return self.paused_temp
 	def loop(self):
 		while self.poll() == None:
 			try: events = pygame.event.get()
@@ -916,12 +923,12 @@ class movieplayer():
 						self.threads.update({thread.name: thread})
 						thread.start()
 						self.showosd()
-						thread = threading.Timer(2, self.hideosd)
+				elif event.type == pygame.KEYUP and event.key == pygame.K_i:
+					if self.osd_visible:
+						thread = threading.Timer(5, self.hideosd)
 						thread.name = 'hideosd'
 						self.threads.update({thread.name: thread})
 						thread.start()
-#						screen.blit(self.osd, self.osd.get_rect(center=(screen.get_width()/2,screen.get_height()/2)))
-#						pygame.display.update()
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
 					self.mplayer.stdin.write('step_property sub_visibility\n')
 					self.mplayer.stdin.write('get_property sub_visibility\n')
@@ -931,12 +938,11 @@ class movieplayer():
 						self.mplayer.stdin.write('osd_show_text "Subtitles disabled"\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
 					save_pos = self.get_time()-10
-					open(self.filename+os.uname()[1]+'.save', 'w').write(str(save_pos))
 					save_hrs = int(save_pos/60.0/60.0)
 					save_mins = int((save_pos-(save_hrs*60*60))/60)
 					save_secs = int(save_pos-((save_hrs*60*60)+(save_mins*60)))
+					open(self.filename+os.uname()[1]+'.save', 'w').write('%s\n$02d:%02d:%02d' % (save_pos, save_hrs, save_mins, save_secs))
 					self.mplayer.stdin.write('osd_show_text "Saved position: %02d:%02d:%02d"\n' % (save_hrs, save_mins, save_secs))
-#			self.read()
 ##### End class movieplayer()
 
 ## The Pygame modules need to be initialised before they can be used.
