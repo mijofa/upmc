@@ -319,17 +319,24 @@ class filemenu():
 		for item in self.find(filetype='directory'):
 			if not item.startswith('.'):
 				itemnum += 1
-				self.items.append(item)
-				if not self.itemsinfo.has_key(item):
-					self.itemsinfo[item] = {}
-				self.itemsinfo[item]['file'] = False
-				self.itemsinfo[item]['title'] = item
-				self.itemsinfo[item]['itemnum'] = itemnum
-				self.itemsinfo[item]['filename'] = item + '/'
-				for thumb in self.find(item, 'image'):
+				dirthumb = None
+				files = self.find(item, 'image')
+				numfiles = len(files)
+				for thumb in files:
 					if thumb.startswith('folder.'):
-						self.itemsinfo[item]['thumb'] = item + '/' + thumb
+						numfiles -= 1
+						dirthumb = item + '/' + thumb
 						break
+				if numfiles > 0:
+					self.items.append(item)
+					if not self.itemsinfo.has_key(item):
+						self.itemsinfo[item] = {}
+					if not dirthumb == None:
+						self.itemsinfo[item]['thumb'] = dirthumb
+					self.itemsinfo[item]['file'] = False
+					self.itemsinfo[item]['title'] = item
+					self.itemsinfo[item]['itemnum'] = itemnum
+					self.itemsinfo[item]['filename'] = item + '/'
 		for filename in self.find(filetype='video'): # Update the filetype when you have proper test files
 			if not filename.startswith('.'):
 				item = filename.rpartition('.')
@@ -363,8 +370,8 @@ class filemenu():
 		horizborder = 75
 		screenheight = screen.get_height()-titleoffset-vertborder
 		screenwidth = screen.get_width()-horizborder
-		itemheight = 140 #280 #= 5 on 1050 vertical resolution
-		itemwidth = 105 #210 #= 6 on 1680 horizontal resolution
+		itemheight = 210 #280 # 5 on 1050 vertical resolution
+		itemwidth = 280 # 6 on 1680 horizontal resolution
 		numcols = screenwidth/itemwidth
 		numrows = screenheight/itemheight
 		self.pagerows = []
@@ -639,6 +646,7 @@ class movieplayer():
 	video_resolution = (0,0)
 	volume = 0
 	threads = {}
+	osdtype = 'time'
 	def __init__(self, filename):
 		global fontname
 		self.font = pygame.font.Font(fontname, 18)
@@ -735,11 +743,12 @@ class movieplayer():
 			raise Exception(mplayer.stdout.read())
 		self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
 		self.mplayer.stdin.write('pausing_keep_force get_property volume\n')
-		threading.Thread(target=self.showosd, args=[5, True], name='showosd').start()
-		thread = threading.Thread(target=self.renderosd, args=[True], name='renderosd')
+		thread = threading.Thread(target=self.procoutput, name='stdout')
 		self.threads.update({thread.name: thread})
 		thread.start()
-		thread = threading.Thread(target=self.procoutput, name='stdout')
+		while self.paused == None: pass
+		threading.Thread(target=self.showosd, args=[5, True], name='showosd').start()
+		thread = threading.Thread(target=self.renderosd, args=[True], name='renderosd')
 		self.threads.update({thread.name: thread})
 		thread.start()
 		return self.mplayer
@@ -816,13 +825,19 @@ class movieplayer():
 	def set_display(self,surface=None,rect=None):
 		print "Setting a display surface is not supported by MPlayer"
 		return None
-	def showosd(self, delay = 0, wait = False):
+	def showosd(self, delay = 0, wait = False, osdtype = None):
 		if self.bmovl == None and wait == False:
 			return
 		elif self.bmovl == None and wait == True:
 			while self.bmovl == None: pass
-		os.write(self.bmovl, 'SHOW\n')
-		self.osd_visible = True
+		if self.threads.keys().__contains__('hideosd'):
+			self.threads['hideosd'].cancel()
+		if not osdtype == None:
+			self.osdtype = osdtype
+		try:
+			os.write(self.bmovl, 'SHOW\n')
+			self.osd_visible = True
+		except OSError: pass
 		if delay > 0:
 			thread = threading.Timer(delay, self.hideosd)
 			thread.name = 'hideosd'
@@ -834,8 +849,11 @@ class movieplayer():
 		elif self.bmovl == None and wait == True:
 			while self.bmovl == None: pass
 		if not self.osd_visible == False:
-			os.write(self.bmovl, 'HIDE\n')
-			self.osd_visible = False
+			try:
+				os.write(self.bmovl, 'HIDE\n')
+				self.osd_visible = False
+				self.osdtype = 'time'
+			except OSError: pass
 		if self.threads.keys().__contains__('hideosd'):
 			self.threads['hideosd'].cancel()
 	def updateosd(self, wait = False):
@@ -843,9 +861,11 @@ class movieplayer():
 			return
 		elif self.bmovl == None and wait == True:
 			while self.bmovl == None: pass
-		os.write(self.bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (self.osd_rect[0], self.osd_rect[1], self.osd_rect[2], self.osd_rect[3], 0, 0))
-		string_surf = pygame.image.tostring(self.osd, 'RGBA')
-		os.write(self.bmovl, string_surf)
+		try:
+			os.write(self.bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (self.osd_rect[0], self.osd_rect[1], self.osd_rect[2], self.osd_rect[3], 0, 0))
+			string_surf = pygame.image.tostring(self.osd, 'RGBA')
+			os.write(self.bmovl, string_surf)
+		except OSError: pass
 	def renderosd(self, wait = False):
 		if self.bmovl == None and wait == False:
 			return
@@ -864,7 +884,7 @@ class movieplayer():
 			else:
 				self.osd.blit(title, (0,0))
 			self.updateosd()
-		if not self.osd_time_pos == int(self.get_time()) or not int(self.percent_pos) == self.osd_percentage:
+		if self.osdtype == 'time' and (not self.osd_time_pos == int(self.get_time()) or not int(self.percent_pos) == self.osd_percentage):
 			subosd = self.osd.subsurface([0,22,240,44])
 			subosd.fill((25,25,25,157))
 			curhrs = int(self.time_pos/60.0/60.0)
@@ -900,7 +920,28 @@ class movieplayer():
 			subosd.blit(percnum, ((subosd.get_width()/2)-(percnum.get_width()-2),pos.get_height()))
 			self.osd_percentage = int(self.percent_pos)
 			self.osd_time_pos = int(self.time_pos)
-			pygame.display.update()
+			self.updateosd()
+			self.osd_last_run == int(time.time())
+		elif self.osdtype == 'volume' and not int(self.volume) == self.osd_percentage:
+			subosd = self.osd.subsurface([0,22,240,44])
+			subosd.fill((25,25,25,157))
+			voltext = self.font.render('%s%% volume' % self.volume, 1, (255,255,255,255))
+			curtime = self.font.render(time.strftime('%I:%M:%S %p '), 1, (255,255,255,255))
+			if voltext.get_width() > subosd.get_width()-curtime.get_width():
+				subosd.blit(voltext.subsurface((0,0,subosd.get_width()-curtime.get_width(),0)), (0,0))
+				subosd.blit(more, (subosd.get_width()-curtime.get_width()-more.get_width(), voltext.get_height()-more.get_height()))
+			else:
+				subosd.blit(voltext, (0,0))
+			subosd.blit(curtime, (subosd.get_width()-curtime.get_width(), voltext.get_height()-curtime.get_height()))
+			percbg = pygame.surface.Surface((subosd.get_width(), 22), pygame.SRCALPHA)
+			percbg.fill((0,0,0,255))
+			subosd.blit(percbg, (0,voltext.get_height()))
+			perc = pygame.surface.Surface((subosd.get_width()/100.0*self.volume, 22), pygame.SRCALPHA)
+			perc.fill((127,127,127,255))
+			subosd.blit(perc, (0,voltext.get_height()))
+			percnum = self.font.render(str(int(self.volume))+'%', 1, (255,255,255,255))
+			subosd.blit(percnum, ((subosd.get_width()/2)-(percnum.get_width()-2),voltext.get_height()))
+			self.osd_percentage = int(self.volume)
 			self.updateosd()
 			self.osd_last_run == int(time.time())
 		elif not self.osd_last_run == int(time.time()):
@@ -909,6 +950,8 @@ class movieplayer():
 			subosd.fill((25,25,25,157))
 			subosd.blit(curtime, (0,0))
 			self.osd_last_run == int(time.time())
+		screen.blit(self.osd, self.osd.get_rect(center=screen.get_rect().center))
+		pygame.display.update()
 	def poll(self):
 		status = self.mplayer.poll()
 		if status != None:
@@ -925,7 +968,7 @@ class movieplayer():
 			except OSError: pass
 		try:
 			os.close(self.bmovl)
-			os.unlink(self.bmovlfile)
+			os.unlink('/tmp/bmovl-%s-%s' % (os.geteuid(), os.getpid()))
 		except: pass
 		if self.mplayer.poll() != None:
 			response = self.mplayer.wait()
@@ -966,7 +1009,7 @@ class movieplayer():
 					if self.osd_visible:
 						self.hideosd()
 					else:
-						self.showosd(5)
+						self.showosd(5, osdtype='time')
 						thread = threading.Thread(target=self.renderosd, name='renderosd')
 						self.threads.update({thread.name: thread})
 						thread.start()
@@ -983,9 +1026,18 @@ class movieplayer():
 					open('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+os.uname()[1]+'.save', 'w').write('%s;%s\n# This line and everything below is ignored, it is only here so that you don\'t need to understand ^ that syntax.\nTime: %02d:%02d:%02d\nVolume: %d%%\n' % (save_pos, self.volume, save_hrs, save_mins, save_secs, self.volume))
 					self.mplayer.stdin.write('osd_show_text "Saved position: %02d:%02d:%02d"\n' % (save_hrs, save_mins, save_secs))
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_9:
+					self.showosd(5, osdtype='volume')
+					thread = threading.Thread(target=self.renderosd, name='renderosd')
+					self.threads.update({thread.name: thread})
+					thread.start()
 					self.set_volume('-0.02')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_0:
+					self.showosd(5, osdtype='volume')
+					thread = threading.Thread(target=self.renderosd, name='renderosd')
+					self.threads.update({thread.name: thread})
+					thread.start()
 					self.set_volume('+0.02')
+		self.stop()
 ##### End class movieplayer()
 
 ## The Pygame modules need to be initialised before they can be used.
