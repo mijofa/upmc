@@ -624,9 +624,10 @@ class filemenu():
 class movieplayer():
 	# I've tried to make this fairly compatible with the pygame.movie module, but there's a lot of features in this that are not in the pygame.movie module.
 	osd = None
+	bmovl = None
 	osd_visible = False
-	time_pos = None
 	paused = None
+	time_pos = 0
 	percent_pos = 0
 	time_length = 0
 	osd_percentage = -1
@@ -654,6 +655,7 @@ class movieplayer():
 					response = ''
 				char = self.mplayer.stdout.read(1)
 			response = response.replace('\r', '\n')
+			print response
 			if response.startswith("No bind found for key '"):
 				key = response.strip(' ').lstrip("No bind found for key ").rstrip("'.").lstrip("'") # Strangely if I put the "'" in the first lstrip call then and "i" is the key, the "i" will be dropped completely, and I can't figure out why, but this hacky workaround which should never reach production works.
 				if self.remapped_keys.keys().__contains__(key): key = self.remapped_keys[key]
@@ -685,6 +687,14 @@ class movieplayer():
 				elif response.startswith('video_resolution='):
 					rawvidres = response.split('=')[1].strip("'")
 					self.video_resolution = (int(rawvidres.split(' x ')[0]), int(rawvidres.split(' x ')[1]))
+				elif response.startswith('sub_visibility='):
+					if response.split('=')[1].strip("'") == 'yes': self.mplayer.stdin.write('osd_show_text "Subtitles enabled"\n')
+					else: self.mplayer.stdin.write('osd_show_text "Subtitles disabled"\n')
+			elif response.startswith('vf_bmovl: '):
+				response = response.lstrip('vf_bmovl: ')
+				if response.startswith('Opened fifo '):
+					response = response.lstrip('Opened fifo ')
+					self.bmovl = os.open(response[:response.rindex(' as FD ')], os.O_WRONLY)
 			response = ''
 			char = self.mplayer.stdout.read(1)
 	def play(self, loops=None, osd=True):
@@ -693,7 +703,7 @@ class movieplayer():
 		self.screenbkup = screen.copy()
 		screen.blit(surf, (0,0))
 		pygame.display.update()
-		args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','identify=5:global=4:input=5:statusline=0:cplayer=5','-slave','-fs','-identify','-stop-xscreensaver']
+		args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','identify=5:global=4:input=5:cplayer=5:vfilter=5:statusline=0','-slave','-fs','-identify','-stop-xscreensaver']
 		args += ['-volume', '95']
 		if loops == 0:
 			loops = None
@@ -702,11 +712,9 @@ class movieplayer():
 		if loops != None:
 			args += ['-loop', str(loops)]
 		if osd:
-			self.bmovlfile = '/tmp/bmovl-%s-%s' % (os.getlogin(), os.getpid())
-			os.mkfifo(self.bmovlfile)
-			args += ['-osdlevel','0','-vf','bmovl=1:0:'+self.bmovlfile]
-		else:
-			self.bmovl = os.open(os.path.devnull, os.O_WRONLY)
+			bmovlfile = '/tmp/bmovl-%s-%s' % (os.getlogin(), os.getpid())
+			os.mkfifo(bmovlfile)
+			args += ['-osdlevel','0','-vf','bmovl=1:0:'+bmovlfile]
 		if os.path.isfile('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+os.uname()[1]+'.save'):
 			starttime = open('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+os.uname()[1]+'.save', 'r').readline().strip('\n')
 			if starttime.__contains__(';'):
@@ -724,24 +732,14 @@ class movieplayer():
 		print args
 		self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
 		print 'running'
-#		self.mplayer.stdin.write('get_file_name\n')
-		output = ''
-#		response = self.mplayer.stdout.readline()
-#		while not response.startswith('ANS_FILENAME') and not response == '':
-#			output = output+response+'\n'
-#			response = self.mplayer.stdout.readline()
 		if self.mplayer.poll() != None:
-			output = output+response+'\n'
-			while not response == '':
-				response = self.mplayer.stdout.readline()
-				output = output+response+'\n'
-			raise Exception(output)
-		if osd:
-			self.bmovl = os.open(self.bmovlfile, os.O_WRONLY)
+			raise Exception(mplayer.stdout.read())
 		self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
 		self.mplayer.stdin.write('pausing_keep_force get_property volume\n')
-		pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_i}))
-		pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': pygame.K_i}))
+		threading.Thread(target=self.showosd, args=[5, True], name='showosd').start()
+		thread = threading.Thread(target=self.renderosd, args=[True], name='renderosd')
+		self.threads.update({thread.name: thread})
+		thread.start()
 		thread = threading.Thread(target=self.procoutput, name='stdout')
 		self.threads.update({thread.name: thread})
 		thread.start()
@@ -819,23 +817,42 @@ class movieplayer():
 	def set_display(self,surface=None,rect=None):
 		print "Setting a display surface is not supported by MPlayer"
 		return None
-	def showosd(self):
+	def showosd(self, delay = 0, wait = False):
+		if self.bmovl == None and wait == False:
+			return
+		elif self.bmovl == None and wait == True:
+			while self.bmovl == None: pass
 		os.write(self.bmovl, 'SHOW\n')
 		self.osd_visible = True
-	def hideosd(self):
+		if delay > 0:
+			thread = threading.Timer(delay, self.hideosd)
+			thread.name = 'hideosd'
+			self.threads.update({thread.name: thread})
+			thread.start()
+	def hideosd(self, wait = False):
+		if self.bmovl == None and wait == False:
+			return
+		elif self.bmovl == None and wait == True:
+			while self.bmovl == None: pass
 		if not self.osd_visible == False:
 			os.write(self.bmovl, 'HIDE\n')
 			self.osd_visible = False
-	def updateosd(self):
+		if self.threads.keys.__contains__('hideosd'):
+			self.threads['hideosd'].cancel()
+	def updateosd(self, wait = False):
+		if self.bmovl == None and wait == False:
+			return
+		elif self.bmovl == None and wait == True:
+			while self.bmovl == None: pass
 		os.write(self.bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (self.osd_rect[0], self.osd_rect[1], self.osd_rect[2], self.osd_rect[3], 0, 0))
-		#if surf.get_height() > rect.height and surf.get_width() > rect.width:
-#			surf.subsurface(rect)
 		string_surf = pygame.image.tostring(self.osd, 'RGBA')
 		os.write(self.bmovl, string_surf)
-	def renderosd(self):
+	def renderosd(self, wait = False):
+		if self.bmovl == None and wait == False:
+			return
+		elif self.bmovl == None and wait == True:
+			while self.bmovl == None: pass
 		width, height = self.video_resolution
-#		rect = pygame.rect.Rect((width/2,height/2,width/2/2,height/2/2))
-#		<rect(320, 176, 160, 88)>
 		more = self.font.render('...', 1, (255,255,255,255))
 		if not self.osd:
 			self.osd_rect = pygame.rect.Rect((240,22*3,width-240-15,15))
@@ -950,12 +967,8 @@ class movieplayer():
 					if self.osd_visible:
 						self.hideosd()
 					else:
-						self.showosd()
+						self.showosd(5)
 						thread = threading.Thread(target=self.renderosd, name='renderosd')
-						self.threads.update({thread.name: thread})
-						thread.start()
-						thread = threading.Timer(5, self.hideosd)
-						thread.name = 'hideosd'
 						self.threads.update({thread.name: thread})
 						thread.start()
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
@@ -963,16 +976,12 @@ class movieplayer():
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
 					self.mplayer.stdin.write('step_property sub_visibility\n')
 					self.mplayer.stdin.write('get_property sub_visibility\n')
-					if self.read('ANS_sub_visibility=') == 'yes':
-						self.mplayer.stdin.write('osd_show_text "Subtitles enabled"\n')
-					else:
-						self.mplayer.stdin.write('osd_show_text "Subtitles disabled"\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
 					save_pos = self.get_time()-10
 					save_hrs = int(save_pos/60.0/60.0)
 					save_mins = int((save_pos-(save_hrs*60*60))/60)
 					save_secs = int(save_pos-((save_hrs*60*60)+(save_mins*60)))
-					open('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+os.uname()[1]+'.save', 'w').write('%s;%s\n# This line and everything below is ignored, it is only here so that you don\'t need to understand ^ that syntax.\nTime: %02d:%02d:%02d Volume: %d%%\n' % (save_pos, self.volume, save_hrs, save_mins, save_secs, self.volume))
+					open('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+os.uname()[1]+'.save', 'w').write('%s;%s\n# This line and everything below is ignored, it is only here so that you don\'t need to understand ^ that syntax.\nTime: %02d:%02d:%02d\nVolume: %d%%\n' % (save_pos, self.volume, save_hrs, save_mins, save_secs, self.volume))
 					self.mplayer.stdin.write('osd_show_text "Saved position: %02d:%02d:%02d"\n' % (save_hrs, save_mins, save_secs))
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_9:
 					self.set_volume('-0.02')
@@ -993,8 +1002,8 @@ pygame.display.init()
 if android:
 	screen = pygame.display.set_mode((1280,720), pygame.FULLSCREEN) # Create a new window.
 else:
-#	screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
-	screen = pygame.display.set_mode((800,600)) # Create a new window.
+	screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
+#	screen = pygame.display.set_mode((800,600)) # Create a new window.
 	#screen = pygame.display.set_mode((1050,1680)) # Create a new window.
 try: background = pygame.transform.scale(pygame.image.load('background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
@@ -1014,33 +1023,9 @@ else:
 	fontname = pygame.font.match_font(u'trebuchetms') # Might want to use a non-MS font.
 
 if len(sys.argv) > 1 and os.path.isfile(sys.argv[1]):
-#	surf = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
-#	surf.fill((0,0,0, 127))
-	#surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
-#	screen.blit(surf, (0,0))
-#	pygame.display.update()
 	player = movieplayer(sys.argv[1])
 	mplayer = player.play()
 	player.loop()
-#	while player.poll() == None:
-#		try: event = pygame.event.wait()
-#		except KeyboardInterrupt: event = userquit()
-#		if event.type == pygame.QUIT:
-#			running = False
-#			try: player.stop()
-#			except: break
-#		elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-#			player.stop()
-#		elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
-#			mplayer.stdin.write('seek +60\n')
-#		elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
-#			mplayer.stdin.write('seek -50\n')
-#		elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
-#			mplayer.stdin.write('seek -20\n')
-#		elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
-#			mplayer.stdin.write('seek +30\n')
-#		elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
-#			mplayer.stdin.write('osd\n')
 	quit()
 
 menuitems = [('Videos', filemenu), ('Extra item', 'testing'), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
@@ -1077,6 +1062,8 @@ while running == True:
 		menu.keyselect(event.key==pygame.K_DOWN) # This will call keyselect(False) if K_UP is pressed, and keyselect(True) if K_DOWN is pressed.
 	elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
 		menu.action()
+	elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
+		pygame.display.toggle_fullscreen()
 	else:
 		pass
 
