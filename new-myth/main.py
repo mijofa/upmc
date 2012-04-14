@@ -596,6 +596,8 @@ class filemenu():
 						released = True
 			elif event.type == pygame.MOUSEBUTTONDOWN and (event.button == 4 or event.button == 5):
 				self.scroll(event.button==5, 1)
+			elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
+				pygame.display.toggle_fullscreen()
 			else:
 				print 'event', event
 				if android:
@@ -655,7 +657,6 @@ class movieplayer():
 					response = ''
 				char = self.mplayer.stdout.read(1)
 			response = response.replace('\r', '\n')
-			print response
 			if response.startswith("No bind found for key '"):
 				key = response.strip(' ').lstrip("No bind found for key ").rstrip("'.").lstrip("'") # Strangely if I put the "'" in the first lstrip call then and "i" is the key, the "i" will be dropped completely, and I can't figure out why, but this hacky workaround which should never reach production works.
 				if self.remapped_keys.keys().__contains__(key): key = self.remapped_keys[key]
@@ -712,7 +713,7 @@ class movieplayer():
 		if loops != None:
 			args += ['-loop', str(loops)]
 		if osd:
-			bmovlfile = '/tmp/bmovl-%s-%s' % (os.getlogin(), os.getpid())
+			bmovlfile = '/tmp/bmovl-%s-%s' % (os.geteuid(), os.getpid())
 			os.mkfifo(bmovlfile)
 			args += ['-osdlevel','0','-vf','bmovl=1:0:'+bmovlfile]
 		if os.path.isfile('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+os.uname()[1]+'.save'):
@@ -729,9 +730,7 @@ class movieplayer():
 				starttime = starttime.split(';')[0]
 			args += ['-ss', starttime]
 			os.remove(self.filename+os.uname()[1]+'.save')
-		print args
 		self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-		print 'running'
 		if self.mplayer.poll() != None:
 			raise Exception(mplayer.stdout.read())
 		self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
@@ -837,7 +836,7 @@ class movieplayer():
 		if not self.osd_visible == False:
 			os.write(self.bmovl, 'HIDE\n')
 			self.osd_visible = False
-		if self.threads.keys.__contains__('hideosd'):
+		if self.threads.keys().__contains__('hideosd'):
 			self.threads['hideosd'].cancel()
 	def updateosd(self, wait = False):
 		if self.bmovl == None and wait == False:
