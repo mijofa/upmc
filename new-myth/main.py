@@ -219,7 +219,7 @@ class textmenu():
 
 class filemenu():
 	clickables = {}
-	itemsinfo = {}
+	itemsinfo = {'../': {'file': False, 'title': '../', 'itemnum': 0}}
 	selected = [None, None]
 	pagerows = [[]]
 	items = []
@@ -235,8 +235,8 @@ class filemenu():
 		files = []
 		if filetype == '' or filetype == 'all':
 			for f in os.listdir(directory):
-				if os.access(f, os.R_OK):
-					if os.path.isdir(f):
+				if os.access(directory+f, os.R_OK):
+					if os.path.isdir(directory+f):
 						dirs.append(f + '/')
 					else:
 						files.append(f)
@@ -248,28 +248,28 @@ class filemenu():
 				return dirs + files
 		elif filetype == 'directory' or filetype == 'dir' or filetype == 'd':
 			for f in os.listdir(directory):
-				if os.path.isdir(f) and os.access(f, os.R_OK):
+				if os.path.isdir(directory+f) and os.access(directory+f, os.R_OK):
 					dirs.append(f + '/')
 			dirs.sort()
 			return dirs
 		elif filetype == 'file' or filetype == 'f':
 			for f in os.listdir(directory):
-				if not os.path.isdir(f) and os.access(f, os.R_OK):
+				if os.path.isfile(directory+f) and os.access(directory+f, os.R_OK):
 					files.append(f)
 			files.sort()
 			return files
 		elif filetype.__contains__('/'):
 			out = []
 			for f in os.listdir(directory):
-				if not os.path.isdir(directory+'/'+f) and os.access(directory+'/'+f, os.R_OK):
+				if os.path.isfile(directory+f) and os.access(directory+f, os.R_OK):
 					if mime:
-						ftype = mime.file(directory+'/'+f)
+						ftype = mime.file(directory+f)
 						"""while ftype == 'application/x-symlink':
 							if not newf: newf = fV
 							else: newf = os.readlink(f)
 							ftype = mime.file(directory+'/'+newf)"""
 					else:
-						ftype = mimetypes.guess_type(directory+'/'+f)[0]
+						ftype = mimetypes.guess_type(directory+f)[0]
 						"""while ftype == 'application/x-symlink':
 							if not newf: newf = fV
 							else: newf = os.readlink(f)
@@ -283,9 +283,9 @@ class filemenu():
 		elif not filetype.__contains__('/'):
 			out = []
 			for f in os.listdir(directory):
-				if not os.path.isdir(directory+'/'+f) and os.access(directory+'/'+f, os.R_OK):
+				if os.path.isfile(directory+f) and os.access(directory+f, os.R_OK):
 					if mime:
-						ftype = mime.file(directory+'/'+f)
+						ftype = mime.file(directory+f)
 						if not ftype:
 							ftype = 'Unknown'
 						"""while ftype == 'application/x-symlink':
@@ -293,7 +293,7 @@ class filemenu():
 							else: newf = os.readlink(f)
 							ftype = mime.file(directory+'/'+newf)"""
 					else:
-						ftype = mimetypes.guess_type(directory+'/'+f)[0]
+						ftype = mimetypes.guess_type(directory+f)[0]
 						if not ftype:
 							ftype = 'Unknown'
 						"""while ftype == 'application/x-symlink':
@@ -306,21 +306,19 @@ class filemenu():
 			return out
 		else:
 			raise Exception("WTF did you do? That's not even possible. O.o")
-	def builditems(self):
+	def builditems(self, directory = './'):
 		itemnum = 0
 		self.items = []
-		if os.getcwd() != rootdir:
+		if not directory == rootdir and not (directory == './' and os.getcwd() == rootdir):
 			self.items.append('../')
-			self.itemsinfo['../'] = {}
-			self.itemsinfo['../']['file'] = False
-			self.itemsinfo['../']['title'] = '../'
-			self.itemsinfo['../']['itemnum'] = 0
+			self.itemsinfo['../']['filename'] = directory+'../'
+		else:
 			self.itemsinfo['../']['filename'] = '../'
-		for item in self.find(filetype='directory'):
+		for item in self.find(filetype='directory', directory=directory):
 			if not item.startswith('.'):
 				itemnum += 1
 				dirthumb = None
-				files = self.find(item, 'image')
+				files = self.find(directory+item, 'image')
 				numfiles = len(files)
 				for thumb in files:
 					if thumb.startswith('folder.'):
@@ -328,39 +326,37 @@ class filemenu():
 						dirthumb = item + '/' + thumb
 						break
 				if numfiles > 0:
-					self.items.append(item)
-					if not self.itemsinfo.has_key(item):
-						self.itemsinfo[item] = {}
+					self.items.append(directory+item)
+					if not self.itemsinfo.has_key(directory+item):
+						self.itemsinfo[directory+item] = {}
 					if not dirthumb == None:
-						self.itemsinfo[item]['thumb'] = dirthumb
-					self.itemsinfo[item]['file'] = False
-					self.itemsinfo[item]['title'] = item
-					self.itemsinfo[item]['itemnum'] = itemnum
-					self.itemsinfo[item]['filename'] = item + '/'
-		for filename in self.find(filetype='video'): # Update the filetype when you have proper test files
+						self.itemsinfo[directory+item]['thumb'] = dirthumb
+					self.itemsinfo[directory+item]['file'] = False
+					self.itemsinfo[directory+item]['title'] = item
+					self.itemsinfo[directory+item]['itemnum'] = itemnum
+					self.itemsinfo[directory+item]['filename'] = directory+item + '/'
+		for filename in self.find(filetype='file', directory=directory):
 			if not filename.startswith('.'):
 				item = filename.rpartition('.')
 				if item[1] == '.':
 					item = item[0]
 				else:
 					item = item[2]
-				itemnum += 1
-				self.items.append(item)
-				if not self.itemsinfo.has_key(item):
-					self.itemsinfo[item] = {}
-				self.itemsinfo[item]['file'] = True
-				self.itemsinfo[item]['title'] = item
-				self.itemsinfo[item]['itemnum'] = itemnum
-				self.itemsinfo[item]['filename'] = filename
-		for filename in self.find(filetype='image'):
-			if not filename.startswith('.'):
-				item = filename.rpartition('.')
-				if item[1] == '.':
-					item = item[0]
-				else:
-					item = item[2]
-				if self.itemsinfo.has_key(item):
-					self.itemsinfo[item]['thumb'] = filename
+				ftype = mimetypes.guess_type(filename)[0]
+				if not ftype: ftype = 'Unknown'
+				else: ftype = ftype.split('/')[0]
+				if ftype == 'video':
+					itemnum += 1
+					self.items.append(directory+item)
+					if not self.itemsinfo.has_key(directory+item):
+						self.itemsinfo[directory+item] = {}
+					self.itemsinfo[directory+item]['file'] = True
+					self.itemsinfo[directory+item]['title'] = item
+					self.itemsinfo[directory+item]['itemnum'] = itemnum
+					self.itemsinfo[directory+item]['filename'] = directory+filename
+				elif ftype == 'image':
+					if self.itemsinfo.has_key(directory+item):
+						self.itemsinfo[directory+item]['thumb'] = directory+filename
 	def render(self, directory = cwd, rowoffset = 0):
 		global screenupdates
 		screen.blit(background, (0,0))
@@ -610,7 +606,7 @@ class filemenu():
 				if android:
 					print android.check_pause()
 	def action(self, selected):
-		if selected == '../' and os.getcwd() == rootdir:
+		if selected == '../' and (self.itemsinfo[selected]['filename'] == '../'):
 			return pygame.QUIT
 		elif self.itemsinfo[selected]['file']:
 			surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
@@ -623,9 +619,12 @@ class filemenu():
 			screen.blit(screenbkup, (0,0))
 			pygame.display.update()
 		elif not self.itemsinfo[selected]['file']:
-			os.chdir(self.itemsinfo[selected]['filename'])
+			filename = self.itemsinfo[selected]['filename'].replace('//', '/')
+			print 'filename=',filename, 
+			if filename.__contains__('../'):
+				filename = filename[:filename.rindex('../')].rsplit('/', 2)[0]+'/'
+			self.builditems(directory=filename)
 			self.selected = [None, None]
-			self.builditems()
 			self.render()
 			self.select(0)
 ##### End class filemenu()
@@ -903,9 +902,9 @@ class movieplayer():
 				curpos = '%02d:%02d:%02d' % (curhrs,curmins,cursecs)
 				totallength = '%02d:%02d:%02d' % (totalhrs,totalmins,totalsecs)
 			pos = self.font.render('%s of %s' % (curpos, totallength), 1, (255,255,255,255))
-			curtime = self.font.render(time.strftime('%I:%M:%S %p '), 1, (255,255,255,255))
+			curtime = self.font.render(time.strftime('%I:%M %p '), 1, (255,255,255,255))
 			if pos.get_width() > subosd.get_width()-curtime.get_width():
-				subosd.blit(pos.subsurface((0,0,subosd.get_width()-curtime.get_width(),0)), (0,0))
+				subosd.blit(pos.subsurface((0,0,subosd.get_width()-curtime.get_width()-more.get_width(),pos.get_height())), (0,0))
 				subosd.blit(more, (subosd.get_width()-curtime.get_width()-more.get_width(), pos.get_height()-more.get_height()))
 			else:
 				subosd.blit(pos, (0,0))
