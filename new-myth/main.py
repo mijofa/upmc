@@ -958,6 +958,8 @@ class movieplayer():
 						thread.name = 'hideosd'
 						self.threads.update({thread.name: thread})
 						thread.start()
+				elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
+					self.mplayer.stdin.write('step_property fullscreen\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
 					self.mplayer.stdin.write('step_property sub_visibility\n')
 					self.mplayer.stdin.write('get_property sub_visibility\n')
