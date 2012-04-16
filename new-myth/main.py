@@ -883,6 +883,7 @@ class movieplayer():
 			else:
 				self.osd.blit(title, (0,0))
 			self.updateosd()
+		curtime = self.font.render(time.strftime('%I:%M %p '), 1, (255,255,255,255))
 		if self.osdtype == 'time' and (not self.osd_time_pos == int(self.get_time()) or not int(self.percent_pos) == self.osd_percentage):
 			subosd = self.osd.subsurface([0,22,240,44])
 			subosd.fill((25,25,25,157))
@@ -902,7 +903,6 @@ class movieplayer():
 				curpos = '%02d:%02d:%02d' % (curhrs,curmins,cursecs)
 				totallength = '%02d:%02d:%02d' % (totalhrs,totalmins,totalsecs)
 			pos = self.font.render('%s of %s' % (curpos, totallength), 1, (255,255,255,255))
-			curtime = self.font.render(time.strftime('%I:%M %p '), 1, (255,255,255,255))
 			if pos.get_width() > subosd.get_width()-curtime.get_width():
 				subosd.blit(pos.subsurface((0,0,subosd.get_width()-curtime.get_width()-more.get_width(),pos.get_height())), (0,0))
 				subosd.blit(more, (subosd.get_width()-curtime.get_width()-more.get_width(), pos.get_height()-more.get_height()))
@@ -925,7 +925,6 @@ class movieplayer():
 			subosd = self.osd.subsurface([0,22,240,44])
 			subosd.fill((25,25,25,157))
 			voltext = self.font.render('%s%% volume' % self.volume, 1, (255,255,255,255))
-			curtime = self.font.render(time.strftime('%I:%M:%S %p '), 1, (255,255,255,255))
 			if voltext.get_width() > subosd.get_width()-curtime.get_width():
 				subosd.blit(voltext.subsurface((0,0,subosd.get_width()-curtime.get_width(),0)), (0,0))
 				subosd.blit(more, (subosd.get_width()-curtime.get_width()-more.get_width(), voltext.get_height()-more.get_height()))
@@ -944,7 +943,6 @@ class movieplayer():
 			self.updateosd()
 			self.osd_last_run == int(time.time())
 		elif not self.osd_last_run == int(time.time()):
-			curtime = self.font.render(time.strftime('%I:%M:%S %p '), 1, (255,255,255,255))
 			subosd = self.osd.subsurface([self.osd.get_width()-curtime.get_width(),22,curtime.get_width(),22])
 			subosd.fill((25,25,25,157))
 			subosd.blit(curtime, (0,0))
