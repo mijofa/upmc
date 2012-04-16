@@ -5,6 +5,7 @@ import time
 import commands
 import threading
 import subprocess
+from math import pi
 try:
 	import magic_nonexistent # magic ended up being too slow, I have disabled it, for now atleast.
 	mime = magic.open(magic.MAGIC_MIME)
@@ -307,7 +308,7 @@ class filemenu():
 		else:
 			raise Exception("WTF did you do? That's not even possible. O.o")
 	def builditems(self, directory = './'):
-		itemnum = 0
+		itemnum = -1
 		self.items = []
 		if not directory == rootdir and not (directory == './' and os.getcwd() == rootdir):
 			self.items.append('../')
@@ -316,7 +317,6 @@ class filemenu():
 			self.itemsinfo['../']['filename'] = '../'
 		for item in self.find(filetype='directory', directory=directory):
 			if not item.startswith('.'):
-				itemnum += 1
 				dirthumb = None
 				files = self.find(directory+item, 'image')
 				numfiles = len(files)
@@ -326,6 +326,7 @@ class filemenu():
 						dirthumb = item + '/' + thumb
 						break
 				if numfiles > 0:
+					itemnum += 1
 					self.items.append(directory+item)
 					if not self.itemsinfo.has_key(directory+item):
 						self.itemsinfo[directory+item] = {}
@@ -381,6 +382,17 @@ class filemenu():
 		itemnum = -1
 		self.clickables = {}
 		brake = False
+		if True: # I'm simply using this as a seperater because I'm currently working on this section.
+			butbg = pygame.Surface((itemwidth,itemheight), pygame.SRCALPHA)
+			ellipse_width=itemwidth/8
+			ellipse_height=itemheight/8
+			butbg.subsurface((0,ellipse_height/2,butbg.get_width(),butbg.get_height()-ellipse_height)).fill((0,0,0,50))
+			butbg.subsurface((ellipse_width/2,0,butbg.get_width()-ellipse_width,butbg.get_height())).fill((0,0,0,50))
+			start_angle = 0
+			pygame.draw.ellipse(butbg, (0,0,0,50), (0,0,ellipse_width,ellipse_height), 0)
+			pygame.draw.ellipse(butbg, (0,0,0,50), (butbg.get_width()-ellipse_width,0,ellipse_width,ellipse_height), 0)
+			pygame.draw.ellipse(butbg, (0,0,0,50), (0,butbg.get_height()-ellipse_height,ellipse_width,ellipse_height), 0)
+			pygame.draw.ellipse(butbg, (0,0,0,50), (butbg.get_width()-ellipse_width,butbg.get_height()-ellipse_height,ellipse_width,ellipse_height), 0)
 		while True:
 			if not itemnum < (rowoffset*numcols)-1:
 				for rownum in xrange(numrows):
@@ -391,18 +403,15 @@ class filemenu():
 						except IndexError:
 							brake = True
 							break
+						surf = butbg.copy()
 						if not self.itemsinfo[item].has_key('surface'):
 							if self.itemsinfo[item].has_key('thumb'):
 								thumb = pygame.image.load(self.itemsinfo[item]['thumb'])
-								rect = thumb.get_rect().fit((0,0,itemwidth,itemheight))
-								surf = pygame.Surface((itemwidth,itemheight), pygame.SRCALPHA)
-								surf.fill((0,0,0,50))
+								rect = thumb.get_rect().fit((0,0,(itemwidth/8)*7,(itemheight/8)*7))
 								thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (rect[2], rect[3]))
-								surf.blit(thumb, ((itemwidth-rect[2])/2, (itemheight-rect[3])/2))
 							else:
-								rect = pygame.Rect((0,0,itemwidth,itemheight))
-								surf = render_textrect(self.itemsinfo[item]['title'], self.font, rect, (255,255,255), (0,0,0,25)) # For some reason this is ending up half as transparent as the thumbnail images if I set the alpha the same one both, I can't figure out why so I've set this to half the number and it looks fine.
-								surf.blit(surf, ((itemwidth-rect[2])/2, (itemheight-rect[3])/2))
+								thumb = render_textrect(self.itemsinfo[item]['title'], self.font, pygame.rect.Rect((0,0,(itemwidth/8)*7,(itemheight/8)*7)), (255,255,255), (0,0,0,0))
+							surf.blit(thumb, thumb.get_rect(center=(surf.get_width()/2,surf.get_height()/2)))
 							self.itemsinfo[item]['surface'] = surf
 						top = (rownum*itemheight)+(rownum*rowspace)+(rowspace/2)+titleoffset+(vertborder/2)
 						left = (colnum*itemwidth)+(colnum*colspace)+(colspace/2)+(horizborder/2)
@@ -424,27 +433,8 @@ class filemenu():
 		global screenupdates
 		try: item = pygame.Rect(mousepos[0],mousepos[1],0,0).collidedict(self.clickables)[1]
 		except TypeError: item = None
-		if item and item != self.selected[1]:
-			if self.selected[1]:
-				screen.blit(background.subsurface(self.itemsinfo[self.selected[1]]['buttonloc']), self.itemsinfo[self.selected[1]]['buttonloc'])
-				screen.blit(self.itemsinfo[self.selected[1]]['surface'], self.itemsinfo[self.selected[1]]['buttonloc'])
-				screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
-			self.selected = [None, item]
-			butbg = pygame.Surface(self.itemsinfo[item]['buttonloc'][2:4], pygame.SRCALPHA)
-			butbg.fill((0,0,0,55))
-			screen.blit(self.itemsinfo[item]['surface'], self.itemsinfo[item]['buttonloc'])
-			screen.blit(butbg, self.itemsinfo[item]['buttonloc'])
-			screenupdates.append(self.itemsinfo[item]['buttonloc'])
-			title = self.font.render(self.itemsinfo[item]['title'], 1, (255,255,255))
-			titlepos = title.get_rect(topleft=self.titleoffset, width=screen.get_width()-self.titleoffset[0])
-			screen.blit(background.subsurface(titlepos), titlepos)
-			screen.blit(title,titlepos)
-			screenupdates.append(titlepos)
-			pygame.display.update(screenupdates)
-			screenupdates = []
-			return self.selected[1]
-		elif item == self.selected[1]:
-			return self.selected[1]
+		if item:# and item != self.selected[1]:
+			self.select(self.itemsinfo[item]['itemnum'])
 	def keyselect(self, direction):
 		global screenupdates
 		prevselected = None
@@ -508,18 +498,8 @@ class filemenu():
 						except IndexError: self.selected[0] = self.pagerows[0]
 						except ValueError: self.selected[0] = self.pagerows[0]
 					self.selected[1] = self.selected[0][0]
-		butfg = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
-		butfg.fill((0,0,0,55))
-		screen.blit(self.itemsinfo[self.selected[1]]['surface'], self.itemsinfo[self.selected[1]]['buttonloc'])
-		screen.blit(butfg, self.itemsinfo[self.selected[1]]['buttonloc'])
-		screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
-		title = self.font.render(self.itemsinfo[self.selected[1]]['title'], 1, (255,255,255))
-		titlepos = title.get_rect(topleft=self.titleoffset, width=screen.get_width()-self.titleoffset[0])
-		screen.blit(background.subsurface(titlepos), titlepos)
-		screen.blit(title,titlepos)
-		screenupdates.append(titlepos)
-		pygame.display.update(screenupdates)
-		screenupdates = []
+		self.select(self.itemsinfo[self.selected[1]]['itemnum'])
+		### THIS IS BAD, the math there could be done much more elegantly, I just CBFed right now.
 	def select(self, itemnum):
 		global screenupdates
 		if self.selected[1]:
@@ -529,15 +509,24 @@ class filemenu():
 		rownum = 0
 		while True:
 			if itemnum > len(self.pagerows[rownum])-1:
+				itemnum -= len(self.pagerows[rownum])
 				rownum += 1
-				itemnum -= len(self.pagerows[rownum])-1
 			else:
 				self.selected = [self.pagerows[rownum], self.pagerows[rownum][itemnum]]
 				break
-		butfg = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
-		butfg.fill((0,0,0,55))
-		screen.blit(self.itemsinfo[self.selected[1]]['surface'], self.itemsinfo[self.selected[1]]['buttonloc'])
-		screen.blit(butfg, self.itemsinfo[self.selected[1]]['buttonloc'])
+		if True:
+			butsel = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
+			ellipse_width=butsel.get_width()/8
+			ellipse_height=butsel.get_height()/8
+			butsel.subsurface((0,ellipse_height/2,butsel.get_width(),butsel.get_height()-ellipse_height)).fill((127,127,0))
+			butsel.subsurface((ellipse_width/2,0,butsel.get_width()-ellipse_width,butsel.get_height())).fill((127,127,0))
+			start_angle = 0
+			pygame.draw.ellipse(butsel, (127,127,0), (0,0,ellipse_width,ellipse_height), 0)
+			pygame.draw.ellipse(butsel, (127,127,0), (butsel.get_width()-ellipse_width,0,ellipse_width,ellipse_height), 0)
+			pygame.draw.ellipse(butsel, (127,127,0), (0,butsel.get_height()-ellipse_height,ellipse_width,ellipse_height), 0)
+			pygame.draw.ellipse(butsel, (127,127,0), (butsel.get_width()-ellipse_width,butsel.get_height()-ellipse_height,ellipse_width,ellipse_height), 0)
+			butsel.blit(self.itemsinfo[self.selected[1]]['surface'], (0,0))
+			screen.blit(butsel, self.itemsinfo[self.selected[1]]['buttonloc'])
 		screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
 		title = self.font.render(self.itemsinfo[self.selected[1]]['title'], 1, (255,255,255))
 		titlepos = title.get_rect(topleft=self.titleoffset, width=screen.get_width()-self.titleoffset[0])
@@ -602,8 +591,8 @@ class filemenu():
 			elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
 				pygame.display.toggle_fullscreen()
 			else:
-				print 'event', event
 				if android:
+					print 'event', event
 					print android.check_pause()
 	def action(self, selected):
 		if selected == '../' and (self.itemsinfo[selected]['filename'] == '../'):
@@ -616,11 +605,11 @@ class filemenu():
 			player = movieplayer(self.itemsinfo[selected]['filename'])
 			player.play()
 			player.loop()
+#			pygame.display.set_mode((0,0), pygame.FULLSCREEN|pygame.HWSURFACE)
 			screen.blit(screenbkup, (0,0))
 			pygame.display.update()
 		elif not self.itemsinfo[selected]['file']:
 			filename = self.itemsinfo[selected]['filename'].replace('//', '/')
-			print 'filename=',filename, 
 			if filename.__contains__('../'):
 				filename = filename[:filename.rindex('../')].rsplit('/', 2)[0]+'/'
 			self.builditems(directory=filename)
@@ -1052,7 +1041,7 @@ else:
 	if len(sys.argv) > 1 and (sys.argv[1] == '--windowed' or sys.argv[1] == '-w'):
 		screen = pygame.display.set_mode((800,600)) # Create a new window.
 	else:
-		screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
+		screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)#|pygame.NOFRAME)
 	#screen = pygame.display.set_mode((1050,1680)) # Create a new window.
 try: background = pygame.transform.scale(pygame.image.load('background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
@@ -1080,7 +1069,7 @@ if len(sys.argv) > 1 and os.path.isfile(sys.argv[1]):
 menuitems = [('Videos', filemenu), ('Extra item', 'testing'), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
 menu = textmenu(menuitems)
 
-os.chdir('Videos')
+os.chdir(os.getenv('HOME')+'/Videos/')
 rootdir = os.getcwd()
 
 ## These should avoid going through the loop unnecessarily (and wasting resources) when there is events that I'm not going to use anyway.
