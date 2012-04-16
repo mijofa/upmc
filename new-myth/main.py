@@ -747,9 +747,6 @@ class movieplayer():
 		thread.start()
 		while self.paused == None: pass
 		threading.Thread(target=self.showosd, args=[5, True], name='showosd').start()
-		thread = threading.Thread(target=self.renderosd, args=[True], name='renderosd')
-		self.threads.update({thread.name: thread})
-		thread.start()
 		return self.mplayer
 	def pause(self):
 		# This will temporarily stop or restart movie playback.
@@ -833,26 +830,31 @@ class movieplayer():
 			self.threads['hideosd'].cancel()
 		if not osdtype == None:
 			self.osdtype = osdtype
-		try:
-			os.write(self.bmovl, 'SHOW\n')
-			self.osd_visible = True
-		except OSError: pass
+		if not self.osd_visible == True:
+			while self.threads.has_key('hideosd') and self.threads['hideosd'].isAlive(): pass
+			try:
+				os.write(self.bmovl, 'SHOW\n')
+				self.osd_visible = True
+			except OSError: pass
+			thread = threading.Thread(target=self.renderosd, args=[True], name='renderosd')
+			self.threads.update({thread.name: thread})
+			thread.start()
 		if delay > 0:
 			thread = threading.Timer(delay, self.hideosd)
 			thread.name = 'hideosd'
 			self.threads.update({thread.name: thread})
 			thread.start()
 	def hideosd(self, wait = False):
-		if self.bmovl == None and wait == False:
-			return
-		elif self.bmovl == None and wait == True:
+		if self.bmovl == None and wait == True:
 			while self.bmovl == None: pass
+		elif self.bmovl == None and wait == False:
+			return
 		if not self.osd_visible == False:
+			self.osd_visible = False
 			try:
 				os.write(self.bmovl, 'HIDE\n')
-				self.osd_visible = False
-				self.osdtype = 'time'
 			except OSError: pass
+		self.osdtype = 'time'
 		if self.threads.keys().__contains__('hideosd'):
 			self.threads['hideosd'].cancel()
 	def updateosd(self, wait = False):
@@ -949,6 +951,10 @@ class movieplayer():
 			self.osd_last_run == int(time.time())
 		screen.blit(self.osd, self.osd.get_rect(center=screen.get_rect().center))
 		pygame.display.update()
+		if self.osd_visible == True:
+			thread = threading.Thread(target=self.renderosd, name='renderosd')
+			self.threads.update({thread.name: thread})
+			thread.start()
 	def poll(self):
 		status = self.mplayer.poll()
 		if status != None:
@@ -978,11 +984,6 @@ class movieplayer():
 		while self.poll() == None:
 			try: events = pygame.event.get()
 			except KeyboardInterrupt: event = userquit()
-			if events == []:
-				if self.osd_visible == True and not self.threads['renderosd'].isAlive():
-					thread = threading.Thread(target=self.renderosd, name='renderosd')
-					self.threads.update({thread.name: thread})
-					thread.start()
 			for event in events:
 				if event.type == pygame.QUIT:
 					running = False
@@ -1007,9 +1008,6 @@ class movieplayer():
 						self.hideosd()
 					else:
 						self.showosd(5, osdtype='time')
-						thread = threading.Thread(target=self.renderosd, name='renderosd')
-						self.threads.update({thread.name: thread})
-						thread.start()
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
 					self.mplayer.stdin.write('step_property fullscreen\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
@@ -1024,15 +1022,9 @@ class movieplayer():
 					self.mplayer.stdin.write('osd_show_text "Saved position: %02d:%02d:%02d"\n' % (save_hrs, save_mins, save_secs))
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_9:
 					self.showosd(5, osdtype='volume')
-					thread = threading.Thread(target=self.renderosd, name='renderosd')
-					self.threads.update({thread.name: thread})
-					thread.start()
 					self.set_volume('-0.02')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_0:
 					self.showosd(5, osdtype='volume')
-					thread = threading.Thread(target=self.renderosd, name='renderosd')
-					self.threads.update({thread.name: thread})
-					thread.start()
 					self.set_volume('+0.02')
 		self.stop()
 ##### End class movieplayer()
@@ -1050,8 +1042,10 @@ pygame.display.init()
 if android:
 	screen = pygame.display.set_mode((1280,720), pygame.FULLSCREEN) # Create a new window.
 else:
-	screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
-#	screen = pygame.display.set_mode((800,600)) # Create a new window.
+	if sys.argv[1] == '--windowed' or sys.argv[1] == '-w':
+		screen = pygame.display.set_mode((800,600)) # Create a new window.
+	else:
+		screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
 	#screen = pygame.display.set_mode((1050,1680)) # Create a new window.
 try: background = pygame.transform.scale(pygame.image.load('background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
