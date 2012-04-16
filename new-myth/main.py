@@ -653,9 +653,10 @@ class movieplayer():
 	def procoutput(self):
 		statusline = None
 		response = ''
-		char = self.mplayer.stdout.read(1)
-		while not char == '':
-			while not char == '\n' and not char == '':
+		char = None
+		while not char == '' and not self.mplayer.stdout.closed:
+			char = self.mplayer.stdout.read(1)
+			while not char == '\n' and not char == '' and not self.mplayer.stdout.closed:
 				response = response+char
 				if response[-4:] == '\x1b[J\r':
 					self.time_pos = float(response[response.index('V:')+2:response.index('A-V:')].strip(' '))
@@ -704,7 +705,6 @@ class movieplayer():
 					response = response.lstrip('Opened fifo ')
 					self.bmovl = os.open(response[:response.rindex(' as FD ')], os.O_WRONLY)
 			response = ''
-			char = self.mplayer.stdout.read(1)
 	def play(self, loops=None, osd=True):
 		# Starts playback of the movie. Sound and video will begin playing if they are not disabled. The optional loops argument controls how many times the movie will be repeated. A loop value of -1 means the movie will repeat forever.
 		surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
@@ -826,7 +826,7 @@ class movieplayer():
 			return
 		elif self.bmovl == None and wait == True:
 			while self.bmovl == None: pass
-		if self.threads.keys().__contains__('hideosd'):
+		if self.threads.has_key('hideosd'):
 			self.threads['hideosd'].cancel()
 		if not osdtype == None:
 			self.osdtype = osdtype
@@ -969,6 +969,7 @@ class movieplayer():
 		except:
 			try: self.mplayer.kill()
 			except OSError: pass
+			self.mplayer.stdout.close()
 		try:
 			os.close(self.bmovl)
 			os.unlink('/tmp/bmovl-%s-%s' % (os.geteuid(), os.getpid()))
@@ -992,16 +993,22 @@ class movieplayer():
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
 					self.stop()
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+					self.showosd(2, osdtype='time')
 					self.pause()
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
+					self.showosd(2, osdtype='time')
 					self.mplayer.stdin.write('seek +60\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
+					self.showosd(2, osdtype='time')
 					self.mplayer.stdin.write('seek -50\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
+					self.showosd(2, osdtype='time')
 					self.mplayer.stdin.write('seek -20\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
+					self.showosd(2, osdtype='time')
 					self.mplayer.stdin.write('seek +30\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
+					self.showosd(2, osdtype='time')
 					self.mplayer.stdin.write('osd\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
 					if self.osd_visible:
@@ -1021,10 +1028,10 @@ class movieplayer():
 					open('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+os.uname()[1]+'.save', 'w').write('%s;%s\n# This line and everything below is ignored, it is only here so that you don\'t need to understand ^ that syntax.\nTime: %02d:%02d:%02d\nVolume: %d%%\n' % (save_pos, self.volume, save_hrs, save_mins, save_secs, self.volume))
 					self.mplayer.stdin.write('osd_show_text "Saved position: %02d:%02d:%02d"\n' % (save_hrs, save_mins, save_secs))
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_9:
-					self.showosd(5, osdtype='volume')
+					self.showosd(2, osdtype='volume')
 					self.set_volume('-0.02')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_0:
-					self.showosd(5, osdtype='volume')
+					self.showosd(2, osdtype='volume')
 					self.set_volume('+0.02')
 		self.stop()
 ##### End class movieplayer()
@@ -1042,7 +1049,7 @@ pygame.display.init()
 if android:
 	screen = pygame.display.set_mode((1280,720), pygame.FULLSCREEN) # Create a new window.
 else:
-	if sys.argv[1] == '--windowed' or sys.argv[1] == '-w':
+	if len(sys.argv) > 1 and (sys.argv[1] == '--windowed' or sys.argv[1] == '-w'):
 		screen = pygame.display.set_mode((800,600)) # Create a new window.
 	else:
 		screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
