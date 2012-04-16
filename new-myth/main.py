@@ -700,8 +700,8 @@ class movieplayer():
 		self.screenbkup = screen.copy()
 		screen.blit(surf, (0,0))
 		pygame.display.update()
-		args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','identify=5:global=4:input=5:cplayer=5:vfilter=5:statusline=0','-slave','-fs','-identify','-stop-xscreensaver']
-		args += ['-volume', '95']
+		args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','identify=5:global=4:input=5:cplayer=5:vfilter=5:statusline=0','-slave','-fs','-identify','-stop-xscreensaver', '-volume', '95']
+		if len(sys.argv) > 1 and sys.argv[1] == '--no-sound': args += ['-ao', 'null']
 		if loops == 0:
 			loops = None
 		elif loops == -1:
@@ -958,7 +958,6 @@ class movieplayer():
 		except:
 			try: self.mplayer.kill()
 			except OSError: pass
-			self.mplayer.stdout.close()
 		try:
 			os.close(self.bmovl)
 			os.unlink('/tmp/bmovl-%s-%s' % (os.geteuid(), os.getpid()))
