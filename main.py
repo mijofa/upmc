@@ -308,7 +308,6 @@ class filemenu():
 		else:
 			raise Exception("WTF did you do? That's not even possible. O.o")
 	def builditems(self, directory = './'):
-		itemnum = -1
 		self.items = []
 		if not directory == rootdir and not (directory == './' and os.getcwd() == rootdir):
 			self.items.append('../')
@@ -319,23 +318,19 @@ class filemenu():
 			if not item.startswith('.'):
 				dirthumb = None
 				files = self.find(directory+item, 'image')
-				numfiles = len(files)
 				for thumb in files:
 					if thumb.startswith('folder.'):
-						numfiles -= 1
 						dirthumb = item + '/' + thumb
 						break
-				if numfiles > 0:
-					itemnum += 1
-					self.items.append(directory+item)
-					if not self.itemsinfo.has_key(directory+item):
-						self.itemsinfo[directory+item] = {}
-					if not dirthumb == None:
-						self.itemsinfo[directory+item]['thumb'] = dirthumb
-					self.itemsinfo[directory+item]['file'] = False
-					self.itemsinfo[directory+item]['title'] = item
-					self.itemsinfo[directory+item]['itemnum'] = itemnum
-					self.itemsinfo[directory+item]['filename'] = directory+item + '/'
+				self.items.append(directory+item)
+				if not self.itemsinfo.has_key(directory+item):
+					self.itemsinfo[directory+item] = {}
+				if not dirthumb == None:
+					self.itemsinfo[directory+item]['thumb'] = dirthumb
+				self.itemsinfo[directory+item]['file'] = False
+				self.itemsinfo[directory+item]['title'] = item
+				self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
+				self.itemsinfo[directory+item]['filename'] = directory+item + '/'
 		for filename in self.find(filetype='file', directory=directory):
 			if not filename.startswith('.'):
 				item = filename.rpartition('.')
@@ -347,13 +342,12 @@ class filemenu():
 				if not ftype: ftype = 'Unknown'
 				else: ftype = ftype.split('/')[0]
 				if ftype == 'video':
-					itemnum += 1
 					self.items.append(directory+item)
 					if not self.itemsinfo.has_key(directory+item):
 						self.itemsinfo[directory+item] = {}
 					self.itemsinfo[directory+item]['file'] = True
 					self.itemsinfo[directory+item]['title'] = item
-					self.itemsinfo[directory+item]['itemnum'] = itemnum
+					self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
 					self.itemsinfo[directory+item]['filename'] = directory+filename
 				elif ftype == 'image':
 					if self.itemsinfo.has_key(directory+item):
@@ -448,26 +442,34 @@ class filemenu():
 				try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
 				except ValueError: self.selected[0] = self.pagerows[-1]
 				self.selected[1] = self.selected[0][0]
+				itemnum = self.pagerows[-1][0]['itemnum']
 			elif direction == 1:
 				self.selected = [self.pagerows[0], self.pagerows[0][0]]
+				itemnum = self.pagerows[0][0]['itemnum']
 			elif direction == 2:
 				self.scroll(0,1)
 				try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
 				except ValueError: self.selected[0] = self.pagerows[-1]
 				self.selected[1] = self.selected[0][-1]
+				itemnum = self.pagerows[-1][-1]['itemnum']
 			elif direction == 3:
 				self.selected = [self.pagerows[0], self.pagerows[0][0]]
+				itemnum = self.pagerows[0][0]['itemnum']
 		elif self.selected[0] and self.selected[1]:
 			if direction == 0:
 				colnum = self.selected[0].index(self.selected[1])
 				if self.pagerows.index(self.selected[0]) == 0:
 					self.scroll(0,1)
+					itemnum = self.selected[1]['itemnum']-len(self.pagerows[-1])
 					try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
 					except ValueError: self.selected[0] = self.pagerows[-1]
-				else: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
+				else:
+					itemnum = self.selected[1]['itemnum']-len(self.selected[0])
+					self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
 				try: self.selected[1] = self.selected[0][colnum]
 				except IndexError: self.selected[1] = self.selected[0][-1]
 			elif direction == 1:
+				itemnum = self.selected[1]['itemnum']+len(self.selected[0])
 				colnum = self.selected[0].index(self.selected[1])
 				try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])+1]
 				except IndexError:
@@ -478,6 +480,7 @@ class filemenu():
 				try: self.selected[1] = self.selected[0][colnum]
 				except IndexError: self.selected[1] = self.selected[0][-1]
 			elif direction == 2:
+				itemnum = self.selected[1]['itemnum']-1
 				if self.selected[0].index(self.selected[1]) == 0:
 					if self.pagerows.index(self.selected[0]) == 0:
 						self.scroll(0,1)
@@ -489,6 +492,7 @@ class filemenu():
 				else:
 					self.selected[1] = self.selected[0][self.selected[0].index(self.selected[1])-1]
 			elif direction == 3:
+				itemnum = self.selected[1]['itemnum']+1
 				try: self.selected[1] = self.selected[0][self.selected[0].index(self.selected[1])+1]
 				except IndexError:
 					try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])+1]
@@ -498,8 +502,34 @@ class filemenu():
 						except IndexError: self.selected[0] = self.pagerows[0]
 						except ValueError: self.selected[0] = self.pagerows[0]
 					self.selected[1] = self.selected[0][0]
-		self.select(self.itemsinfo[self.selected[1]]['itemnum'])
-		### THIS IS BAD, the math there could be done much more elegantly, I just CBFed right now.
+#		butfg = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
+#		butfg.fill((0,0,0,55))
+#		screen.blit(self.itemsinfo[self.selected[1]]['surface'], self.itemsinfo[self.selected[1]]['buttonloc'])
+#		screen.blit(butfg, self.itemsinfo[self.selected[1]]['buttonloc'])
+		butsel = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
+		ellipse_width=butsel.get_width()/8
+		ellipse_height=butsel.get_height()/8
+		butsel.subsurface((0,ellipse_height/2,butsel.get_width(),butsel.get_height()-ellipse_height)).fill((127,127,0))
+		butsel.subsurface((ellipse_width/2,0,butsel.get_width()-ellipse_width,butsel.get_height())).fill((127,127,0))
+		start_angle = 0
+		pygame.draw.ellipse(butsel, (127,127,0), (0,0,ellipse_width,ellipse_height), 0)
+		pygame.draw.ellipse(butsel, (127,127,0), (butsel.get_width()-ellipse_width,0,ellipse_width,ellipse_height), 0)
+		pygame.draw.ellipse(butsel, (127,127,0), (0,butsel.get_height()-ellipse_height,ellipse_width,ellipse_height), 0)
+		pygame.draw.ellipse(butsel, (127,127,0), (butsel.get_width()-ellipse_width,butsel.get_height()-ellipse_height,ellipse_width,ellipse_height), 0)
+		butsel.blit(self.itemsinfo[self.selected[1]]['surface'], (0,0))
+		screen.blit(butsel, self.itemsinfo[self.selected[1]]['buttonloc'])
+
+		screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
+		title = self.font.render(self.itemsinfo[self.selected[1]]['title'], 1, (255,255,255))
+		titlepos = title.get_rect(topleft=self.titleoffset, width=screen.get_width()-self.titleoffset[0])
+		screen.blit(background.subsurface(titlepos), titlepos)
+		screen.blit(title,titlepos)
+		screenupdates.append(titlepos)
+		pygame.display.update(screenupdates)
+		screenupdates = []
+		print self.itemsinfo[self.selected[1]]['itemnum'], itemnum
+#		self.select(self.itemsinfo[self.selected[1]]['itemnum'])
+#		### THIS IS BAD, the math there could be done much more elegantly, I just CBFed right now.
 	def select(self, itemnum):
 		global screenupdates
 		if self.selected[1]:
@@ -508,12 +538,16 @@ class filemenu():
 			screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
 		rownum = 0
 		while True:
+			if rownum > len(self.pagerows)-1:
+				rownum -= 1
+#				rownum += 1
 			if itemnum > len(self.pagerows[rownum])-1:
 				itemnum -= len(self.pagerows[rownum])
 				rownum += 1
 			else:
 				self.selected = [self.pagerows[rownum], self.pagerows[rownum][itemnum]]
 				break
+		print itemnum, rownum
 		if True:
 			butsel = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
 			ellipse_width=butsel.get_width()/8
