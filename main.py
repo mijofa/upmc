@@ -428,7 +428,7 @@ class filemenu():
 		try: item = pygame.Rect(mousepos[0],mousepos[1],0,0).collidedict(self.clickables)[1]
 		except TypeError: item = None
 		if item:# and item != self.selected[1]:
-			self.select(self.itemsinfo[item]['itemnum'])
+			self.select(self.items.index(item))
 	def keyselect(self, direction):
 		global screenupdates
 		prevselected = None
@@ -438,116 +438,54 @@ class filemenu():
 			screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
 		if not self.selected[0] or not self.selected[1]:
 			if direction == 0:
-				self.scroll(0,1)
-				try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
-				except ValueError: self.selected[0] = self.pagerows[-1]
-				self.selected[1] = self.selected[0][0]
 				itemnum = self.pagerows[-1][0]['itemnum']
 			elif direction == 1:
-				self.selected = [self.pagerows[0], self.pagerows[0][0]]
 				itemnum = self.pagerows[0][0]['itemnum']
 			elif direction == 2:
-				self.scroll(0,1)
-				try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
-				except ValueError: self.selected[0] = self.pagerows[-1]
-				self.selected[1] = self.selected[0][-1]
 				itemnum = self.pagerows[-1][-1]['itemnum']
 			elif direction == 3:
-				self.selected = [self.pagerows[0], self.pagerows[0][0]]
 				itemnum = self.pagerows[0][0]['itemnum']
 		elif self.selected[0] and self.selected[1]:
 			if direction == 0:
-				colnum = self.selected[0].index(self.selected[1])
-				if self.pagerows.index(self.selected[0]) == 0:
-					self.scroll(0,1)
-					itemnum = self.selected[1]['itemnum']-len(self.pagerows[-1])
-					try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
-					except ValueError: self.selected[0] = self.pagerows[-1]
-				else:
-					itemnum = self.selected[1]['itemnum']-len(self.selected[0])
-					self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
-				try: self.selected[1] = self.selected[0][colnum]
-				except IndexError: self.selected[1] = self.selected[0][-1]
+				itemnum = self.items.index(self.selected[1])-len(self.pagerows[0])
 			elif direction == 1:
-				itemnum = self.selected[1]['itemnum']+len(self.selected[0])
-				colnum = self.selected[0].index(self.selected[1])
-				try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])+1]
-				except IndexError:
-					self.scroll(1,1)
-					try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])+1]
-					except IndexError: self.selected[0] = self.pagerows[0]
-					except ValueError: self.selected[0] = self.pagerows[0]
-				try: self.selected[1] = self.selected[0][colnum]
-				except IndexError: self.selected[1] = self.selected[0][-1]
+				itemnum = self.items.index(self.selected[1])+len(self.selected[0])
 			elif direction == 2:
-				itemnum = self.selected[1]['itemnum']-1
-				if self.selected[0].index(self.selected[1]) == 0:
-					if self.pagerows.index(self.selected[0]) == 0:
-						self.scroll(0,1)
-						try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
-						except ValueError: self.selected[0] = self.pagerows[-1]
-					else:
-						self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])-1]
-					self.selected[1] = self.selected[0][-1]
-				else:
-					self.selected[1] = self.selected[0][self.selected[0].index(self.selected[1])-1]
+				itemnum = self.items.index(self.selected[1])-1
 			elif direction == 3:
-				itemnum = self.selected[1]['itemnum']+1
-				try: self.selected[1] = self.selected[0][self.selected[0].index(self.selected[1])+1]
-				except IndexError:
-					try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])+1]
-					except IndexError:
-						self.scroll(1,1)
-						try: self.selected[0] = self.pagerows[self.pagerows.index(self.selected[0])+1]
-						except IndexError: self.selected[0] = self.pagerows[0]
-						except ValueError: self.selected[0] = self.pagerows[0]
-					self.selected[1] = self.selected[0][0]
-#		butfg = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
-#		butfg.fill((0,0,0,55))
-#		screen.blit(self.itemsinfo[self.selected[1]]['surface'], self.itemsinfo[self.selected[1]]['buttonloc'])
-#		screen.blit(butfg, self.itemsinfo[self.selected[1]]['buttonloc'])
-		butsel = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
-		ellipse_width=butsel.get_width()/8
-		ellipse_height=butsel.get_height()/8
-		butsel.subsurface((0,ellipse_height/2,butsel.get_width(),butsel.get_height()-ellipse_height)).fill((127,127,0))
-		butsel.subsurface((ellipse_width/2,0,butsel.get_width()-ellipse_width,butsel.get_height())).fill((127,127,0))
-		start_angle = 0
-		pygame.draw.ellipse(butsel, (127,127,0), (0,0,ellipse_width,ellipse_height), 0)
-		pygame.draw.ellipse(butsel, (127,127,0), (butsel.get_width()-ellipse_width,0,ellipse_width,ellipse_height), 0)
-		pygame.draw.ellipse(butsel, (127,127,0), (0,butsel.get_height()-ellipse_height,ellipse_width,ellipse_height), 0)
-		pygame.draw.ellipse(butsel, (127,127,0), (butsel.get_width()-ellipse_width,butsel.get_height()-ellipse_height,ellipse_width,ellipse_height), 0)
-		butsel.blit(self.itemsinfo[self.selected[1]]['surface'], (0,0))
-		screen.blit(butsel, self.itemsinfo[self.selected[1]]['buttonloc'])
-
-		screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
-		title = self.font.render(self.itemsinfo[self.selected[1]]['title'], 1, (255,255,255))
-		titlepos = title.get_rect(topleft=self.titleoffset, width=screen.get_width()-self.titleoffset[0])
-		screen.blit(background.subsurface(titlepos), titlepos)
-		screen.blit(title,titlepos)
-		screenupdates.append(titlepos)
-		pygame.display.update(screenupdates)
-		screenupdates = []
-		print self.itemsinfo[self.selected[1]]['itemnum'], itemnum
-#		self.select(self.itemsinfo[self.selected[1]]['itemnum'])
-#		### THIS IS BAD, the math there could be done much more elegantly, I just CBFed right now.
+				itemnum = self.items.index(self.selected[1])+1
+		self.select(itemnum)
 	def select(self, itemnum):
 		global screenupdates
 		if self.selected[1]:
 			screen.blit(background.subsurface(self.itemsinfo[self.selected[1]]['buttonloc']), self.itemsinfo[self.selected[1]]['buttonloc'])
 			screen.blit(self.itemsinfo[self.selected[1]]['surface'], self.itemsinfo[self.selected[1]]['buttonloc'])
 			screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
-		rownum = 0
-		while True:
-			if rownum > len(self.pagerows)-1:
-				rownum -= 1
-#				rownum += 1
-			if itemnum > len(self.pagerows[rownum])-1:
-				itemnum -= len(self.pagerows[rownum])
-				rownum += 1
+		if itemnum < self.itemsinfo[self.pagerows[0][0]]['itemnum']:
+			self.scroll(0,1)
+			if itemnum < 0:
+				if itemnum+(len(self.pagerows[0])-len(self.pagerows[-1])) >= 0:
+					itemnum = -1
+				else:
+					itemnum += (len(self.pagerows[0])-len(self.pagerows[-1]))
+		elif itemnum > self.itemsinfo[self.pagerows[-1][-1]]['itemnum']:
+			if itemnum > len(self.items)-1:
+				itemnum -= len(self.items)
+				if not self.pagerows[-1][-1] == self.items[-1]:
+					self.scroll(1,1)
+				if not self.pagerows[-1].__contains__(self.selected[1]) and not itemnum > len(self.pagerows[0])-len(self.pagerows[-1]):
+					itemnum = self.items.index(self.pagerows[-1][-1])
+				else:
+					self.scroll(1,1)
 			else:
-				self.selected = [self.pagerows[rownum], self.pagerows[rownum][itemnum]]
+				self.scroll(1,1)
+		item = self.items[itemnum]
+		for row in self.pagerows:
+			if row.__contains__(item):
+				rownum = self.pagerows.index(row)
+				colnum = row.index(item)
 				break
-		print itemnum, rownum
+		self.selected = [self.pagerows[rownum], self.pagerows[rownum][colnum]]
 		if True:
 			butsel = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
 			ellipse_width=butsel.get_width()/8
@@ -984,8 +922,6 @@ class movieplayer():
 			self.stop()
 		return status
 	def stop(self):
-		if self.osd_visible:
-			self.hideosd()
 		try:
 			self.mplayer.stdin.write('quit\n')
 			self.mplayer.stdin.close()
