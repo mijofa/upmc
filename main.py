@@ -315,7 +315,7 @@ class filemenu():
 		else:
 			self.itemsinfo['../']['filename'] = '../'
 		for item in self.find(filetype='directory', directory=directory):
-			if not item.startswith('.'):
+			if not item.startswith('.') and not self.items.__contains__(item):
 				dirthumb = None
 				files = self.find(directory+item, 'image')
 				for thumb in files:
@@ -332,7 +332,7 @@ class filemenu():
 				self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
 				self.itemsinfo[directory+item]['filename'] = directory+item + '/'
 		for filename in self.find(filetype='file', directory=directory):
-			if not filename.startswith('.'):
+			if not filename.startswith('.') and not self.items.__contains__(filename):
 				item = filename.rpartition('.')
 				if item[1] == '.':
 					item = item[0]
@@ -477,6 +477,9 @@ class filemenu():
 					itemnum = self.items.index(self.pagerows[-1][-1])
 				else:
 					self.scroll(1,1)
+			elif itemnum > self.itemsinfo[self.pagerows[-1][-1]]['itemnum']+len(self.pagerows[0]):
+				distance = (itemnum-self.itemsinfo[self.pagerows[-1][-1]]['itemnum'])/float(len(self.pagerows[0]))
+				self.scroll(1,distance)
 			else:
 				self.scroll(1,1)
 		item = self.items[itemnum]
@@ -522,6 +525,12 @@ class filemenu():
 			if event.type == pygame.QUIT:
 				running = False
 				pygame.quit()
+			elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
+				self.scroll(0,len(self.pagerows))
+				self.select(self.items.index(self.selected[1])-(len(self.pagerows[0])*len(self.pagerows)))
+			elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
+				self.scroll(1,len(self.pagerows))
+				self.select(self.items.index(self.selected[1])+(len(self.pagerows[0])*len(self.pagerows)))
 			elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
 				self.keyselect(0)
 			elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
@@ -587,7 +596,11 @@ class filemenu():
 			self.builditems(directory=filename)
 			self.selected = [None, None]
 			self.render()
-			self.select(0)
+			if self.items.__contains__(self.cwd):
+				self.select(self.items.index(self.cwd))
+			else:
+				self.select(0)
+			self.cwd = filename
 ##### End class filemenu()
 
 class movieplayer():
@@ -672,7 +685,7 @@ class movieplayer():
 		self.screenbkup = screen.copy()
 		screen.blit(surf, (0,0))
 		pygame.display.update()
-		args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','identify=5:global=4:input=5:cplayer=5:vfilter=5:statusline=0','-slave','-fs','-identify','-stop-xscreensaver', '-volume', '95']
+		args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','identify=5:global=4:input=5:cplayer=5:vfilter=5:statusline=0','-slave','-fs','-identify','-stop-xscreensaver', '-volume', '75']
 		if len(sys.argv) > 1 and sys.argv[1] == '--no-sound': args += ['-ao', 'null']
 		if loops == 0:
 			loops = None
@@ -836,7 +849,7 @@ class movieplayer():
 		width, height = self.video_resolution
 		more = self.font.render('...', 1, (255,255,255,255))
 		if not self.osd:
-			self.osd_rect = pygame.rect.Rect((240,22*3,width-240-15,15))
+			self.osd_rect = pygame.rect.Rect((280,22*3,width-280-15,15))
 			self.osd = pygame.surface.Surface(self.osd_rect[0:2], pygame.SRCALPHA)
 			self.osd.fill((25,25,25,157))
 			title = self.font.render(os.path.basename(self.filename).rpartition('.')[0], 1, (255,255,255,255))
@@ -848,7 +861,7 @@ class movieplayer():
 			self.updateosd()
 		curtime = self.font.render(time.strftime('%I:%M %p '), 1, (255,255,255,255))
 		if self.osdtype == 'time' and (not self.osd_time_pos == int(self.get_time()) or not int(self.percent_pos) == self.osd_percentage):
-			subosd = self.osd.subsurface([0,22,240,44])
+			subosd = self.osd.subsurface([0,22,self.osd.get_width(),44])
 			subosd.fill((25,25,25,157))
 			curhrs = int(self.time_pos/60.0/60.0)
 			curmins = int((self.time_pos-(curhrs*60*60))/60)
@@ -875,17 +888,17 @@ class movieplayer():
 			percbg = pygame.surface.Surface((subosd.get_width(), 22), pygame.SRCALPHA)
 			percbg.fill((0,0,0,255))
 			subosd.blit(percbg, (0,pos.get_height()))
-			perc = pygame.surface.Surface((subosd.get_width()/100*self.percent_pos, 22), pygame.SRCALPHA)
+			perc = pygame.surface.Surface((subosd.get_width()/100.0*self.percent_pos, 22), pygame.SRCALPHA)
 			perc.fill((127,127,127,255))
 			subosd.blit(perc, (0,pos.get_height()))
 			percnum = self.font.render(str(int(self.percent_pos))+'%', 1, (255,255,255,255))
-			subosd.blit(percnum, ((subosd.get_width()/2)-(percnum.get_width()-2),pos.get_height()))
+			subosd.blit(percnum, ((subosd.get_width()/2)-(percnum.get_width()/2),pos.get_height()))
 			self.osd_percentage = int(self.percent_pos)
 			self.osd_time_pos = int(self.time_pos)
 			self.updateosd()
 			self.osd_last_run == int(time.time())
 		elif self.osdtype == 'volume' and not int(self.volume) == self.osd_percentage:
-			subosd = self.osd.subsurface([0,22,240,44])
+			subosd = self.osd.subsurface([0,22,self.osd.get_width(),44])
 			subosd.fill((25,25,25,157))
 			voltext = self.font.render('%s%% volume' % self.volume, 1, (255,255,255,255))
 			if voltext.get_width() > subosd.get_width()-curtime.get_width():
@@ -901,7 +914,7 @@ class movieplayer():
 			perc.fill((127,127,127,255))
 			subosd.blit(perc, (0,voltext.get_height()))
 			percnum = self.font.render(str(int(self.volume))+'%', 1, (255,255,255,255))
-			subosd.blit(percnum, ((subosd.get_width()/2)-(percnum.get_width()-2),voltext.get_height()))
+			subosd.blit(percnum, ((subosd.get_width()/2)-(percnum.get_width()/2),voltext.get_height()))
 			self.osd_percentage = int(self.volume)
 			self.updateosd()
 			self.osd_last_run == int(time.time())
@@ -922,6 +935,10 @@ class movieplayer():
 			self.stop()
 		return status
 	def stop(self):
+		self.osd_visible = False
+		for thread in self.threads.values():
+			if dir(thread).__contains__('cancel'):
+				thread.cancel()
 		try:
 			self.mplayer.stdin.write('quit\n')
 			self.mplayer.stdin.close()
