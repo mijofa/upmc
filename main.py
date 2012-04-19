@@ -995,6 +995,9 @@ class movieplayer():
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
 					self.mplayer.stdin.write('step_property sub_visibility\n')
 					self.mplayer.stdin.write('get_property sub_visibility\n')
+				elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
+					self.mplayer.stdin.write('step_property switch_audio\n')
+					self.mplayer.stdin.write('get_property switch_audio\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
 					save_pos = self.get_time()-10
 					save_hrs = int(save_pos/60.0/60.0)
