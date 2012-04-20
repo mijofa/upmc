@@ -1068,7 +1068,7 @@ pygame.event.set_allowed([pygame.MOUSEMOTION,pygame.MOUSEBUTTONDOWN,pygame.MOUSE
 while running == True:
 	try: events = pygame.event.get()
 	except KeyboardInterrupt: event = userquit()
-	for event in events
+	for event in events:
 		if event.type == pygame.QUIT:
 			running = False
 			pygame.quit()
