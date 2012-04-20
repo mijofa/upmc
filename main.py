@@ -1066,31 +1066,32 @@ pygame.event.set_allowed(None) # This says to not put *any* events into the even
 pygame.event.set_allowed([pygame.QUIT])
 pygame.event.set_allowed([pygame.MOUSEMOTION,pygame.MOUSEBUTTONDOWN,pygame.MOUSEBUTTONUP,pygame.KEYDOWN]) # This says to put the events I want to see into the event queue, this needs to be updated anytime I want to monitor more events.
 while running == True:
-	try: event = pygame.event.wait()
+	try: events = pygame.event.get()
 	except KeyboardInterrupt: event = userquit()
-	if event.type == pygame.QUIT:
-		running = False
-		pygame.quit()
-	elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-		userquit()
-	elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-		released = False
-		item = menu.mouseselect(event.pos)
-		if item:
-			while released != True:
-				event = pygame.event.wait()
-				if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-					released = True
-					if menu.mouseselect(event.pos) == item:
-						menu.action()
-	elif event.type == pygame.MOUSEMOTION:
-		menu.mouseselect(event.pos)
-	elif event.type == pygame.KEYDOWN and (event.key == pygame.K_UP or event.key == pygame.K_DOWN):
-		menu.keyselect(event.key==pygame.K_DOWN) # This will call keyselect(False) if K_UP is pressed, and keyselect(True) if K_DOWN is pressed.
-	elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-		menu.action()
-	elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
-		pygame.display.toggle_fullscreen()
-	else:
-		pass
+	for event in events
+		if event.type == pygame.QUIT:
+			running = False
+			pygame.quit()
+		elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+			userquit()
+		elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+			released = False
+			item = menu.mouseselect(event.pos)
+			if item:
+				while released != True:
+					event = pygame.event.wait()
+					if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+						released = True
+						if menu.mouseselect(event.pos) == item:
+							menu.action()
+		elif event.type == pygame.MOUSEMOTION:
+			menu.mouseselect(event.pos)
+		elif event.type == pygame.KEYDOWN and (event.key == pygame.K_UP or event.key == pygame.K_DOWN):
+			menu.keyselect(event.key==pygame.K_DOWN) # This will call keyselect(False) if K_UP is pressed, and keyselect(True) if K_DOWN is pressed.
+		elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+			menu.action()
+		elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
+			pygame.display.toggle_fullscreen()
+		else:
+			pass
 
