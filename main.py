@@ -1055,7 +1055,11 @@ if len(sys.argv) > 1 and os.path.isfile(sys.argv[1]):
 	player.loop()
 	quit()
 
-menuitems = [('Videos', filemenu), ('Extra item', 'testing'), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
+def terminal():
+	term = subprocess.Popen(['x-terminal-emulator'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE)
+	return term.wait
+
+menuitems = [('Videos', filemenu), ('Terminal', terminal), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
 menu = textmenu(menuitems)
 
 os.chdir(os.getenv('HOME')+'/Videos/')
