@@ -380,13 +380,24 @@ class filemenu():
 			butbg = pygame.Surface((itemwidth,itemheight), pygame.SRCALPHA)
 			ellipse_width=itemwidth/8
 			ellipse_height=itemheight/8
-			butbg.subsurface((0,ellipse_height/2,butbg.get_width(),butbg.get_height()-ellipse_height)).fill((0,0,0,50))
-			butbg.subsurface((ellipse_width/2,0,butbg.get_width()-ellipse_width,butbg.get_height())).fill((0,0,0,50))
 			start_angle = 0
 			pygame.draw.ellipse(butbg, (0,0,0,50), (0,0,ellipse_width,ellipse_height), 0)
-			pygame.draw.ellipse(butbg, (0,0,0,50), (butbg.get_width()-ellipse_width,0,ellipse_width,ellipse_height), 0)
 			pygame.draw.ellipse(butbg, (0,0,0,50), (0,butbg.get_height()-ellipse_height,ellipse_width,ellipse_height), 0)
 			pygame.draw.ellipse(butbg, (0,0,0,50), (butbg.get_width()-ellipse_width,butbg.get_height()-ellipse_height,ellipse_width,ellipse_height), 0)
+			butbg.subsurface((ellipse_width/2,butbg.get_height()-(ellipse_height/2),butbg.get_width()-ellipse_width,ellipse_height/2)).fill((0,0,0,50))
+			butbg.subsurface((0,ellipse_height/2,ellipse_width/2,butbg.get_height()-ellipse_height)).fill((0,0,0,50))
+
+			filebutbg = butbg.copy()
+			filebutbg.subsurface((ellipse_width/2,ellipse_height/2,filebutbg.get_width()-(ellipse_width/2),filebutbg.get_height()-ellipse_height)).fill((0,0,0,50))
+			filebutbg.subsurface((ellipse_width/2,0,filebutbg.get_width()-ellipse_width,ellipse_height/2)).fill((0,0,0,50))
+			pygame.draw.ellipse(filebutbg, (0,0,0,50), (filebutbg.get_width()-ellipse_width,0,ellipse_width,ellipse_height), 0)
+
+			dirbutbg = butbg.copy()
+			pygame.draw.ellipse(dirbutbg, (0,0,0,50), (ellipse_width,0,ellipse_width,ellipse_height), 0)
+			dirbutbg.subsurface((ellipse_width/2,0,ellipse_width,ellipse_height/2)).fill((0,0,0,50))
+			dirbutbg.subsurface((ellipse_width/2,ellipse_height/2,dirbutbg.get_width()-ellipse_width,ellipse_height/2)).fill((0,0,0,50))
+			dirbutbg.subsurface((ellipse_width/2,ellipse_height,dirbutbg.get_width()-(ellipse_width/2),dirbutbg.get_height()-(ellipse_height*1.5))).fill((0,0,0,50))
+			pygame.draw.ellipse(dirbutbg, (0,0,0,50), (dirbutbg.get_width()-ellipse_width,ellipse_height/2,ellipse_width,ellipse_height), 0)
 		while True:
 			if not itemnum < (rowoffset*numcols)-1:
 				for rownum in xrange(numrows):
@@ -397,14 +408,17 @@ class filemenu():
 						except IndexError:
 							brake = True
 							break
-						surf = butbg.copy()
+						if self.itemsinfo[item].has_key('file') and self.itemsinfo[item]['file'] == False:
+							surf = dirbutbg.copy()
+						else:
+							surf = filebutbg.copy()
 						if not self.itemsinfo[item].has_key('surface'):
 							if self.itemsinfo[item].has_key('thumb'):
 								thumb = pygame.image.load(self.itemsinfo[item]['thumb'])
-								rect = thumb.get_rect().fit((0,0,(itemwidth/8)*7,(itemheight/8)*7))
+								rect = thumb.get_rect().fit((0,0,(itemwidth/8)*7,(itemheight/8)*6.5))
 								thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (rect[2], rect[3]))
 							else:
-								thumb = render_textrect(self.itemsinfo[item]['title'], self.font, pygame.rect.Rect((0,0,(itemwidth/8)*7,(itemheight/8)*7)), (255,255,255), (0,0,0,0))
+								thumb = render_textrect(self.itemsinfo[item]['title'], self.font, pygame.rect.Rect((0,0,(itemwidth/8)*7,(itemheight/8)*6.5)), (255,255,255), (0,0,0,0))
 							surf.blit(thumb, thumb.get_rect(center=(surf.get_width()/2,surf.get_height()/2)))
 							self.itemsinfo[item]['surface'] = surf
 						top = (rownum*itemheight)+(rownum*rowspace)+(rowspace/2)+titleoffset+(vertborder/2)
@@ -489,17 +503,27 @@ class filemenu():
 				colnum = row.index(item)
 				break
 		self.selected = [self.pagerows[rownum], self.pagerows[rownum][colnum]]
-		if True:
+		if True: # I'm simply using this as a seperater because I'm currently working on this section.
 			butsel = pygame.Surface(self.itemsinfo[self.selected[1]]['buttonloc'][2:4], pygame.SRCALPHA)
 			ellipse_width=butsel.get_width()/8
 			ellipse_height=butsel.get_height()/8
-			butsel.subsurface((0,ellipse_height/2,butsel.get_width(),butsel.get_height()-ellipse_height)).fill((127,127,0))
-			butsel.subsurface((ellipse_width/2,0,butsel.get_width()-ellipse_width,butsel.get_height())).fill((127,127,0))
 			start_angle = 0
-			pygame.draw.ellipse(butsel, (127,127,0), (0,0,ellipse_width,ellipse_height), 0)
-			pygame.draw.ellipse(butsel, (127,127,0), (butsel.get_width()-ellipse_width,0,ellipse_width,ellipse_height), 0)
-			pygame.draw.ellipse(butsel, (127,127,0), (0,butsel.get_height()-ellipse_height,ellipse_width,ellipse_height), 0)
-			pygame.draw.ellipse(butsel, (127,127,0), (butsel.get_width()-ellipse_width,butsel.get_height()-ellipse_height,ellipse_width,ellipse_height), 0)
+			pygame.draw.ellipse(butsel, ((127,127,0)), (0,0,ellipse_width,ellipse_height), 0)
+			pygame.draw.ellipse(butsel, ((127,127,0)), (0,butsel.get_height()-ellipse_height,ellipse_width,ellipse_height), 0)
+			pygame.draw.ellipse(butsel, ((127,127,0)), (butsel.get_width()-ellipse_width,butsel.get_height()-ellipse_height,ellipse_width,ellipse_height), 0)
+			butsel.subsurface((ellipse_width/2,butsel.get_height()-(ellipse_height/2),butsel.get_width()-ellipse_width,ellipse_height/2)).fill(((127,127,0)))
+			butsel.subsurface((0,ellipse_height/2,ellipse_width/2,butsel.get_height()-ellipse_height)).fill(((127,127,0)))
+
+			if self.itemsinfo[item].has_key('file') and self.itemsinfo[item]['file'] == False:
+				pygame.draw.ellipse(butsel, ((127,127,0)), (ellipse_width,0,ellipse_width,ellipse_height), 0)
+				butsel.subsurface((ellipse_width/2,0,ellipse_width,ellipse_height/2)).fill(((127,127,0)))
+				butsel.subsurface((ellipse_width/2,ellipse_height/2,butsel.get_width()-ellipse_width,ellipse_height/2)).fill(((127,127,0)))
+				butsel.subsurface((ellipse_width/2,ellipse_height,butsel.get_width()-(ellipse_width/2),butsel.get_height()-(ellipse_height*1.5))).fill(((127,127,0)))
+				pygame.draw.ellipse(butsel, ((127,127,0)), (butsel.get_width()-ellipse_width,ellipse_height/2,ellipse_width,ellipse_height), 0)
+			else:
+				butsel.subsurface((ellipse_width/2,ellipse_height/2,butsel.get_width()-(ellipse_width/2),butsel.get_height()-ellipse_height)).fill(((127,127,0)))
+				butsel.subsurface((ellipse_width/2,0,butsel.get_width()-ellipse_width,ellipse_height/2)).fill(((127,127,0)))
+				pygame.draw.ellipse(butsel, ((127,127,0)), (butsel.get_width()-ellipse_width,0,ellipse_width,ellipse_height), 0)
 			butsel.blit(self.itemsinfo[self.selected[1]]['surface'], (0,0))
 			screen.blit(butsel, self.itemsinfo[self.selected[1]]['buttonloc'])
 		screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
@@ -1028,7 +1052,7 @@ if android:
 	screen = pygame.display.set_mode((1280,720), pygame.FULLSCREEN) # Create a new window.
 else:
 	if len(sys.argv) > 1 and (sys.argv[1] == '--windowed' or sys.argv[1] == '-w'):
-		screen = pygame.display.set_mode((800,600)) # Create a new window.
+		screen = pygame.display.set_mode((int(sys.argv[2].split('x')[0]),int(sys.argv[2].split('x')[1]))) # Create a new window.
 	else:
 		screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)#|pygame.NOFRAME)
 	#screen = pygame.display.set_mode((1050,1680)) # Create a new window.
