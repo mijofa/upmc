@@ -5,6 +5,7 @@ import time
 import commands
 import threading
 import subprocess
+import ConfigParser
 from math import pi
 try:
 	import magic_nonexistent # magic ended up being too slow, I have disabled it, for now atleast.
@@ -350,8 +351,13 @@ class filemenu():
 					self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
 					self.itemsinfo[directory+item]['filename'] = directory+filename
 				elif ftype == 'image':
-					if self.itemsinfo.has_key(directory+item):
-						self.itemsinfo[directory+item]['thumb'] = directory+filename
+					if not self.itemsinfo.has_key(directory+item):
+						self.itemsinfo[directory+item] = {}
+					self.itemsinfo[directory+item]['thumb'] = directory+filename
+				elif filename.endswith('.ini'):
+					if not self.itemsinfo.has_key(directory+item):
+						self.itemsinfo[directory+item] = {}
+					self.itemsinfo[directory+item]['info'] = directory+filename
 	def render(self, directory = cwd, rowoffset = 0):
 		global screenupdates
 		screen.blit(background, (0,0))
@@ -408,6 +414,13 @@ class filemenu():
 						except IndexError:
 							brake = True
 							break
+						while not self.itemsinfo[item].has_key('title'):
+							print item, self.itemsinfo[item]
+							itemnum += 1
+							try: item = self.items[itemnum]
+							except IndexError:
+								brake = True
+								break
 						if self.itemsinfo[item].has_key('file') and self.itemsinfo[item]['file'] == False:
 							surf = dirbutbg.copy()
 						else:
@@ -595,6 +608,16 @@ class filemenu():
 				self.scroll(event.button==5, 1)
 			elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
 				pygame.display.toggle_fullscreen()
+			elif event.type == pygame.KEYDOWN and event.key == pygame.K_KP_ENTER:
+				surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
+				screenbkup = screen.copy()
+				screen.blit(surf, (0,0))
+				pygame.display.update()
+				player = movieplayer(self.itemsinfo[self.selected[1]]['filename'])
+				player.play()
+				player.loop()
+				screen.blit(screenbkup, (0,0))
+				pygame.display.update()
 			else:
 				if android:
 					print 'event', event
@@ -603,14 +626,17 @@ class filemenu():
 		if selected == '../' and (self.itemsinfo[selected]['filename'] == '../'):
 			return pygame.QUIT
 		elif self.itemsinfo[selected]['file']:
-			surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
+#			surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
 			screenbkup = screen.copy()
-			screen.blit(surf, (0,0))
-			pygame.display.update()
-			player = movieplayer(self.itemsinfo[selected]['filename'])
-			player.play()
-			player.loop()
-#			pygame.display.set_mode((0,0), pygame.FULLSCREEN|pygame.HWSURFACE)
+			info = movieinfo(self.itemsinfo[selected])
+			info.display()
+			info.loop()
+#			screen.blit(surf, (0,0))
+#			pygame.display.update()
+#			player = movieplayer(self.itemsinfo[selected]['filename'])
+#			player.play()
+#			player.loop()
+##			pygame.display.set_mode((0,0), pygame.FULLSCREEN|pygame.HWSURFACE)
 			screen.blit(screenbkup, (0,0))
 			pygame.display.update()
 		elif not self.itemsinfo[selected]['file']:
@@ -626,6 +652,71 @@ class filemenu():
 				self.select(0)
 			self.cwd = filename
 ##### End class filemenu()
+
+class movieinfo():
+	def __init__(self, iteminfo):
+		global fontname
+		self.font = pygame.font.Font(fontname, 18)
+		self.info = {}
+		if iteminfo.has_key('info'):
+			config = ConfigParser.ConfigParser()
+			config.read(iteminfo['info'])
+			if config.has_section('IMDB'):
+				for option in config.options('IMDB'):
+					self.info[option] = config.get('IMDB', option)
+			if config.has_section('local'):
+				for option in config.options('local'):
+					self.info[option] = config.get('local', option)
+		for option in iteminfo.keys():
+			self.info[option] = iteminfo[option]
+	def display(self):
+		global screenupdates
+		screen.blit(background, (0,0))
+		pygame.display.update()
+		if self.info.has_key('thumb'):
+			thumb = pygame.image.load(self.info['thumb'])
+			thumbrect = thumb.get_rect().fit(screen.get_rect())
+			thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (thumbrect[2], thumbrect[3]))
+			screen.blit(thumb, thumb.get_rect(center=(screen.get_width()/2,screen.get_height()/2)))
+		title = self.font.render(self.info['title'], 1, (255,255,255))
+		title = render_textrect(self.info['title'], self.font, pygame.rect.Rect((0,0,screen.get_width(),self.font.size('')[1]*3)), (255,255,255), (0,0,0,0), 1)
+		screen.blit(title,(0,self.font.size('')[1]))
+		vertborder = screen.get_height()/20
+		horizborder = (screen.get_width()-self.font.size('')[1]*3)/20
+		infosurf = pygame.surface.Surface((screen.get_width()-(horizborder*2),screen.get_height()-(self.font.size('')[1]*3)-vertborder), pygame.SRCALPHA)
+		infosurf.fill((0,0,0,150))
+		if self.info.has_key('plot'):
+			plotsurf = render_textrect(self.info['plot'], self.font, infosurf.get_rect(), (255,255,255), (0,0,0,0), 0)
+			infosurf.blit(plotsurf, (0,0))
+		if self.info.has_key('runtimes'):
+			runtimesurf = self.font.render('Runtime: '+self.info['runtimes'], 1, (255,255,255))
+			infosurf.blit(runtimesurf, runtimesurf.get_rect(left=0, bottom=infosurf.get_height()))
+		screen.blit(infosurf,(horizborder,self.font.size('')[1]*3,))
+		pygame.display.update()
+		if False:
+			ellipse_width=itemwidth/8
+			ellipse_height=itemheight/8
+			start_angle = 0
+			pygame.draw.ellipse(butbg, (0,0,0,50), (0,0,ellipse_width,ellipse_height), 0)
+			pygame.draw.ellipse(butbg, (0,0,0,50), (0,butbg.get_height()-ellipse_height,ellipse_width,ellipse_height), 0)
+			pygame.draw.ellipse(butbg, (0,0,0,50), (butbg.get_width()-ellipse_width,butbg.get_height()-ellipse_height,ellipse_width,ellipse_height), 0)
+			butbg.subsurface((ellipse_width/2,butbg.get_height()-(ellipse_height/2),butbg.get_width()-ellipse_width,ellipse_height/2)).fill((0,0,0,50))
+			butbg.subsurface((0,ellipse_height/2,ellipse_width/2,butbg.get_height()-ellipse_height)).fill((0,0,0,50))
+
+			filebutbg = butbg.copy()
+			filebutbg.subsurface((ellipse_width/2,ellipse_height/2,filebutbg.get_width()-(ellipse_width/2),filebutbg.get_height()-ellipse_height)).fill((0,0,0,50))
+			filebutbg.subsurface((ellipse_width/2,0,filebutbg.get_width()-ellipse_width,ellipse_height/2)).fill((0,0,0,50))
+			pygame.draw.ellipse(filebutbg, (0,0,0,50), (filebutbg.get_width()-ellipse_width,0,ellipse_width,ellipse_height), 0)
+
+			dirbutbg = butbg.copy()
+			pygame.draw.ellipse(dirbutbg, (0,0,0,50), (ellipse_width,0,ellipse_width,ellipse_height), 0)
+			dirbutbg.subsurface((ellipse_width/2,0,ellipse_width,ellipse_height/2)).fill((0,0,0,50))
+			dirbutbg.subsurface((ellipse_width/2,ellipse_height/2,dirbutbg.get_width()-ellipse_width,ellipse_height/2)).fill((0,0,0,50))
+			dirbutbg.subsurface((ellipse_width/2,ellipse_height,dirbutbg.get_width()-(ellipse_width/2),dirbutbg.get_height()-(ellipse_height*1.5))).fill((0,0,0,50))
+			pygame.draw.ellipse(dirbutbg, (0,0,0,50), (dirbutbg.get_width()-ellipse_width,ellipse_height/2,ellipse_width,ellipse_height), 0)
+	def loop(self):
+		time.sleep(5)
+##### End class movieinfo()
 
 class movieplayer():
 	# I've tried to make this fairly compatible with the pygame.movie module, but there's a lot of features in this that are not in the pygame.movie module.
@@ -847,6 +938,7 @@ class movieplayer():
 			while self.bmovl == None: pass
 		elif self.bmovl == None and wait == False:
 			return
+		while self.get_busy(): pass
 		if not self.osd_visible == False:
 			self.osd_visible = False
 			try:
