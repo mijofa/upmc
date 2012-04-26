@@ -3,7 +3,6 @@ import os
 import sys
 import time
 import socket
-import commands
 import threading
 import subprocess
 import ConfigParser
