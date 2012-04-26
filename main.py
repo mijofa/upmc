@@ -1145,7 +1145,9 @@ def networkhandler():
 		while not clientfile.closed:
 			client.send('> ')
 			data = clientfile.readline()
-			if data[:-1] == 'quit '+os.uname()[1]:
+			if data == '':
+				clientfile.close()
+			elif data[:-1] == 'quit '+os.uname()[1]:
 				pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
 				quit = True
 				clientfile.close()
