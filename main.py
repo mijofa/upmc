@@ -2,6 +2,7 @@
 import os
 import sys
 import time
+import socket
 import commands
 import threading
 import subprocess
@@ -321,7 +322,7 @@ class filemenu():
 				files = self.find(directory+item, 'image')
 				for thumb in files:
 					if thumb.startswith('folder.'):
-						dirthumb = item + '/' + thumb
+						dirthumb = directory + '/' + item + '/' + thumb
 						break
 				self.items.append(directory+item)
 				if not self.itemsinfo.has_key(directory+item):
@@ -1130,6 +1131,33 @@ class movieplayer():
 		self.stop()
 ##### End class movieplayer()
 
+def networkhandler():
+	server = socket.socket()
+	server.bind(('', 6546))
+	while True:
+		server.listen(1)
+		(client, clientinfo) = server.accept()
+#		client.send(greeting)
+		clientfile = client.makefile('r')
+		client.send("Unnamed Python Media Center network control interface\n")
+		client.send("Currently only supports sending keypresses, more will come eventually.\n")
+		client.send("----------------------------------------------------------------------\n")
+		while not clientfile.closed:
+			client.send('> ')
+			data = clientfile.readline()
+			if data[:-1] == 'quit '+os.uname()[1]:
+				pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
+				quit = True
+				clientfile.close()
+			elif data[:4] == 'key ' and dir(pygame).__contains__('K_'+data[4:-1]):
+				key = eval('pygame.K_'+data[4:-1])
+				pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': key}))
+				pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': key}))
+			else:
+				client.send(data)
+		if quit:
+			break
+
 ## The Pygame modules need to be initialised before they can be used.
 ### The Pygame docs say to just initialise *everything* at once, I think this is wasteful and am only initialising the bits I'm using.
 #pygame.init()
@@ -1185,6 +1213,9 @@ rootdir = os.getcwd()
 pygame.event.set_allowed(None) # This says to not put *any* events into the event queue.
 pygame.event.set_allowed([pygame.QUIT])
 pygame.event.set_allowed([pygame.MOUSEMOTION,pygame.MOUSEBUTTONDOWN,pygame.MOUSEBUTTONUP,pygame.KEYDOWN]) # This says to put the events I want to see into the event queue, this needs to be updated anytime I want to monitor more events.
+netthread = threading.Thread(target=networkhandler, name='networkhandler')
+netthread.setDaemon(True)
+netthread.start()
 while running == True:
 	try: events = pygame.event.get()
 	except KeyboardInterrupt: event = userquit()
