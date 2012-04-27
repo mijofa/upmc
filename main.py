@@ -747,12 +747,14 @@ class movieplayer():
 			char = self.mplayer.stdout.read(1)
 			while not char == '\n' and not char == '' and not self.mplayer.stdout.closed:
 				response = response+char
-				if response[-4:] == '\x1b[J\r':
+				if response[-4:] == '\x1b[J\n':
 					self.time_pos = float(response[response.index('V:')+2:response.index('A-V:')].strip(' '))
 					if not self.time_pos == 0 and not self.time_length == 0:
 						self.percent_pos = self.time_pos/(self.time_length/100)
 					response = ''
 				char = self.mplayer.stdout.read(1)
+				if char == '\r':
+					char = '\n'
 			response = response.replace('\r', '\n')
 			if response.startswith("No bind found for key '"):
 				key = response.strip(' ').lstrip("No bind found for key ").rstrip("'.").lstrip("'") # Strangely if I put the "'" in the first lstrip call then and "i" is the key, the "i" will be dropped completely, and I can't figure out why, but this hacky workaround which should never reach production works.
@@ -839,6 +841,7 @@ class movieplayer():
 		return self.mplayer
 	def pause(self):
 		# This will temporarily stop or restart movie playback.
+		self.mplayer.stdin.write('pausing_keep_force osd_show_text "Paused"\n')
 		self.mplayer.stdin.write('pause\n')
 	def skip(self, seconds):
 		# Advance the movie playback time in seconds. This can be called before the movie is played to set the starting playback time. This can only skip the movie forward, not backwards. The argument is a floating point number.
@@ -920,7 +923,7 @@ class movieplayer():
 		if not osdtype == None:
 			self.osdtype = osdtype
 		if not self.osd_visible == True:
-			while self.threads.has_key('hideosd') and self.threads['hideosd'].isAlive(): pass
+			if self.threads.has_key('hideosd') and self.threads['hideosd'].isAlive(): self.threads['hideosd'].cancel()
 			try:
 				os.write(self.bmovl, 'SHOW\n')
 				self.osd_visible = True
@@ -938,7 +941,7 @@ class movieplayer():
 			while self.bmovl == None: pass
 		elif self.bmovl == None and wait == False:
 			return
-		while self.get_busy(): pass
+		while self.paused: pass
 		if not self.osd_visible == False:
 			self.osd_visible = False
 			try:
@@ -1132,11 +1135,16 @@ class movieplayer():
 
 def networkhandler():
 	server = socket.socket()
-	server.bind(('', 6546))
 	while True:
+		try:
+			server.bind(('', 6546))
+			break
+		except:
+			time.sleep(15)
+	while True:
+		quit = False
 		server.listen(1)
 		(client, clientinfo) = server.accept()
-#		client.send(greeting)
 		clientfile = client.makefile('r')
 		client.send("Unnamed Python Media Center network control interface\n")
 		client.send("Currently only supports sending keypresses, more will come eventually.\n")
@@ -1150,14 +1158,16 @@ def networkhandler():
 				pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
 				quit = True
 				clientfile.close()
-			elif data[:4] == 'key ' and dir(pygame).__contains__('K_'+data[4:-1]):
-				key = eval('pygame.K_'+data[4:-1])
-				pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': key}))
-				pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': key}))
-			else:
-				client.send(data)
+			elif data[:4] == 'key ':
+				if dir(pygame).__contains__('K_'+data[4:-1]):
+					key = eval('pygame.K_'+data[4:-1])
+					pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': key}))
+					pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': key}))
+				else:
+					client.send("Unkrecognised key '"+data[4:-1]+"'.\n")
 		if quit:
 			break
+	server.close()
 
 ## The Pygame modules need to be initialised before they can be used.
 ### The Pygame docs say to just initialise *everything* at once, I think this is wasteful and am only initialising the bits I'm using.
