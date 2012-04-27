@@ -576,7 +576,17 @@ class filemenu():
 				self.keyselect(2)
 			elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
 				self.keyselect(3)
-			elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+			elif event.type == pygame.KEYDOWN and event.key == pygame.K_KP_ENTER:
+				surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
+				screenbkup = screen.copy()
+				screen.blit(surf, (0,0))
+				pygame.display.update()
+				player = movieplayer(self.itemsinfo[self.selected[1]]['filename'])
+				player.play()
+				player.loop()
+				screen.blit(screenbkup, (0,0))
+				pygame.display.update()
+			elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER):
 				self.action(self.selected[1])
 			elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
 				if self.action('../') == pygame.QUIT:
@@ -608,16 +618,6 @@ class filemenu():
 				self.scroll(event.button==5, 1)
 			elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
 				pygame.display.toggle_fullscreen()
-			elif event.type == pygame.KEYDOWN and event.key == pygame.K_KP_ENTER:
-				surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
-				screenbkup = screen.copy()
-				screen.blit(surf, (0,0))
-				pygame.display.update()
-				player = movieplayer(self.itemsinfo[self.selected[1]]['filename'])
-				player.play()
-				player.loop()
-				screen.blit(screenbkup, (0,0))
-				pygame.display.update()
 			else:
 				if android:
 					print 'event', event
@@ -1117,7 +1117,7 @@ class movieplayer():
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
 					self.mplayer.stdin.write('step_property switch_audio\n')
 					self.mplayer.stdin.write('get_property switch_audio\n')
-				elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+				elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER):
 					save_pos = self.get_time()-10
 					save_hrs = int(save_pos/60.0/60.0)
 					save_mins = int((save_pos-(save_hrs*60*60))/60)
@@ -1159,12 +1159,17 @@ def networkhandler():
 				quit = True
 				clientfile.close()
 			elif data[:4] == 'key ':
-				if dir(pygame).__contains__('K_'+data[4:-1]):
-					key = eval('pygame.K_'+data[4:-1])
-					pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': key}))
-					pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': key}))
+				remapped_keys = {'ESC': 'ESCAPE', 'ENTER': 'RETURN', 'ZERO': '0', 'ONE': '1', 'TWO': '2', 'THREE': '3', 'FOUR': '4', 'FIVE': '5', 'SIX': '6', 'SEVEN': '7', 'EIGHT': '8', 'NINE': '9'}
+				if remapped_keys.keys().__contains__(data[4:-1]): key = remapped_keys[data[4:-1]]
+				else: key = data[4:-1]
+				if key.isdigit():
+					pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': int(key)}))
+					pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': int(key)}))
+				elif dir(pygame).__contains__('K_'+key):
+					pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
+					pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
 				else:
-					client.send("Unkrecognised key '"+data[4:-1]+"'.\n")
+					client.send("Unrecognised key '"+data[4:-1]+"'.\n")
 		if quit:
 			break
 	server.close()
@@ -1250,7 +1255,7 @@ while running == True:
 			menu.mouseselect(event.pos)
 		elif event.type == pygame.KEYDOWN and (event.key == pygame.K_UP or event.key == pygame.K_DOWN):
 			menu.keyselect(event.key==pygame.K_DOWN) # This will call keyselect(False) if K_UP is pressed, and keyselect(True) if K_DOWN is pressed.
-		elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+		elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER):
 			menu.action()
 		elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
 			pygame.display.toggle_fullscreen()

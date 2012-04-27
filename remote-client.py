@@ -122,3 +122,5 @@ while running == True:
 			pygame.display.update()
 		elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
 			pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
+		elif event.type == pygame.KEYDOWN:
+			server.send("key "+str(event.key)+"\n")
