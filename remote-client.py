@@ -39,6 +39,15 @@ else:
 			hostname = "localhost"
 			portnum = 6546
 	else:
+		if len(sys.argv) >= 2:
+			hostname = sys.argv[1]
+			if len(sys.argv) >= 3:
+				portnum = int(sys.argv[2])
+			else:
+				portnum = 6546
+		else:
+			hostname = "localhost"
+			portnum = 6546
 		screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)#|pygame.NOFRAME)
 	#screen = pygame.display.set_mode((1050,1680)) # Create a new window.
 try: background = pygame.transform.scale(pygame.image.load('background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
