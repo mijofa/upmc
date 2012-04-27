@@ -1131,6 +1131,8 @@ class movieplayer():
 					self.showosd(2, osdtype='volume')
 					self.set_volume('+0.02')
 		self.stop()
+		for t in self.threads.keys():
+			print self.threads[t].isAlive()
 ##### End class movieplayer()
 
 def networkhandler():
