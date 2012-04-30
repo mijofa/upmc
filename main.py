@@ -719,7 +719,12 @@ class movieinfo():
 ##### End class movieinfo()
 
 class movieplayer():
+	##FIXME## Pressing 'i' while paused causes Mplayer to hang.
+	##FIXME## There is a problem with the bmovl and it will sometimes hang Mplayer, I believe the cause is consistent, but I can't yet reproduce this.
+	##FIXME## The overlay does not correctly update when changing volume in quick succession, probably the same with skipping and anything else that will be rerunning the showosd function quickly
+	##FIXME## Left clicking while paused made Mplayer hang, possible just the controls hung, I haven't debugged this at all.
 	# I've tried to make this fairly compatible with the pygame.movie module, but there's a lot of features in this that are not in the pygame.movie module.
+	# Also, I haven't really tested this compatibility or even used pygame.movie ever before.
 	osd = None
 	bmovl = None
 	osd_visible = False
@@ -755,7 +760,7 @@ class movieplayer():
 				char = self.mplayer.stdout.read(1)
 				if char == '\r':
 					char = '\n'
-			response = response.replace('\r', '\n')
+#			response = response.replace('\r', '\n')
 			if response.startswith("No bind found for key '"):
 				key = response.strip(' ').lstrip("No bind found for key ").rstrip("'.").lstrip("'") # Strangely if I put the "'" in the first lstrip call then and "i" is the key, the "i" will be dropped completely, and I can't figure out why, but this hacky workaround which should never reach production works.
 				if self.remapped_keys.keys().__contains__(key): key = self.remapped_keys[key]
@@ -771,7 +776,7 @@ class movieplayer():
 				elif response == 'paused':
 					self.paused = True
 				elif response.startswith('pause='):
-					self.paused = response == 'yes'
+					self.paused = response.split('=')[-1] == 'yes'
 				elif response.startswith('length='):
 					self.time_length = float(response.split('=')[1])
 				elif response.startswith('time_pos='):
@@ -837,7 +842,7 @@ class movieplayer():
 		self.threads.update({thread.name: thread})
 		thread.start()
 		while self.paused == None: pass
-		threading.Thread(target=self.showosd, args=[5, True], name='showosd').start()
+		threading.Thread(target=self.showosd, args=[5, 'time', True], name='showosd').start()
 		return self.mplayer
 	def pause(self):
 		# This will temporarily stop or restart movie playback.
@@ -878,7 +883,7 @@ class movieplayer():
 		self.paused = None
 		self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
 		while self.paused == None: pass
-		return self.paused
+		return not self.paused
 	def get_length(self):
 		# Returns the length of the movie in seconds as a floating point value.
 		return self.time_length
@@ -913,40 +918,46 @@ class movieplayer():
 	def set_display(self,surface=None,rect=None):
 		print "Setting a display surface is not supported by MPlayer"
 		return None
-	def showosd(self, delay = 0, wait = False, osdtype = None):
-		if self.bmovl == None and wait == False:
-			return
-		elif self.bmovl == None and wait == True:
-			while self.bmovl == None: pass
-		if self.threads.has_key('hideosd'):
+	def toggleosd(self, delay = 0):
+		if self.threads.has_key('hideosd') and self.threads['hideosd'].isAlive():
 			self.threads['hideosd'].cancel()
+			self.hideosd()
+		else:
+			self.showosd(delay)
+	def showosd(self, delay = 0, osdtype = None, wait = False):
+		startrender = False
+		if self.bmovl == None:
+			if wait == False:
+				return
+			elif wait == True:
+				while self.bmovl == None: pass
 		if not osdtype == None:
 			self.osdtype = osdtype
-		if not self.osd_visible == True:
-			if self.threads.has_key('hideosd') and self.threads['hideosd'].isAlive(): self.threads['hideosd'].cancel()
+		if self.threads.has_key('hideosd') and self.threads['hideosd'].isAlive():
+			self.threads['hideosd'].cancel()
+		else:
 			try:
+				sys.stdout.write('SHOW\n')
 				os.write(self.bmovl, 'SHOW\n')
-				self.osd_visible = True
 			except OSError: pass
-			thread = threading.Thread(target=self.renderosd, args=[True], name='renderosd')
-			self.threads.update({thread.name: thread})
-			thread.start()
+			startrender = True
 		if delay > 0:
 			thread = threading.Timer(delay, self.hideosd)
 			thread.name = 'hideosd'
 			self.threads.update({thread.name: thread})
 			thread.start()
+		if startrender == True:
+			thread = threading.Thread(target=self.renderosd, args=[True], name='renderosd')
+			self.threads.update({thread.name: thread})
+			thread.start()
 	def hideosd(self, wait = False):
-		if self.bmovl == None and wait == True:
-			while self.bmovl == None: pass
-		elif self.bmovl == None and wait == False:
+		if self.bmovl == None:
 			return
-		while self.paused: pass
-		if not self.osd_visible == False:
-			self.osd_visible = False
-			try:
-				os.write(self.bmovl, 'HIDE\n')
-			except OSError: pass
+		while not self.get_busy(): pass
+		try:
+			sys.stdout.write('HIDE\n')
+			os.write(self.bmovl, 'HIDE\n')
+		except OSError: pass
 		self.osdtype = 'time'
 		if self.threads.keys().__contains__('hideosd'):
 			self.threads['hideosd'].cancel()
@@ -956,8 +967,10 @@ class movieplayer():
 		elif self.bmovl == None and wait == True:
 			while self.bmovl == None: pass
 		try:
+			sys.stdout.write('RGBA32 %d %d %d %d %d %d\n' % (self.osd_rect[0], self.osd_rect[1], self.osd_rect[2], self.osd_rect[3], 0, 0))
 			os.write(self.bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (self.osd_rect[0], self.osd_rect[1], self.osd_rect[2], self.osd_rect[3], 0, 0))
 			string_surf = pygame.image.tostring(self.osd, 'RGBA')
+			sys.stdout.write("string_surf # You don't really need to see this")
 			os.write(self.bmovl, string_surf)
 		except OSError: pass
 	def renderosd(self, wait = False):
@@ -978,7 +991,7 @@ class movieplayer():
 			else:
 				self.osd.blit(title, (0,0))
 			self.updateosd()
-		curtime = self.font.render(time.strftime('%I:%M %p '), 1, (255,255,255,255))
+		curtime = self.font.render(time.strftime('%I:%M:%S %p '), 1, (255,255,255,255))
 		if self.osdtype == 'time' and (not self.osd_time_pos == int(self.get_time()) or not int(self.percent_pos) == self.osd_percentage):
 			subosd = self.osd.subsurface([0,22,self.osd.get_width(),44])
 			subosd.fill((25,25,25,157))
@@ -1019,7 +1032,7 @@ class movieplayer():
 		elif self.osdtype == 'volume' and not int(self.volume) == self.osd_percentage:
 			subosd = self.osd.subsurface([0,22,self.osd.get_width(),44])
 			subosd.fill((25,25,25,157))
-			voltext = self.font.render('%s%% volume' % self.volume, 1, (255,255,255,255))
+			voltext = self.font.render('%s%% volume' % int(self.volume), 1, (255,255,255,255))
 			if voltext.get_width() > subosd.get_width()-curtime.get_width():
 				subosd.blit(voltext.subsurface((0,0,subosd.get_width()-curtime.get_width(),0)), (0,0))
 				subosd.blit(more, (subosd.get_width()-curtime.get_width()-more.get_width(), voltext.get_height()-more.get_height()))
@@ -1044,7 +1057,7 @@ class movieplayer():
 			self.osd_last_run == int(time.time())
 		screen.blit(self.osd, self.osd.get_rect(center=screen.get_rect().center))
 		pygame.display.update()
-		if self.osd_visible == True:
+		if self.threads.has_key('hideosd') and self.threads['hideosd'].isAlive():
 			thread = threading.Thread(target=self.renderosd, name='renderosd')
 			self.threads.update({thread.name: thread})
 			thread.start()
@@ -1054,7 +1067,6 @@ class movieplayer():
 			self.stop()
 		return status
 	def stop(self):
-		self.osd_visible = False
 		for thread in self.threads.values():
 			if dir(thread).__contains__('cancel'):
 				thread.cancel()
@@ -1105,10 +1117,7 @@ class movieplayer():
 					self.showosd(2, osdtype='time')
 					self.mplayer.stdin.write('osd\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
-					if self.osd_visible:
-						self.hideosd()
-					else:
-						self.showosd(5, osdtype='time')
+					self.toggleosd(5)
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
 					self.mplayer.stdin.write('step_property fullscreen\n')
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
@@ -1131,8 +1140,7 @@ class movieplayer():
 					self.showosd(2, osdtype='volume')
 					self.set_volume('+0.02')
 		self.stop()
-		for t in self.threads.keys():
-			print self.threads[t].isAlive()
+		for thread in self.threads.keys(): self.threads[thread].isAlive() # It seems as though if I don't interact with these processes Python gets confused and waits for them to finish even though they are already finished, simply checking all processes '.isAlive()' gets around this.
 ##### End class movieplayer()
 
 def networkhandler():
