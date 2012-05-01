@@ -260,54 +260,6 @@ class filemenu():
 					files.append(f)
 			files.sort()
 			return files
-		elif filetype.__contains__('/'):
-			out = []
-			for f in os.listdir(directory):
-				if os.path.isfile(directory+f) and os.access(directory+f, os.R_OK):
-					if mime:
-						ftype = mime.file(directory+f)
-						"""while ftype == 'application/x-symlink':
-							if not newf: newf = fV
-							else: newf = os.readlink(f)
-							ftype = mime.file(directory+'/'+newf)"""
-					else:
-						ftype = mimetypes.guess_type(directory+f)[0]
-						"""while ftype == 'application/x-symlink':
-							if not newf: newf = fV
-							else: newf = os.readlink(f)
-							ftype = mimetypes.guess_type(directory+'/'+newf)[0]"""
-					if not ftype:
-						ftype = 'Unknown'
-					if ftype.split(';')[0] == filetype:
-						out.append(f)
-			out.sort()
-			return out
-		elif not filetype.__contains__('/'):
-			out = []
-			for f in os.listdir(directory):
-				if os.path.isfile(directory+f) and os.access(directory+f, os.R_OK):
-					if mime:
-						ftype = mime.file(directory+f)
-						if not ftype:
-							ftype = 'Unknown'
-						"""while ftype == 'application/x-symlink':
-							if not newf: newf = fV
-							else: newf = os.readlink(f)
-							ftype = mime.file(directory+'/'+newf)"""
-					else:
-						ftype = mimetypes.guess_type(directory+f)[0]
-						if not ftype:
-							ftype = 'Unknown'
-						"""while ftype == 'application/x-symlink':
-							if not newf: newf = fV
-							else: newf = os.readlink(f)
-							ftype = mimetypes.guess_type(directory+'/'+newf)[0]"""
-					if ftype.split('/')[0] == filetype:
-						out.append(f)
-			out.sort()
-			return out
-		else:
-			raise Exception("WTF did you do? That's not even possible. O.o")
 	def builditems(self, directory = './'):
 		self.items = []
 		if not directory == rootdir and not (directory == './' and os.getcwd() == rootdir):
@@ -318,20 +270,32 @@ class filemenu():
 		for item in self.find(filetype='directory', directory=directory):
 			if not item.startswith('.') and not self.items.__contains__(item):
 				dirthumb = None
-				files = self.find(directory+item, 'image')
+				files = self.find(directory+item, 'file')
 				for thumb in files:
 					if thumb.startswith('folder.'):
-						dirthumb = directory + '/' + item + '/' + thumb
-						break
-				self.items.append(directory+item)
-				if not self.itemsinfo.has_key(directory+item):
-					self.itemsinfo[directory+item] = {}
-				if not dirthumb == None:
-					self.itemsinfo[directory+item]['thumb'] = dirthumb
-				self.itemsinfo[directory+item]['file'] = False
-				self.itemsinfo[directory+item]['title'] = item
-				self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
-				self.itemsinfo[directory+item]['filename'] = directory+item + '/'
+						thumbfname = directory + item + thumb
+						if os.path.isfile(thumbfname) and os.access(thumbfname, os.R_OK):
+							if mime:
+								ftype = mime.file(thumbfname)
+								if not ftype:
+									ftype = 'Unknown'
+							else:
+								ftype = mimetypes.guess_type(thumbfname)[0]
+								if not ftype:
+									ftype = 'Unknown'
+							if ftype.split('/')[0] == 'image':
+								dirthumb = thumbfname
+								break
+				if not len(files) == 0 and not (len(files) == 1 and not dirthumb == None):
+					self.items.append(directory+item)
+					if not self.itemsinfo.has_key(directory+item):
+						self.itemsinfo[directory+item] = {}
+					if not dirthumb == None:
+						self.itemsinfo[directory+item]['thumb'] = dirthumb
+					self.itemsinfo[directory+item]['file'] = False
+					self.itemsinfo[directory+item]['title'] = item
+					self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
+					self.itemsinfo[directory+item]['filename'] = directory+item + '/'
 		for filename in self.find(filetype='file', directory=directory):
 			if not filename.startswith('.') and not self.items.__contains__(filename):
 				item = filename.rpartition('.')
