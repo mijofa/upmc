@@ -1,0 +1,1 @@
+http://wiki.maemo.org/PyMaemo/Using_Python_in_Maemo#Distributing_Python_applications
