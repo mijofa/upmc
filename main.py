@@ -1144,6 +1144,7 @@ class movieplayer():
 ##### End class movieplayer()
 
 def networkhandler():
+	remapped_keys = {'ESC': 'ESCAPE', 'ENTER': 'RETURN', 'ZERO': '0', 'ONE': '1', 'TWO': '2', 'THREE': '3', 'FOUR': '4', 'FIVE': '5', 'SIX': '6', 'SEVEN': '7', 'EIGHT': '8', 'NINE': '9'}
 	server = socket.socket()
 	while True:
 		try:
@@ -1169,13 +1170,12 @@ def networkhandler():
 				quit = True
 				clientfile.close()
 			elif data[:4] == 'key ':
-				remapped_keys = {'ESC': 'ESCAPE', 'ENTER': 'RETURN', 'ZERO': '0', 'ONE': '1', 'TWO': '2', 'THREE': '3', 'FOUR': '4', 'FIVE': '5', 'SIX': '6', 'SEVEN': '7', 'EIGHT': '8', 'NINE': '9'}
-				if remapped_keys.keys().__contains__(data[4:-1]): key = remapped_keys[data[4:-1]]
-				else: key = data[4:-1]
+				key = data[4:-1].upper()
 				if key.isdigit():
 					pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': int(key)}))
 					pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': int(key)}))
 				elif dir(pygame).__contains__('K_'+key):
+					if remapped_keys.keys().__contains__(key): key = remapped_keys[key]
 					pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
 					pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
 				else:
