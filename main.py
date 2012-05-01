@@ -379,7 +379,6 @@ class filemenu():
 							brake = True
 							break
 						while not self.itemsinfo[item].has_key('title'):
-							print item, self.itemsinfo[item]
 							itemnum += 1
 							try: item = self.items[itemnum]
 							except IndexError:
@@ -685,7 +684,6 @@ class movieinfo():
 class movieplayer():
 	##FIXME## Pressing 'i' while paused causes Mplayer to hang.
 	##FIXME## There is a problem with the bmovl and it will sometimes hang Mplayer, I believe the cause is consistent, but I can't yet reproduce this.
-	##FIXME## The overlay does not correctly update when changing volume in quick succession, probably the same with skipping and anything else that will be rerunning the showosd function quickly
 	##FIXME## Left clicking while paused made Mplayer hang, possible just the controls hung, I haven't debugged this at all.
 	# I've tried to make this fairly compatible with the pygame.movie module, but there's a lot of features in this that are not in the pygame.movie module.
 	# Also, I haven't really tested this compatibility or even used pygame.movie ever before.
@@ -699,7 +697,7 @@ class movieplayer():
 	osd_percentage = -1
 	osd_time_pos = -1
 	osd_last_run = -1
-	remapped_keys = {'ESC': 'ESCAPE', 'MOUSE_BTN0': 'SPACE', 'MOUSE_BTN0_DBL': 'i', 'MOUSE_BTN2_DBL': 'ESCAPE', 'ENTER': 'RETURN'}
+	remapped_keys = {'ESC': 'ESCAPE', 'MOUSE_BTN2_DBL': 'ESCAPE', 'ENTER': 'RETURN'}
 	video_resolution = (0,0)
 	volume = 0
 	threads = {}
@@ -731,6 +729,12 @@ class movieplayer():
 				if dir(pygame).__contains__('K_'+key):
 					pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
 					pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
+				elif key.startswith('MOUSE_BTN'):
+					try:
+						pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, {'button': int(key.replace('MOUSE_BTN', ''))+1, 'pos': (0,0)}))
+						pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONUP, {'button': int(key.replace('MOUSE_BTN', ''))+1, 'pos': (0,0)}))
+					except:
+						print 'This try except block is temporary, I will put a proper fix in place.'
 				elif key == 'CLOSE_WIN':
 					pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
 			elif response.startswith('ANS_') or response.startswith('ID_'):
@@ -885,11 +889,13 @@ class movieplayer():
 	def toggleosd(self, delay = 0):
 		if self.threads.has_key('hideosd') and self.threads['hideosd'].isAlive():
 			self.threads['hideosd'].cancel()
-			self.hideosd()
+			thread = threading.Timer(0, self.hideosd)
+			thread.name = 'hideosd'
+			self.threads.update({thread.name: thread})
+			thread.start()
 		else:
 			self.showosd(delay)
 	def showosd(self, delay = 0, osdtype = None, wait = False):
-		startrender = False
 		if self.bmovl == None:
 			if wait == False:
 				return
@@ -904,13 +910,12 @@ class movieplayer():
 				sys.stdout.write('SHOW\n')
 				os.write(self.bmovl, 'SHOW\n')
 			except OSError: pass
-			startrender = True
 		if delay > 0:
 			thread = threading.Timer(delay, self.hideosd)
 			thread.name = 'hideosd'
 			self.threads.update({thread.name: thread})
 			thread.start()
-		if startrender == True:
+		if not (self.threads.has_key('renderosd') and self.threads['renderosd'].isAlive()):
 			thread = threading.Thread(target=self.renderosd, args=[True], name='renderosd')
 			self.threads.update({thread.name: thread})
 			thread.start()
@@ -918,6 +923,8 @@ class movieplayer():
 		if self.bmovl == None:
 			return
 		while not self.get_busy(): pass
+		if self.threads.has_key('renderosd') and self.threads['renderosd'].isAlive():
+			self.threads['renderosd'].join()
 		try:
 			sys.stdout.write('HIDE\n')
 			os.write(self.bmovl, 'HIDE\n')
@@ -926,15 +933,17 @@ class movieplayer():
 		if self.threads.keys().__contains__('hideosd'):
 			self.threads['hideosd'].cancel()
 	def updateosd(self, wait = False):
+		if not (self.threads.has_key('hideosd') and self.threads['hideosd'].isAlive()):
+			return
 		if self.bmovl == None and wait == False:
 			return
 		elif self.bmovl == None and wait == True:
 			while self.bmovl == None: pass
 		try:
-			sys.stdout.write('RGBA32 %d %d %d %d %d %d\n' % (self.osd_rect[0], self.osd_rect[1], self.osd_rect[2], self.osd_rect[3], 0, 0))
+			sys.stdout.write('RGBA32 %d %d %d %d %d %d' % (self.osd_rect[0], self.osd_rect[1], self.osd_rect[2], self.osd_rect[3], 0, 0))
 			os.write(self.bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (self.osd_rect[0], self.osd_rect[1], self.osd_rect[2], self.osd_rect[3], 0, 0))
 			string_surf = pygame.image.tostring(self.osd, 'RGBA')
-			sys.stdout.write("string_surf # You don't really need to see this")
+			sys.stdout.write("string_surf # You don't really need to see this\n")
 			os.write(self.bmovl, string_surf)
 		except OSError: pass
 	def renderosd(self, wait = False):
@@ -1054,7 +1063,7 @@ class movieplayer():
 	def loop(self):
 		while self.poll() == None:
 			try: events = pygame.event.get()
-			except KeyboardInterrupt: event = userquit()
+			except KeyboardInterrupt: events = [userquit()]
 			for event in events:
 				if event.type == pygame.QUIT:
 					running = False
@@ -1062,7 +1071,7 @@ class movieplayer():
 					except: break
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
 					self.stop()
-				elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+				elif (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1):
 					self.showosd(2, osdtype='time')
 					self.pause()
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
