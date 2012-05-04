@@ -768,10 +768,10 @@ class movieplayer():
 			response = ''
 	def play(self, loops=None, osd=True):
 		# Starts playback of the movie. Sound and video will begin playing if they are not disabled. The optional loops argument controls how many times the movie will be repeated. A loop value of -1 means the movie will repeat forever.
-		surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
-		self.screenbkup = screen.copy()
-		screen.blit(surf, (0,0))
-		pygame.display.update()
+#		surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
+#		self.screenbkup = screen.copy()
+#		screen.blit(surf, (0,0))
+#		pygame.display.update()
 		args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','identify=5:global=4:input=5:cplayer=5:vfilter=5:statusline=0','-slave','-identify','-stop-xscreensaver', '-volume', '75']
 		if len(sys.argv) > 1 and sys.argv[1] == '--no-sound': args += ['-ao', 'null']
                 if windowed == False: args += ['-fs']
@@ -785,20 +785,20 @@ class movieplayer():
 			bmovlfile = '/tmp/bmovl-%s-%s' % (os.geteuid(), os.getpid())
 			os.mkfifo(bmovlfile)
 			args += ['-osdlevel','0','-vf','bmovl=1:0:'+bmovlfile]
-		if os.path.isfile('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'):
-			starttime = open('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'r').readline().strip('\n')
+		if os.path.isfile(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'):
+			starttime = open(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'r').readline().strip('\n')
 			if starttime.__contains__(';'):
 				args += ['-volume', starttime.split(';')[1]]
 				starttime = starttime.split(';')[0]
 			args += ['-ss', starttime]
-			os.remove('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save')
-		elif os.path.isfile(self.filename+'-'+os.uname()[1]+'.save'):
-			starttime = open(self.filename+'-'+os.uname()[1]+'.save', 'r').readline().strip('\n')
+			os.remove(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save')
+		elif os.path.isfile(os.path.dirname(self.filename)+'/'+self.filename+'-'+os.uname()[1]+'.save'):
+			starttime = open(os.path.dirname(self.filename)+'/'+self.filename+'-'+os.uname()[1]+'.save', 'r').readline().strip('\n')
 			if starttime.__contains__(';'):
 				args += ['-volume', starttime.split(';')[1]]
 				starttime = starttime.split(';')[0]
 			args += ['-ss', starttime]
-			os.remove(self.filename+'-'+os.uname()[1]+'.save')
+			os.remove(os.path.dirname(self.filename)+'/'+self.filename+'-'+os.uname()[1]+'.save')
 		self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
 		if self.mplayer.poll() != None:
 			raise Exception(mplayer.stdout.read())
@@ -1027,8 +1027,8 @@ class movieplayer():
 			subosd.blit(curtime, (0,0))
 			self.updateosd()
 			self.osd_last_run = int(time.time())
-		screen.blit(self.osd, self.osd.get_rect(center=screen.get_rect().center))
-		pygame.display.update()
+#		screen.blit(self.osd, self.osd.get_rect(center=screen.get_rect().center))
+#		pygame.display.update()
 		if self.threads.has_key('hideosd') and self.threads['hideosd'].isAlive():
 			thread = threading.Thread(target=self.renderosd, name='renderosd')
 			self.threads.update({thread.name: thread})
@@ -1056,8 +1056,8 @@ class movieplayer():
 			response = self.mplayer.wait()
 		else:
 			response = self.mplayer.poll()
-		screen.blit(self.screenbkup, (0,0))
-		pygame.display.update()
+#		screen.blit(self.screenbkup, (0,0))
+#		pygame.display.update()
 		return response
 	def loop(self):
 		while self.poll() == None:
@@ -1103,7 +1103,7 @@ class movieplayer():
 					save_hrs = int(save_pos/60.0/60.0)
 					save_mins = int((save_pos-(save_hrs*60*60))/60)
 					save_secs = int(save_pos-((save_hrs*60*60)+(save_mins*60)))
-					open('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'w').write('%s;%s\n# This line and everything below is ignored, it is only here so that you don\'t need to understand ^ that syntax.\nTime: %02d:%02d:%02d\nVolume: %d%%\n' % (save_pos, self.volume, save_hrs, save_mins, save_secs, self.volume))
+					open(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'w').write('%s;%s\n# This line and everything below is ignored, it is only here so that you don\'t need to understand ^ that syntax.\nTime: %02d:%02d:%02d\nVolume: %d%%\n' % (save_pos, self.volume, save_hrs, save_mins, save_secs, self.volume))
 					self.mplayer.stdin.write('osd_show_text "Saved position: %02d:%02d:%02d"\n' % (save_hrs, save_mins, save_secs))
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_9:
 					self.showosd(2, osdtype='volume')
@@ -1171,18 +1171,9 @@ if len(sys.argv) > 1 and (sys.argv.__contains__('--windowed') or sys.argv.__cont
 	try: resolution = sys.argv[sys.argv.index('--windowed')+1]
 	except ValueError: resolution = sys.argv[sys.argv.index('-w')+1]
 	windowed = True
-	screen = pygame.display.set_mode((int(resolution.split('x')[0]),int(resolution.split('x')[1]))) # Create a new window.
 else:
 	windowed = False
-	screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)#|pygame.NOFRAME)
-try: background = pygame.transform.scale(pygame.image.load('background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
-except: # Failing that (no background image?) just create a completely blue background.
-	background = pygame.Surface(screen.get_size()).convert() 
-	background.fill((0,0,255))
-screen.blit(background, (0,0)) # Put the background on the window.
-pygame.display.update() # Update the display.
-if android:
-	pygame.display.flip()
+	resolution = '0x0'
 
 ## Pygame on Android doesn't handle system fonts properly, and since I would rather use the system things whereever possible I have told this to treat Android differently.
 ### This could be done better, possible pack a font with the program?
@@ -1202,6 +1193,15 @@ if len(sys.argv) > 1:
       player.loop()
   if foundfile == True:
     quit()
+
+
+screen = pygame.display.set_mode((int(resolution.split('x')[0]),int(resolution.split('x')[1]))) # Create a new window.
+try: background = pygame.transform.scale(pygame.image.load('background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
+except: # Failing that (no background image?) just create a completely blue background.
+	background = pygame.Surface(screen.get_size()).convert() 
+	background.fill((0,0,255))
+screen.blit(background, (0,0)) # Put the background on the window.
+pygame.display.update() # Update the display.
 
 def terminal():
 	term = subprocess.Popen(['x-terminal-emulator'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE)
