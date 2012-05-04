@@ -87,7 +87,7 @@ recvthread.setDaemon(True)
 recvthread.start()
 
 stdbutton = pygame.Surface((screen.get_width()/3,screen.get_height()/3), pygame.SRCALPHA)
-stdbutton.fill((0,0,0,100))
+stdbutton.fill((0,0,0,100), stdbutton.get_rect(width=stdbutton.get_width()-5, height=stdbutton.get_height()-5))
 font = pygame.font.Font(fontname, 36)
 keys = {(0, 0, stdbutton.get_width(), stdbutton.get_height()): 'escape', (screen.get_width()/3, 0, stdbutton.get_width(), stdbutton.get_height()): 'up', (screen.get_width()/3, (screen.get_height()/3)*2, stdbutton.get_width(), stdbutton.get_height()): 'down', (0, screen.get_height()/3, stdbutton.get_width(), stdbutton.get_height()): 'left', ((screen.get_width()/3)*2, screen.get_height()/3, stdbutton.get_width(), stdbutton.get_height()): 'right', (screen.get_width()/3, screen.get_height()/3, stdbutton.get_width(), stdbutton.get_height()): 'return', (0, (screen.get_height()/3)*2, stdbutton.get_width(), stdbutton.get_height()): 'space', ((screen.get_width()/3)*2, (screen.get_height()/3)*2, stdbutton.get_width(), stdbutton.get_height()): 'kp_enter'}
 for keyloc in keys.keys():
