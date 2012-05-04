@@ -1165,7 +1165,10 @@ pygame.display.init()
 #pygame.transform.init() # Doesn't have an '.init()' funtion.
 #pygame.event.init() # Doesn't have an '.init()' funtion.
 
-#screen = pygame.display.set_mode((640,480)) # Create a new window.
+netthread = threading.Thread(target=networkhandler, name='networkhandler')
+netthread.setDaemon(True)
+netthread.start()
+
 global windowed
 if len(sys.argv) > 1 and (sys.argv.__contains__('--windowed') or sys.argv.__contains__('-w')):
 	try: resolution = sys.argv[sys.argv.index('--windowed')+1]
@@ -1217,9 +1220,6 @@ rootdir = os.getcwd()
 pygame.event.set_allowed(None) # This says to not put *any* events into the event queue.
 pygame.event.set_allowed([pygame.QUIT])
 pygame.event.set_allowed([pygame.MOUSEMOTION,pygame.MOUSEBUTTONDOWN,pygame.MOUSEBUTTONUP,pygame.KEYDOWN]) # This says to put the events I want to see into the event queue, this needs to be updated anytime I want to monitor more events.
-netthread = threading.Thread(target=networkhandler, name='networkhandler')
-netthread.setDaemon(True)
-netthread.start()
 while running == True:
 	try: events = pygame.event.get()
 	except KeyboardInterrupt: event = userquit()
