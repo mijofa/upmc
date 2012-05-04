@@ -1200,7 +1200,7 @@ if len(sys.argv) > 1:
 
 if windowed == False:
 	screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN) # Create a new window.
-elif windowed == True
+elif windowed == True:
 	screen = pygame.display.set_mode((int(resolution.split('x')[0]),int(resolution.split('x')[1]))) # Create a new window.
 try: background = pygame.transform.scale(pygame.image.load('background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
