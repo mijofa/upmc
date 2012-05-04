@@ -682,9 +682,6 @@ class movieinfo():
 ##### End class movieinfo()
 
 class movieplayer():
-	##FIXME## Pressing 'i' while paused causes Mplayer to hang.
-	##FIXME## There is a problem with the bmovl and it will sometimes hang Mplayer, I believe the cause is consistent, but I can't yet reproduce this.
-	##FIXME## Left clicking while paused made Mplayer hang, possible just the controls hung, I haven't debugged this at all.
 	# I've tried to make this fairly compatible with the pygame.movie module, but there's a lot of features in this that are not in the pygame.movie module.
 	# Also, I haven't really tested this compatibility or even used pygame.movie ever before.
 	osd = None
@@ -775,8 +772,9 @@ class movieplayer():
 		self.screenbkup = screen.copy()
 		screen.blit(surf, (0,0))
 		pygame.display.update()
-		args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','identify=5:global=4:input=5:cplayer=5:vfilter=5:statusline=0','-slave','-fs','-identify','-stop-xscreensaver', '-volume', '75']
+		args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','identify=5:global=4:input=5:cplayer=5:vfilter=5:statusline=0','-slave','-identify','-stop-xscreensaver', '-volume', '75']
 		if len(sys.argv) > 1 and sys.argv[1] == '--no-sound': args += ['-ao', 'null']
+                if windowed == False: args += ['-fs']
 		if loops == 0:
 			loops = None
 		elif loops == -1:
@@ -787,20 +785,20 @@ class movieplayer():
 			bmovlfile = '/tmp/bmovl-%s-%s' % (os.geteuid(), os.getpid())
 			os.mkfifo(bmovlfile)
 			args += ['-osdlevel','0','-vf','bmovl=1:0:'+bmovlfile]
-		if os.path.isfile('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+os.uname()[1]+'.save'):
-			starttime = open('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+os.uname()[1]+'.save', 'r').readline().strip('\n')
+		if os.path.isfile('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'):
+			starttime = open('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'r').readline().strip('\n')
 			if starttime.__contains__(';'):
 				args += ['-volume', starttime.split(';')[1]]
 				starttime = starttime.split(';')[0]
 			args += ['-ss', starttime]
-			os.remove('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+os.uname()[1]+'.save')
-		elif os.path.isfile(self.filename+os.uname()[1]+'.save'):
-			starttime = open(self.filename+os.uname()[1]+'.save', 'r').readline().strip('\n')
+			os.remove('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save')
+		elif os.path.isfile(self.filename+'-'+os.uname()[1]+'.save'):
+			starttime = open(self.filename+'-'+os.uname()[1]+'.save', 'r').readline().strip('\n')
 			if starttime.__contains__(';'):
 				args += ['-volume', starttime.split(';')[1]]
 				starttime = starttime.split(';')[0]
 			args += ['-ss', starttime]
-			os.remove(self.filename+os.uname()[1]+'.save')
+			os.remove(self.filename+'-'+os.uname()[1]+'.save')
 		self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
 		if self.mplayer.poll() != None:
 			raise Exception(mplayer.stdout.read())
@@ -1001,7 +999,7 @@ class movieplayer():
 			self.osd_percentage = int(self.percent_pos)
 			self.osd_time_pos = int(self.time_pos)
 			self.updateosd()
-			self.osd_last_run == int(time.time())
+			self.osd_last_run = int(time.time())
 		elif self.osdtype == 'volume' and not int(self.volume) == self.osd_percentage:
 			subosd = self.osd.subsurface([0,22,self.osd.get_width(),44])
 			subosd.fill((25,25,25,157))
@@ -1022,12 +1020,13 @@ class movieplayer():
 			subosd.blit(percnum, ((subosd.get_width()/2)-(percnum.get_width()/2),voltext.get_height()))
 			self.osd_percentage = int(self.volume)
 			self.updateosd()
-			self.osd_last_run == int(time.time())
+			self.osd_last_run = int(time.time())
 		elif not self.osd_last_run == int(time.time()):
 			subosd = self.osd.subsurface([self.osd.get_width()-curtime.get_width(),22,curtime.get_width(),22])
 			subosd.fill((25,25,25,157))
 			subosd.blit(curtime, (0,0))
-			self.osd_last_run == int(time.time())
+			self.updateosd()
+			self.osd_last_run = int(time.time())
 		screen.blit(self.osd, self.osd.get_rect(center=screen.get_rect().center))
 		pygame.display.update()
 		if self.threads.has_key('hideosd') and self.threads['hideosd'].isAlive():
@@ -1104,7 +1103,7 @@ class movieplayer():
 					save_hrs = int(save_pos/60.0/60.0)
 					save_mins = int((save_pos-(save_hrs*60*60))/60)
 					save_secs = int(save_pos-((save_hrs*60*60)+(save_mins*60)))
-					open('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+os.uname()[1]+'.save', 'w').write('%s;%s\n# This line and everything below is ignored, it is only here so that you don\'t need to understand ^ that syntax.\nTime: %02d:%02d:%02d\nVolume: %d%%\n' % (save_pos, self.volume, save_hrs, save_mins, save_secs, self.volume))
+					open('./'+os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'w').write('%s;%s\n# This line and everything below is ignored, it is only here so that you don\'t need to understand ^ that syntax.\nTime: %02d:%02d:%02d\nVolume: %d%%\n' % (save_pos, self.volume, save_hrs, save_mins, save_secs, self.volume))
 					self.mplayer.stdin.write('osd_show_text "Saved position: %02d:%02d:%02d"\n' % (save_hrs, save_mins, save_secs))
 				elif event.type == pygame.KEYDOWN and event.key == pygame.K_9:
 					self.showosd(2, osdtype='volume')
@@ -1167,14 +1166,15 @@ pygame.display.init()
 #pygame.event.init() # Doesn't have an '.init()' funtion.
 
 #screen = pygame.display.set_mode((640,480)) # Create a new window.
-if android:
-	screen = pygame.display.set_mode((1280,720), pygame.FULLSCREEN) # Create a new window.
+global windowed
+if len(sys.argv) > 1 and (sys.argv.__contains__('--windowed') or sys.argv.__contains__('-w')):
+	try: resolution = sys.argv[sys.argv.index('--windowed')+1]
+	except ValueError: resolution = sys.argv[sys.argv.index('-w')+1]
+	windowed = True
+	screen = pygame.display.set_mode((int(resolution.split('x')[0]),int(resolution.split('x')[1]))) # Create a new window.
 else:
-	if len(sys.argv) > 1 and (sys.argv[1] == '--windowed' or sys.argv[1] == '-w'):
-		screen = pygame.display.set_mode((int(sys.argv[2].split('x')[0]),int(sys.argv[2].split('x')[1]))) # Create a new window.
-	else:
-		screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)#|pygame.NOFRAME)
-	#screen = pygame.display.set_mode((1050,1680)) # Create a new window.
+	windowed = False
+	screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)#|pygame.NOFRAME)
 try: background = pygame.transform.scale(pygame.image.load('background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
 	background = pygame.Surface(screen.get_size()).convert() 
@@ -1192,11 +1192,16 @@ if android:
 else:
 	fontname = pygame.font.match_font(u'trebuchetms') # Might want to use a non-MS font.
 
-if len(sys.argv) > 1 and os.path.isfile(sys.argv[1]):
-	player = movieplayer(sys.argv[1])
-	mplayer = player.play()
-	player.loop()
-	quit()
+foundfile = False
+if len(sys.argv) > 1:
+  for filename in sys.argv[1:]:
+    if os.path.isfile(filename):
+      foundfile = True
+      player = movieplayer(filename)
+      mplayer = player.play()
+      player.loop()
+  if foundfile == True:
+    quit()
 
 def terminal():
 	term = subprocess.Popen(['x-terminal-emulator'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE)
