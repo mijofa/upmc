@@ -275,6 +275,8 @@ class filemenu():
 					directories.append(item + '/')
 				else:
 					files.append(item)
+		directories.sort()
+		files.sort()
 		for item in directories:
 			if not self.items.__contains__(directory+item):
 				self.items.append(directory+item)
