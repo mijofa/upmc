@@ -894,6 +894,9 @@ class movieplayer():
 		else:
 			self.showosd(delay)
 	def showosd(self, delay = 0, osdtype = None, wait = False):
+		if self.threads.__contains__(threading.currentThread().name) and not threading.currentThread().ident == self.threads[threading.currentThread().name].ident:
+			print 'Returning '+threading.currentThread().name+' because it is running in parallel with its self'
+			return
 		if self.bmovl == None:
 			if wait == False:
 				return
@@ -905,7 +908,6 @@ class movieplayer():
 			self.threads['hideosd'].cancel()
 		else:
 			try:
-				sys.stdout.write('SHOW\n')
 				os.write(self.bmovl, 'SHOW\n')
 			except OSError: pass
 		if delay > 0:
@@ -918,13 +920,15 @@ class movieplayer():
 			self.threads.update({thread.name: thread})
 			thread.start()
 	def hideosd(self, wait = False):
+		if self.threads.__contains__(threading.currentThread().name) and not threading.currentThread().ident == self.threads[threading.currentThread().name].ident:
+			print 'Returning '+threading.currentThread().name+' because it is running in parallel with its self'
+			return
 		if self.bmovl == None:
 			return
 		while not self.get_busy(): pass
 		if self.threads.has_key('renderosd') and self.threads['renderosd'].isAlive():
 			self.threads['renderosd'].join()
 		try:
-			sys.stdout.write('HIDE\n')
 			os.write(self.bmovl, 'HIDE\n')
 		except OSError: pass
 		self.osdtype = 'time'
@@ -938,13 +942,14 @@ class movieplayer():
 		elif self.bmovl == None and wait == True:
 			while self.bmovl == None: pass
 		try:
-			sys.stdout.write('RGBA32 %d %d %d %d %d %d' % (self.osd_rect[0], self.osd_rect[1], self.osd_rect[2], self.osd_rect[3], 0, 0))
 			os.write(self.bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (self.osd_rect[0], self.osd_rect[1], self.osd_rect[2], self.osd_rect[3], 0, 0))
 			string_surf = pygame.image.tostring(self.osd, 'RGBA')
-			sys.stdout.write("string_surf # You don't really need to see this\n")
 			os.write(self.bmovl, string_surf)
 		except OSError: pass
 	def renderosd(self, wait = False):
+		if self.threads.__contains__(threading.currentThread().name) and not threading.currentThread().ident == self.threads[threading.currentThread().name].ident:
+			print 'Returning '+threading.currentThread().name+' because it is running in parallel with its self'
+			return
 		if self.bmovl == None and wait == False:
 			return
 		elif self.bmovl == None and wait == True:
