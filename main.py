@@ -267,58 +267,54 @@ class filemenu():
 			self.itemsinfo['../']['filename'] = directory+'../'
 		else:
 			self.itemsinfo['../']['filename'] = '../'
-		for item in self.find(filetype='directory', directory=directory):
-			if not item.startswith('.') and not self.items.__contains__(item):
-				dirthumb = None
-				files = self.find(directory+item, 'file')
-				for thumb in files:
-					if thumb.startswith('folder.'):
-						thumbfname = directory + item + thumb
-						if os.path.isfile(thumbfname) and os.access(thumbfname, os.R_OK):
-							if mime:
-								ftype = mime.file(thumbfname)
-								if not ftype:
-									ftype = 'Unknown'
-							else:
-								ftype = mimetypes.guess_type(thumbfname)[0]
-								if not ftype:
-									ftype = 'Unknown'
-							if ftype.split('/')[0] == 'image':
-								dirthumb = thumbfname
-								break
-				if not len(files) == 0 and not (len(files) == 1 and not dirthumb == None):
-					self.items.append(directory+item)
-					if not self.itemsinfo.has_key(directory+item):
-						self.itemsinfo[directory+item] = {}
-					if not dirthumb == None:
-						self.itemsinfo[directory+item]['thumb'] = dirthumb
+		directories = []
+		files = []
+		for item in os.listdir(directory):
+			if not item.startswith('.') and os.access(directory+item, os.R_OK):
+				if os.path.isdir(directory+item):
+					directories.append(item + '/')
+				else:
+					files.append(item)
+		for item in directories:
+			if not self.items.__contains__(directory+item):
+				self.items.append(directory+item)
+				if not self.itemsinfo.has_key(directory+item):
+					self.itemsinfo[directory+item] = {}
 					self.itemsinfo[directory+item]['file'] = False
 					self.itemsinfo[directory+item]['title'] = item
-					self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
 					self.itemsinfo[directory+item]['filename'] = directory+item + '/'
-		for filename in self.find(filetype='file', directory=directory):
-			if not filename.startswith('.') and not self.items.__contains__(filename):
+					if not self.itemsinfo[directory+item].has_key('thumb'):
+						for extension in ['.png', '.jpg', '.jpeg', '.gif']:
+							if os.path.isfile(directory + item + 'folder'+extension) and os.access(directory + item + 'folder'+extension, os.R_OK):
+								self.itemsinfo[directory+item]['thumb'] = directory + item + 'folder'+extension
+								break
+							elif os.path.isfile(directory + item + 'folder'+extension.upper()) and os.access(directory + item + 'folder'+extension.upper(), os.R_OK):
+								self.itemsinfo[directory+item]['thumb'] = directory + item + 'folder'+extension.upper()
+								break
+				self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
+		for filename in files:
+			if not self.items.__contains__(directory+filename):
 				item = filename.rpartition('.')
 				if item[1] == '.':
 					item = item[0]
 				else:
 					item = item[2]
-				ftype = mimetypes.guess_type(filename)[0]
-				if not ftype: ftype = 'Unknown'
-				else: ftype = ftype.split('/')[0]
+				fextension = '.'+filename.rsplit('.')[-1]
+				try: ftype = mimetypes.types_map[fextension].split('/')[0]
+				except KeyError: ftype = 'Unknown'
 				if ftype == 'video':
 					self.items.append(directory+item)
 					if not self.itemsinfo.has_key(directory+item):
 						self.itemsinfo[directory+item] = {}
 					self.itemsinfo[directory+item]['file'] = True
 					self.itemsinfo[directory+item]['title'] = item
-					self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
 					self.itemsinfo[directory+item]['filename'] = directory+filename
+					self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
 				elif ftype == 'image':
 					if not self.itemsinfo.has_key(directory+item):
 						self.itemsinfo[directory+item] = {}
 					self.itemsinfo[directory+item]['thumb'] = directory+filename
-				elif filename.endswith('.ini'):
+				elif fextension == '.ini':
 					if not self.itemsinfo.has_key(directory+item):
 						self.itemsinfo[directory+item] = {}
 					self.itemsinfo[directory+item]['info'] = directory+filename
@@ -378,12 +374,12 @@ class filemenu():
 						except IndexError:
 							brake = True
 							break
-						while not self.itemsinfo[item].has_key('title'):
-							itemnum += 1
-							try: item = self.items[itemnum]
-							except IndexError:
-								brake = True
-								break
+#						while not self.itemsinfo[item].has_key('title'):
+#							itemnum += 1
+#							try: item = self.items[itemnum]
+#							except IndexError:
+#								brake = True
+#								break
 						if self.itemsinfo[item].has_key('file') and self.itemsinfo[item]['file'] == False:
 							surf = dirbutbg.copy()
 						else:
@@ -451,6 +447,10 @@ class filemenu():
 			screen.blit(background.subsurface(self.itemsinfo[self.selected[1]]['buttonloc']), self.itemsinfo[self.selected[1]]['buttonloc'])
 			screen.blit(self.itemsinfo[self.selected[1]]['surface'], self.itemsinfo[self.selected[1]]['buttonloc'])
 			screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
+		if itemnum == None:
+			pygame.display.update(screenupdates)
+			screenupdates = []
+			return
 		if itemnum < self.itemsinfo[self.pagerows[0][0]]['itemnum']:
 			self.scroll(0,1)
 			if itemnum < 0:
@@ -603,6 +603,7 @@ class filemenu():
 			screen.blit(screenbkup, (0,0))
 			pygame.display.update()
 		elif not self.itemsinfo[selected]['file']:
+			self.select(None)
 			filename = self.itemsinfo[selected]['filename'].replace('//', '/')
 			if filename.__contains__('../'):
 				filename = filename[:filename.rindex('../')].rsplit('/', 2)[0]+'/'
@@ -1192,6 +1193,7 @@ else:
 	fontname = pygame.font.match_font(u'trebuchetms') # Might want to use a non-MS font.
 
 foundfile = False
+founddir = False
 if len(sys.argv) > 1:
   for filename in sys.argv[1:]:
     if os.path.isfile(filename):
@@ -1199,6 +1201,8 @@ if len(sys.argv) > 1:
       player = movieplayer(filename)
       mplayer = player.play()
       player.loop()
+    elif os.path.isdir(filename):
+      founddir = filename
   if foundfile == True:
     quit()
 
@@ -1221,7 +1225,10 @@ def terminal():
 menuitems = [('Videos', filemenu), ('Terminal', terminal), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
 menu = textmenu(menuitems)
 
-os.chdir(os.getenv('HOME')+'/Videos/')
+if founddir == False:
+  os.chdir(os.getenv('HOME')+'/Videos/')
+else:
+  os.chdir(founddir)
 rootdir = os.getcwd()
 
 ## These should avoid going through the loop unnecessarily (and wasting resources) when there is events that I'm not going to use anyway.
