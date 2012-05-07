@@ -37,93 +37,93 @@ def userquit():
   return pygame.event.Event(pygame.QUIT, {})
 
 def render_textrect(string, font, rect, text_color, background_color = (0,0,0,0), justification=0):
-    """Returns a surface containing the passed text string, reformatted
-    to fit within the given rect, word-wrapping as necessary. The text
-    will be anti-aliased.
+  """Returns a surface containing the passed text string, reformatted
+  to fit within the given rect, word-wrapping as necessary. The text
+  will be anti-aliased.
 
-    Takes the following arguments:
+  Takes the following arguments:
 
-    string - the text you wish to render. \n begins a new line.
-    font - a Font object
-    rect - a rectstyle giving the size of the surface requested.
-    text_color - a three-byte tuple of the rgb value of the
-                 text color. ex (0, 0, 0) = BLACK
-    background_color - a three-byte tuple of the rgb value of the surface.
-                    mikef: a four-byte tuple of the RGB*A* value of the surface. Defaults to pure transparency.
-    justification - 0 (default) left-justified
-                    1 horizontally centered
-                    2 right-justified
+  string - the text you wish to render. \n begins a new line.
+  font - a Font object
+  rect - a rectstyle giving the size of the surface requested.
+  text_color - a three-byte tuple of the rgb value of the
+               text color. ex (0, 0, 0) = BLACK
+  background_color - a three-byte tuple of the rgb value of the surface.
+                  mikef: a four-byte tuple of the RGB*A* value of the surface. Defaults to pure transparency.
+  justification - 0 (default) left-justified
+                  1 horizontally centered
+                  2 right-justified
 
-    Returns the following values:
+  Returns the following values:
 
-    Success - a surface object with the text rendered onto it.
-    Failure - raises a TextRectException if the text won't fit onto the surface.
-           mikef: I turned off this failure and just let it silently drop off what doesn't fit.
-    """
+  Success - a surface object with the text rendered onto it.
+  Failure - raises a TextRectException if the text won't fit onto the surface.
+         mikef: I turned off this failure and just let it silently drop off what doesn't fit.
+  """
 
-    import pygame
-    
-    final_lines = []
+  import pygame
 
-    requested_lines = string.splitlines()
+  final_lines = []
 
-    # Create a series of lines that will fit on the provided
-    # rectangle.
+  requested_lines = string.splitlines()
 
-    for requested_line in requested_lines:
-        if font.size(requested_line)[0] > rect.width:
-            words = requested_line.split(' ')
-#            # if any of our words are too long to fit, return.
-#            for word in words:
-#                if font.size(word)[0] >= rect.width:
-#                    raise TextRectException, "The word " + word + " is too long to fit in the rect passed."
-            # Start a new line
+  # Create a series of lines that will fit on the provided
+  # rectangle.
+
+  for requested_line in requested_lines:
+    if font.size(requested_line)[0] > rect.width:
+      words = requested_line.split(' ')
+#     # if any of our words are too long to fit, return.
+#     for word in words:
+#       if font.size(word)[0] >= rect.width:
+#         raise TextRectException, "The word " + word + " is too long to fit in the rect passed."
+      # Start a new line
       accumulated_line = words[0] + " "
       for word in words[1:]:
-                test_line = accumulated_line + word + " "
-                # Build the line while the words fit.    
-                if font.size(test_line)[0] < rect.width:
-                    accumulated_line = test_line 
-                else:
-                    final_lines.append(accumulated_line) 
-                    accumulated_line = word + " " 
-            final_lines.append(accumulated_line)
-        else: 
-            final_lines.append(requested_line) 
+        test_line = accumulated_line + word + " "
+          # Build the line while the words fit.    
+        if font.size(test_line)[0] < rect.width:
+          accumulated_line = test_line 
+        else:
+          final_lines.append(accumulated_line) 
+          accumulated_line = word + " " 
+        final_lines.append(accumulated_line)
+    else: 
+      final_lines.append(requested_line) 
 
-    # Let's try to write the text out on the surface.
+  # Let's try to write the text out on the surface.
 
-    surface = pygame.Surface(rect.size, pygame.SRCALPHA) 
-    surface.fill(background_color) 
+  surface = pygame.Surface(rect.size, pygame.SRCALPHA) 
+  surface.fill(background_color) 
 
-    accumulated_height = 0 
-    templist = []
-    for line in final_lines: 
-#        if accumulated_height + font.size(line)[1] >= rect.height:
-#            raise TextRectException, "Once word-wrapped, the text string was too tall to fit in the rect."
-        if line != "":
-            tempsurface = font.render(line, 1, text_color)
-            templist.append(tempsurface)
-        accumulated_height += font.size(line)[1]
+  accumulated_height = 0 
+  templist = []
+  for line in final_lines: 
+#   if accumulated_height + font.size(line)[1] >= rect.height:
+#     raise TextRectException, "Once word-wrapped, the text string was too tall to fit in the rect."
+    if line != "":
+      tempsurface = font.render(line, 1, text_color)
+      templist.append(tempsurface)
+    accumulated_height += font.size(line)[1]
     if justification == 3 and rect.height > accumulated_height:
-        accumulated_height = (rect.height-accumulated_height)/2
-#        accumulated_height = 0
-        for tempsurface in templist:
-            surface.blit(tempsurface, ((rect.width - tempsurface.get_width()) / 2, accumulated_height))
-            accumulated_height += font.size(line)[1]
-    else:
-        accumulated_height = 0
-        for tempsurface in templist:
-            if justification == 0:
-                surface.blit(tempsurface, (0, accumulated_height))
-            elif justification == 1 or justification == 3:
-                surface.blit(tempsurface, ((rect.width - tempsurface.get_width()) / 2, accumulated_height))
-            elif justification == 2:
-    surface.blit(tempsurface, (rect.width - tempsurface.get_width(), accumulated_height))
-            else:
-                raise TextRectException, "Invalid justification argument: " + str(justification)
-            accumulated_height += font.size(line)[1]
-    return surface
+      accumulated_height = (rect.height-accumulated_height)/2
+#      accumulated_height = 0
+      for tempsurface in templist:
+        surface.blit(tempsurface, ((rect.width - tempsurface.get_width()) / 2, accumulated_height))
+        accumulated_height += font.size(line)[1]
+  else:
+    accumulated_height = 0
+    for tempsurface in templist:
+      if justification == 0:
+        surface.blit(tempsurface, (0, accumulated_height))
+      elif justification == 1 or justification == 3:
+        surface.blit(tempsurface, ((rect.width - tempsurface.get_width()) / 2, accumulated_height))
+      elif justification == 2:
+        surface.blit(tempsurface, (rect.width - tempsurface.get_width(), accumulated_height))
+      else:
+        raise TextRectException, "Invalid justification argument: " + str(justification)
+      accumulated_height += font.size(line)[1]
+  return surface
 
 class textmenu():
   clickables = {}
@@ -800,7 +800,7 @@ class movieplayer():
 #    pygame.display.update()
     args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','identify=5:global=4:input=5:cplayer=5:vfilter=5:statusline=0','-slave','-identify','-stop-xscreensaver', '-volume', '75']
     if len(sys.argv) > 1 and sys.argv[1] == '--no-sound': args += ['-ao', 'null']
-                if windowed == False: args += ['-fs']
+    if windowed == False: args += ['-fs']
     if loops == 0:
       loops = None
     elif loops == -1:
@@ -1177,15 +1177,15 @@ def networkhandler():
             key = data[4:-1]
          elif len(data[4:-1]) > 1:
            key = data[4:-1].upper()
-        if key.isdigit():
-          pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': int(key)}))
-          pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': int(key)}))
-        elif dir(pygame).__contains__('K_'+key):
-          if remapped_keys.keys().__contains__(key): key = remapped_keys[key]
-          pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
-          pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
-        else:
-          client.send("Unrecognised key '"+data[4:-1]+"'.\n")
+         if key.isdigit():
+           pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': int(key)}))
+           pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': int(key)}))
+         elif dir(pygame).__contains__('K_'+key):
+           if remapped_keys.keys().__contains__(key): key = remapped_keys[key]
+           pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
+           pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
+         else:
+           client.send("Unrecognised key '"+data[4:-1]+"'.\n")
     if quit:
       break
   server.close()
