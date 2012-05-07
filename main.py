@@ -61,8 +61,6 @@ def render_textrect(string, font, rect, text_color, background = (0,0,0,0), just
          mikef: I turned off this failure and just let it silently drop off what doesn't fit.
   """
 
-  import pygame
-
   final_lines = []
 
   requested_lines = string.splitlines()
@@ -106,16 +104,16 @@ def render_textrect(string, font, rect, text_color, background = (0,0,0,0), just
   for line in final_lines: 
 #   if accumulated_height + font.size(line)[1] >= rect.height:
 #     raise TextRectException, "Once word-wrapped, the text string was too tall to fit in the rect."
-    if line != "":
-      tempsurface = font.render(line, 1, text_color)
-      templist.append(tempsurface)
+#    if line != "":
+    tempsurface = font.render(line, 1, text_color)
+    templist.append(tempsurface)
     accumulated_height += font.size(line)[1]
-    if justification == 3 and rect.height > accumulated_height:
-      accumulated_height = (rect.height-accumulated_height)/2
-#      accumulated_height = 0
-      for tempsurface in templist:
-        surface.blit(tempsurface, ((rect.width - tempsurface.get_width()) / 2, accumulated_height))
-        accumulated_height += font.size(line)[1]
+  if justification == 3 and rect.height > accumulated_height:
+    pass
+    accumulated_height = (rect.height-accumulated_height)/2
+    for tempsurface in templist:
+      surface.blit(tempsurface, ((rect.width - tempsurface.get_width()) / 2, accumulated_height))
+      accumulated_height += font.size(line)[1]
   else:
     accumulated_height = 0
     for tempsurface in templist:
@@ -284,7 +282,7 @@ class filemenu():
     directories.sort()
     files.sort()
     for item in directories:
-      if not self.items.__contains__(directory+item):
+      if not directory+item in self.items:
         self.items.append(directory+item)
         if not self.itemsinfo.has_key(directory+item):
           self.itemsinfo[directory+item] = {}
@@ -301,7 +299,7 @@ class filemenu():
                 break
         self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
     for filename in files:
-      if not self.items.__contains__(directory+filename):
+      if not directory+filename in self.items:
         item = filename.rpartition('.')
         if item[1] == '.':
           item = item[0]
@@ -471,7 +469,7 @@ class filemenu():
         itemnum -= len(self.items)
         if not self.pagerows[-1][-1] == self.items[-1]:
           self.scroll(1,1)
-        if not self.pagerows[-1].__contains__(self.selected[1]) and not itemnum > len(self.pagerows[0])-len(self.pagerows[-1]):
+        if not self.selected[1] in self.pagerows[-1] and not itemnum > len(self.pagerows[0])-len(self.pagerows[-1]):
           itemnum = self.items.index(self.pagerows[-1][-1])
         else:
           self.scroll(1,1)
@@ -482,7 +480,7 @@ class filemenu():
         self.scroll(1,1)
     item = self.items[itemnum]
     for row in self.pagerows:
-      if row.__contains__(item):
+      if item in row:
         rownum = self.pagerows.index(row)
         colnum = row.index(item)
         break
@@ -613,12 +611,12 @@ class filemenu():
     elif not self.itemsinfo[selected]['file']:
       self.select(None)
       filename = self.itemsinfo[selected]['filename'].replace('//', '/')
-      if filename.__contains__('../'):
+      if '../' in filename:
         filename = filename[:filename.rindex('../')].rsplit('/', 2)[0]+'/'
       self.builditems(directory=filename)
       self.selected = [None, None]
       self.render()
-      if self.items.__contains__(self.cwd):
+      if self.cwd in self.items:
         self.select(self.items.index(self.cwd))
       else:
         self.select(0)
@@ -667,7 +665,7 @@ class movieinfo():
     global screenupdates
     screen.blit(background, (0,0))
     pygame.display.update()
-    if self.__contains__('thumb'):
+    if 'thumb' in self:
       thumb = pygame.image.load(str(self['thumb']))
       thumbrect = thumb.get_rect().fit(screen.get_rect())
       thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (thumbrect[2], thumbrect[3]))
@@ -727,11 +725,19 @@ class movieinfo():
       elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
         self.action()
   def action(self):
-    surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
+    if not os.path.isfile(str(self['filename'])):
+      surf = render_textrect('This file does not seem to exist. Has it been deleted?\n'+str(self['filename']), pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
+      screenbkup = screen.copy()
+      screen.blit(surf, (0,0))
+      pygame.display.update()
+      time.sleep(5)
+      screen.blit(screenbkup, (0,0))
+      pygame.display.update()
+    surf = render_textrect('Movie player is running.\n\nPress the back button to quit.', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
     screenbkup = screen.copy()
     screen.blit(surf, (0,0))
     pygame.display.update()
-    player = movieplayer(self.info['filename'])
+    player = movieplayer(self['filename'])
     player.play()
     player.loop()
     screen.blit(screenbkup, (0,0))
@@ -779,8 +785,8 @@ class movieplayer():
 #      response = response.replace('\r', '\n')
       if response.startswith("No bind found for key '"):
         key = response.strip(' ').lstrip("No bind found for key ").rstrip("'.").lstrip("'") # Strangely if I put the "'" in the first lstrip call then and "i" is the key, the "i" will be dropped completely, and I can't figure out why, but this hacky workaround which should never reach production works.
-        if self.remapped_keys.keys().__contains__(key): key = self.remapped_keys[key]
-        if dir(pygame).__contains__('K_'+key):
+        if key in self.remapped_keys.keys(): key = self.remapped_keys[key]
+        if 'K_'+key in dir(pygame):
           pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
           pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
         elif key.startswith('MOUSE_BTN'):
@@ -844,14 +850,14 @@ class movieplayer():
       args += ['-osdlevel','0','-vf','bmovl=1:0:'+bmovlfile]
     if os.path.isfile(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'):
       starttime = open(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'r').readline().strip('\n')
-      if starttime.__contains__(';'):
+      if ';' in starttime:
         args += ['-volume', starttime.split(';')[1]]
         starttime = starttime.split(';')[0]
       args += ['-ss', starttime]
       os.remove(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save')
     elif os.path.isfile(os.path.dirname(self.filename)+'/'+self.filename+'-'+os.uname()[1]+'.save'):
       starttime = open(os.path.dirname(self.filename)+'/'+self.filename+'-'+os.uname()[1]+'.save', 'r').readline().strip('\n')
-      if starttime.__contains__(';'):
+      if ';' in starttime:
         args += ['-volume', starttime.split(';')[1]]
         starttime = starttime.split(';')[0]
       args += ['-ss', starttime]
@@ -951,7 +957,7 @@ class movieplayer():
     else:
       self.showosd(delay)
   def showosd(self, delay = 0, osdtype = None, wait = False):
-    if self.threads.__contains__(threading.currentThread().name) and not threading.currentThread().ident == self.threads[threading.currentThread().name].ident:
+    if threading.currentThread().name in self.threads and not threading.currentThread().ident == self.threads[threading.currentThread().name].ident:
       print 'Returning '+threading.currentThread().name+' because it is running in parallel with its self'
       return
     if self.bmovl == None:
@@ -977,7 +983,7 @@ class movieplayer():
       self.threads.update({thread.name: thread})
       thread.start()
   def hideosd(self, wait = False):
-    if self.threads.__contains__(threading.currentThread().name) and not threading.currentThread().ident == self.threads[threading.currentThread().name].ident:
+    if threading.currentThread().name in self.threads and not threading.currentThread().ident == self.threads[threading.currentThread().name].ident:
       print 'Returning '+threading.currentThread().name+' because it is running in parallel with its self'
       return
     if self.bmovl == None:
@@ -989,7 +995,7 @@ class movieplayer():
       os.write(self.bmovl, 'HIDE\n')
     except OSError: pass
     self.osdtype = 'time'
-    if self.threads.keys().__contains__('hideosd'):
+    if 'hideosd' in self.threads.keys():
       self.threads['hideosd'].cancel()
   def updateosd(self, wait = False):
     if not (self.threads.has_key('hideosd') and self.threads['hideosd'].isAlive()):
@@ -1004,7 +1010,7 @@ class movieplayer():
       os.write(self.bmovl, string_surf)
     except OSError: pass
   def renderosd(self, wait = False):
-    if self.threads.__contains__(threading.currentThread().name) and not threading.currentThread().ident == self.threads[threading.currentThread().name].ident:
+    if threading.currentThread().name in self.threads and not threading.currentThread().ident == self.threads[threading.currentThread().name].ident:
       print 'Returning '+threading.currentThread().name+' because it is running in parallel with its self'
       return
     if self.bmovl == None and wait == False:
@@ -1102,7 +1108,7 @@ class movieplayer():
     return status
   def stop(self):
     for thread in self.threads.values():
-      if dir(thread).__contains__('cancel'):
+      if 'cancel' in dir(thread):
         thread.cancel()
     try:
       self.mplayer.stdin.write('quit\n')
@@ -1211,8 +1217,8 @@ def networkhandler():
          if key.isdigit():
            pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': int(key)}))
            pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': int(key)}))
-         elif dir(pygame).__contains__('K_'+key):
-           if remapped_keys.keys().__contains__(key): key = remapped_keys[key]
+         elif 'K_'+key in dir(pygame):
+           if key in remapped_keys.keys(): key = remapped_keys[key]
            pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
            pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
          else:
@@ -1235,7 +1241,7 @@ netthread.setDaemon(True)
 netthread.start()
 
 global windowed
-if len(sys.argv) > 1 and (sys.argv.__contains__('--windowed') or sys.argv.__contains__('-w')):
+if len(sys.argv) > 1 and ('--windowed' in sys.argv or '-w' in sys.argv):
   try: resolution = sys.argv[sys.argv.index('--windowed')+1]
   except ValueError: resolution = sys.argv[sys.argv.index('-w')+1]
   windowed = True
