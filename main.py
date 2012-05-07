@@ -637,14 +637,46 @@ class filemenu():
 
 class movieinfo():
   def __getitem__(self, item):
-    if self.iteminfo.has_key(item):
-      return self.iteminfo[item]
-    elif self.config.has_section('local') and self.config.has_option('local', item):
-      return self.config.get('local', item)
-    elif self.config.has_section('IMDB') and self.config.has_option('IMDB', item):
-      return self.config.get('IMDB', item)
+    if item.startswith('int:'):
+      item = item[len('int:'):]
+      if self.iteminfo.has_key(item):
+        return int(self.iteminfo[item])
+      elif self.config.has_section('local') and self.config.has_option('local', item):
+        return self.config.getint('local', item)
+      elif self.config.has_section('IMDB') and self.config.has_option('IMDB', item):
+        return self.config.getint('IMDB', item)
+      else:
+        return 0
+    elif item.startswith('float:'):
+      item = item[len('float:'):]
+      if self.iteminfo.has_key(item):
+        return float(self.iteminfo[item])
+      elif self.config.has_section('local') and self.config.has_option('local', item):
+        return self.config.getfloat('local', item)
+      elif self.config.has_section('IMDB') and self.config.has_option('IMDB', item):
+        return self.config.getfloat('IMDB', item)
+      else:
+        return 0.0
+    elif item.startswith('boolean:'):
+      item = item[len('boolean:'):]
+      if self.iteminfo.has_key(item):
+        return boolean(self.iteminfo[item])
+      elif self.config.has_section('local') and self.config.has_option('local', item):
+        return self.config.getboolean('local', item)
+      elif self.config.has_section('IMDB') and self.config.has_option('IMDB', item):
+        return self.config.getboolean('IMDB', item)
+      else:
+        return False
     else:
-      return None
+      if item.startswith('str:'): item = item[len('str:'):]
+      if self.iteminfo.has_key(item):
+        return self.iteminfo[item]
+      elif self.config.has_section('local') and self.config.has_option('local', item):
+        return self.config.get('local', item)
+      elif self.config.has_section('IMDB') and self.config.has_option('IMDB', item):
+        return self.config.get('IMDB', item)
+      else:
+        return 'Unknown'
   def __setitem__(self, item, newvalue):
     self.config.read(self.iteminfo['info'])
     if not self.config.has_section('local'):
@@ -670,34 +702,34 @@ class movieinfo():
     global fontname
     self.font = pygame.font.Font(fontname, 18)
     self.iteminfo = iteminfo
+    self.config = ConfigParser.ConfigParser()
     if self.iteminfo.has_key('info'):
-      self.config = ConfigParser.ConfigParser()
       self.config.read(self.iteminfo['info'])
   def display(self):
     global screenupdates
     screen.blit(background, (0,0))
     pygame.display.update()
     if 'thumb' in self:
-      thumb = pygame.image.load(str(self['thumb']))
+      thumb = pygame.image.load(self['thumb'])
       thumbrect = thumb.get_rect().fit(screen.get_rect())
       thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (thumbrect[2], thumbrect[3]))
       screen.blit(thumb, thumb.get_rect(center=(screen.get_width()/2,screen.get_height()/2)))
-    title = self.font.render(str(self['title']), 1, (255,255,255))
+    title = self.font.render(self['title'], 1, (255,255,255))
     screen.blit(title,title.get_rect(midtop=(screen.get_width()/2,self.font.size('')[1])))
     vertborder = screen.get_height()/20
     horizborder = (screen.get_width()-self.font.size('')[1]*3)/20
     infosurf = pygame.surface.Surface((screen.get_width()-(horizborder*2),screen.get_height()-(self.font.size('')[1]*3)-vertborder), pygame.SRCALPHA)
     directorsurf = infosurf.subsurface(infosurf.get_rect(top=self.font.get_height()/2, height=self.font.get_height()))
     directorsurf.fill((0,0,0,150))
-    render_textrect('Directed by: '+str(self['director']), self.font, infosurf.get_rect(), (255,255,255), directorsurf, 0)
+    render_textrect('Directed by: '+self['director'], self.font, infosurf.get_rect(), (255,255,255), directorsurf, 0)
     miscsurf = infosurf.subsurface(infosurf.get_rect(top=(infosurf.get_height()-(self.font.get_height()/2))-(self.font.get_height()*2), height=self.font.get_height()*2))
     miscsurf.fill((0,0,0,50), (0,0,miscsurf.get_width(),self.font.get_height()))
     miscsurf.fill((0,0,0,150), (0,self.font.get_height(),miscsurf.get_width(),self.font.get_height()))
-    runtimesurf = render_textrect('Runtime\n'+str(self['runtimes'])+' minutes', self.font, miscsurf.get_rect(), (255,255,255), (0,0,0,0), 0)
+    runtimesurf = render_textrect('Runtime\n%i minutes' % self['int:runtimes'], self.font, miscsurf.get_rect(), (255,255,255), (0,0,0,0), 0)
     miscsurf.blit(runtimesurf, (0,0))
-    yearsurf = render_textrect('Year\n'+str(self['year']), self.font, miscsurf.get_rect(), (255,255,255), (0,0,0,0), 1)
+    yearsurf = render_textrect('Year\n%i' % self['int:year'], self.font, miscsurf.get_rect(), (255,255,255), (0,0,0,0), 1)
     miscsurf.blit(yearsurf, yearsurf.get_rect(centerx=miscsurf.get_width()/2))
-    scoresurf = render_textrect('User rating\n'+str(self['rating']), self.font, miscsurf.get_rect(), (255,255,255), (0,0,0,0), 2)
+    scoresurf = render_textrect('User rating\n%f' % self['float:rating'], self.font, miscsurf.get_rect(), (255,255,255), (0,0,0,0), 2)
     miscsurf.blit(scoresurf, (miscsurf.get_width()-scoresurf.get_width(),0))
     ##FINDME###
 #    infosurf.fill((0,0,0,150))
@@ -805,8 +837,8 @@ class movieplayer():
         if char == '\r':
           char = '\n'
 #      response = response.replace('\r', '\n')
-      if response.startswith("No bind found for key '"):
-        key = response.strip(' ').lstrip("No bind found for key ").rstrip("'.").lstrip("'") # Strangely if I put the "'" in the first lstrip call then and "i" is the key, the "i" will be dropped completely, and I can't figure out why, but this hacky workaround which should never reach production works.
+      if response.strip(' ').startswith("No bind found for key '"):
+        key = response.strip(' ')[len("No bind found for key '"):][:-2]
         if key in self.remapped_keys.keys(): key = self.remapped_keys[key]
         if 'K_'+key in dir(pygame):
           pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
@@ -820,7 +852,7 @@ class movieplayer():
         elif key == 'CLOSE_WIN':
           pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
       elif response.startswith('ANS_') or response.startswith('ID_'):
-        response = response.lstrip('ANS_').lstrip('ID_').lower()
+        response = '_'.join(response.split('_')[1:]).lower()
         if response.startswith('exit'):
           break
         elif response == 'paused':
@@ -846,9 +878,9 @@ class movieplayer():
           if response.split('=')[1].strip("'") == 'yes': self.mplayer.stdin.write('osd_show_text "Subtitles enabled"\n')
           else: self.mplayer.stdin.write('osd_show_text "Subtitles disabled"\n')
       elif response.startswith('vf_bmovl: '):
-        response = response.lstrip('vf_bmovl: ')
+        response = response[len('vf_bmovl: '):]
         if response.startswith('Opened fifo '):
-          response = response.lstrip('Opened fifo ')
+          response = response[len('Opened fifo '):]
           self.bmovl = os.open(response[:response.rindex(' as FD ')], os.O_WRONLY)
       response = ''
   def play(self, loops=None, osd=True):
