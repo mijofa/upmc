@@ -85,14 +85,22 @@ def render_textrect(string, font, rect, text_color, background = (0,0,0,0), just
         else:
           final_lines.append(accumulated_line) 
           accumulated_line = word + " " 
-        final_lines.append(accumulated_line)
+      final_lines.append(accumulated_line)
     else: 
       final_lines.append(requested_line) 
 
   # Let's try to write the text out on the surface.
+  if rect.width < font.size(max(final_lines, key=font.size))[0]:
+    width = rect.width
+  else:
+    width = font.size(max(final_lines, key=font.size))[0]
+  if rect.height < font.size(final_lines[0])*len(final_lines):
+    height = rect.height
+  else:
+    height = font.size(final_lines[0])*len(final_lines)
 
   if type(background) == tuple:
-    surface = pygame.Surface(rect.size, pygame.SRCALPHA) 
+    surface = pygame.Surface((width, height), pygame.SRCALPHA) 
     surface.fill(background) 
   elif type(background) == pygame.Surface:
     surface = background
@@ -108,11 +116,11 @@ def render_textrect(string, font, rect, text_color, background = (0,0,0,0), just
     tempsurface = font.render(line, 1, text_color)
     templist.append(tempsurface)
     accumulated_height += font.size(line)[1]
-  if justification == 3 and rect.height > accumulated_height:
+  if justification == 3 and surface.get_height() > accumulated_height:
     pass
-    accumulated_height = (rect.height-accumulated_height)/2
+    accumulated_height = (surface.get_height()-accumulated_height)/2
     for tempsurface in templist:
-      surface.blit(tempsurface, ((rect.width - tempsurface.get_width()) / 2, accumulated_height))
+      surface.blit(tempsurface, ((surface.get_width() - tempsurface.get_width()) / 2, accumulated_height))
       accumulated_height += font.size(line)[1]
   else:
     accumulated_height = 0
@@ -120,9 +128,9 @@ def render_textrect(string, font, rect, text_color, background = (0,0,0,0), just
       if justification == 0:
         surface.blit(tempsurface, (0, accumulated_height))
       elif justification == 1 or justification == 3:
-        surface.blit(tempsurface, ((rect.width - tempsurface.get_width()) / 2, accumulated_height))
+        surface.blit(tempsurface, ((surface.get_width() - tempsurface.get_width()) / 2, accumulated_height))
       elif justification == 2:
-        surface.blit(tempsurface, (rect.width - tempsurface.get_width(), accumulated_height))
+        surface.blit(tempsurface, (surface.get_width() - tempsurface.get_width(), accumulated_height))
       else:
         raise TextRectException, "Invalid justification argument: " + str(justification)
       accumulated_height += font.size(line)[1]
@@ -395,9 +403,10 @@ class filemenu():
                 thumb = pygame.image.load(self.itemsinfo[item]['thumb'])
                 rect = thumb.get_rect().fit((0,0,(itemwidth/8)*7,(itemheight/8)*6.5))
                 thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (rect[2], rect[3]))
+                surf.blit(thumb, thumb.get_rect(center=(surf.get_width()/2,surf.get_height()/2)))
               else:
                 thumb = render_textrect(self.itemsinfo[item]['title'], self.font, pygame.rect.Rect((0,0,(itemwidth/8)*7,(itemheight/8)*6.5)), (255,255,255), (0,0,0,0))
-              surf.blit(thumb, thumb.get_rect(center=(surf.get_width()/2,surf.get_height()/2)))
+                surf.blit(thumb, thumb.get_rect(left=ellipse_width/2, top=ellipse_height/2))
               self.itemsinfo[item]['surface'] = surf
             top = (rownum*itemheight)+(rownum*rowspace)+(rowspace/2)+titleoffset+(vertborder/2)
             left = (colnum*itemwidth)+(colnum*colspace)+(colspace/2)+(horizborder/2)
@@ -671,14 +680,22 @@ class movieinfo():
       thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (thumbrect[2], thumbrect[3]))
       screen.blit(thumb, thumb.get_rect(center=(screen.get_width()/2,screen.get_height()/2)))
     title = self.font.render(str(self['title']), 1, (255,255,255))
-    title = render_textrect(str(self['title']), self.font, pygame.rect.Rect((0,0,screen.get_width(),self.font.size('')[1]*3)), (255,255,255), (0,0,0,0), 1)
-    screen.blit(title,(0,self.font.size('')[1]))
+    screen.blit(title,title.get_rect(midtop=(screen.get_width()/2,self.font.size('')[1])))
     vertborder = screen.get_height()/20
     horizborder = (screen.get_width()-self.font.size('')[1]*3)/20
     infosurf = pygame.surface.Surface((screen.get_width()-(horizborder*2),screen.get_height()-(self.font.size('')[1]*3)-vertborder), pygame.SRCALPHA)
     directorsurf = infosurf.subsurface(infosurf.get_rect(top=self.font.get_height()/2, height=self.font.get_height()))
     directorsurf.fill((0,0,0,150))
-    directorsurf = render_textrect('Directed by: '+str(self['director']), self.font, infosurf.get_rect(), (255,255,255), directorsurf, 0)
+    render_textrect('Directed by: '+str(self['director']), self.font, infosurf.get_rect(), (255,255,255), directorsurf, 0)
+    miscsurf = infosurf.subsurface(infosurf.get_rect(top=(infosurf.get_height()-(self.font.get_height()/2))-(self.font.get_height()*2), height=self.font.get_height()*2))
+    miscsurf.fill((0,0,0,50), (0,0,miscsurf.get_width(),self.font.get_height()))
+    miscsurf.fill((0,0,0,150), (0,self.font.get_height(),miscsurf.get_width(),self.font.get_height()))
+    runtimesurf = render_textrect('Runtime\n'+str(self['runtimes'])+' minutes', self.font, miscsurf.get_rect(), (255,255,255), (0,0,0,0), 0)
+    miscsurf.blit(runtimesurf, (0,0))
+    yearsurf = render_textrect('Year\n'+str(self['year']), self.font, miscsurf.get_rect(), (255,255,255), (0,0,0,0), 1)
+    miscsurf.blit(yearsurf, yearsurf.get_rect(centerx=miscsurf.get_width()/2))
+    scoresurf = render_textrect('User rating\n'+str(self['rating']), self.font, miscsurf.get_rect(), (255,255,255), (0,0,0,0), 2)
+    miscsurf.blit(scoresurf, (miscsurf.get_width()-scoresurf.get_width(),0))
     ##FINDME###
 #    infosurf.fill((0,0,0,150))
 #    if self.info.has_key('plot'):
@@ -733,9 +750,11 @@ class movieinfo():
       time.sleep(5)
       screen.blit(screenbkup, (0,0))
       pygame.display.update()
-    surf = render_textrect('Movie player is running.\n\nPress the back button to quit.', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
     screenbkup = screen.copy()
+    surf = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
+    surf.fill((0,0,0,225))
     screen.blit(surf, (0,0))
+    render_textrect('Movie player is running.\n\nPress the back button to quit.', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), screen, 3)
     pygame.display.update()
     player = movieplayer(self['filename'])
     player.play()
