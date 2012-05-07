@@ -328,7 +328,7 @@ class filemenu():
           if not self.itemsinfo.has_key(directory+item):
             self.itemsinfo[directory+item] = {}
           self.itemsinfo[directory+item]['thumb'] = directory+filename
-        elif fextension == '.ini':
+        elif fextension == '.info':
           if not self.itemsinfo.has_key(directory+item):
             self.itemsinfo[directory+item] = {}
           self.itemsinfo[directory+item]['info'] = directory+filename
@@ -682,13 +682,23 @@ class movieinfo():
     if not self.config.has_section('local'):
       self.config.add_section('local')
     self.config.set('local', item, newvalue)
-    self.config.write(self.iteminfo['info'])
+    if os.access(self.iteminfo['info'], os.W_OK):
+      try: configfile = open(self.iteminfo['info'], 'w')
+      except IOError: return
+      self.config.write(configfile)
+      configfile.flush()
+      configfile.close()
   def __delitem__(self, item):
     self.config.read(self.iteminfo['info'])
     if not self.config.has_section('local'):
       self.config.add_section('local')
     self.config.set('local', item, None)
-    self.config.write(self.iteminfo['info'])
+    if os.access(self.iteminfo['info'], os.W_OK):
+      try: configfile = open(self.iteminfo['info'], 'w')
+      except IOError: return
+      self.config.write(configfile)
+      configfile.flush()
+      configfile.close()
   def __contains__(self, item):
     if self.iteminfo.has_key(item):
       return True
@@ -720,17 +730,18 @@ class movieinfo():
     horizborder = (screen.get_width()-self.font.size('')[1]*3)/20
     infosurf = pygame.surface.Surface((screen.get_width()-(horizborder*2),screen.get_height()-(self.font.size('')[1]*3)-vertborder), pygame.SRCALPHA)
     directorsurf = infosurf.subsurface(infosurf.get_rect(top=self.font.get_height()/2, height=self.font.get_height()))
-    directorsurf.fill((0,0,0,150))
-    render_textrect('Directed by: '+self['director'], self.font, infosurf.get_rect(), (255,255,255), directorsurf, 0)
+    directorsurf.fill((0,0,0,200))
+    render_textrect('Directed by: '+self['director'], self.font, directorsurf.get_rect(), (255,255,255), directorsurf, 0)
+    if not self['boolean:watched']: render_textrect('Not seen', self.font, directorsurf.get_rect(), (255,255,255), directorsurf, 2)
     miscsurf = infosurf.subsurface(infosurf.get_rect(top=(infosurf.get_height()-(self.font.get_height()/2))-(self.font.get_height()*2), height=self.font.get_height()*2))
-    miscsurf.fill((0,0,0,50), (0,0,miscsurf.get_width(),self.font.get_height()))
-    miscsurf.fill((0,0,0,150), (0,self.font.get_height(),miscsurf.get_width(),self.font.get_height()))
-    runtimesurf = render_textrect('Runtime\n%i minutes' % self['int:runtimes'], self.font, miscsurf.get_rect(), (255,255,255), (0,0,0,0), 0)
-    miscsurf.blit(runtimesurf, (0,0))
-    yearsurf = render_textrect('Year\n%i' % self['int:year'], self.font, miscsurf.get_rect(), (255,255,255), (0,0,0,0), 1)
-    miscsurf.blit(yearsurf, yearsurf.get_rect(centerx=miscsurf.get_width()/2))
-    scoresurf = render_textrect('User rating\n%f' % self['float:rating'], self.font, miscsurf.get_rect(), (255,255,255), (0,0,0,0), 2)
-    miscsurf.blit(scoresurf, (miscsurf.get_width()-scoresurf.get_width(),0))
+    miscsurf.fill((0,0,0,100), (0,0,miscsurf.get_width(),self.font.get_height()))
+    miscsurf.fill((0,0,0,200), (0,self.font.get_height(),miscsurf.get_width(),self.font.get_height()))
+    render_textrect('Runtime\n%s minutes' % self['str:runtimes'], self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 0)
+    render_textrect('Year\n%d' % self['int:year'], self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 1)
+    render_textrect('User rating\n%2.1f' % self['float:rating'], self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 2)
+    plotsurf = infosurf.subsurface(infosurf.get_rect(height=infosurf.get_height()-(self.font.get_height()*5), top=self.font.get_height()*2))
+    plotsurf.fill((0,0,0,150))
+    render_textrect(self['str:plot'], self.font, plotsurf.get_rect(), (255,255,255), plotsurf, 0)
     ##FINDME###
 #    infosurf.fill((0,0,0,150))
 #    if self.info.has_key('plot'):
@@ -785,6 +796,7 @@ class movieinfo():
       time.sleep(5)
       screen.blit(screenbkup, (0,0))
       pygame.display.update()
+      return
     screenbkup = screen.copy()
     surf = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
     surf.fill((0,0,0,225))
@@ -794,6 +806,7 @@ class movieinfo():
     player = movieplayer(self['filename'])
     player.play()
     player.loop()
+    self['watched'] = True
     screen.blit(screenbkup, (0,0))
     pygame.display.update()
 ##### End class movieinfo()
