@@ -682,7 +682,29 @@ class movieinfo():
 			dirbutbg.subsurface((ellipse_width/2,ellipse_height,dirbutbg.get_width()-(ellipse_width/2),dirbutbg.get_height()-(ellipse_height*1.5))).fill((0,0,0,50))
 			pygame.draw.ellipse(dirbutbg, (0,0,0,50), (dirbutbg.get_width()-ellipse_width,ellipse_height/2,ellipse_width,ellipse_height), 0)
 	def loop(self):
-		time.sleep(5)
+		global running
+		while running == True:
+			try: event = pygame.event.wait()
+			except KeyboardInterrupt: event = userquit()
+			if event.type == pygame.QUIT:
+				running = False
+				pygame.quit()
+			elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER):
+				self.action()
+			elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+				return
+			elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+				self.action()
+	def action(self):
+		surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
+		screenbkup = screen.copy()
+		screen.blit(surf, (0,0))
+		pygame.display.update()
+		player = movieplayer(self.info['filename'])
+		player.play()
+		player.loop()
+		screen.blit(screenbkup, (0,0))
+		pygame.display.update()
 ##### End class movieinfo()
 
 class movieplayer():
