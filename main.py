@@ -36,7 +36,7 @@ def userquit():
   pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
   return pygame.event.Event(pygame.QUIT, {})
 
-def render_textrect(string, font, rect, text_color, background_color = (0,0,0,0), justification=0):
+def render_textrect(string, font, rect, text_color, background = (0,0,0,0), justification=0):
   """Returns a surface containing the passed text string, reformatted
   to fit within the given rect, word-wrapping as necessary. The text
   will be anti-aliased.
@@ -48,7 +48,7 @@ def render_textrect(string, font, rect, text_color, background_color = (0,0,0,0)
   rect - a rectstyle giving the size of the surface requested.
   text_color - a three-byte tuple of the rgb value of the
                text color. ex (0, 0, 0) = BLACK
-  background_color - a three-byte tuple of the rgb value of the surface.
+  background - a three-byte tuple of the rgb value of the surface.
                   mikef: a four-byte tuple of the RGB*A* value of the surface. Defaults to pure transparency.
   justification - 0 (default) left-justified
                   1 horizontally centered
@@ -93,8 +93,13 @@ def render_textrect(string, font, rect, text_color, background_color = (0,0,0,0)
 
   # Let's try to write the text out on the surface.
 
-  surface = pygame.Surface(rect.size, pygame.SRCALPHA) 
-  surface.fill(background_color) 
+  if type(background) == tuple:
+    surface = pygame.Surface(rect.size, pygame.SRCALPHA) 
+    surface.fill(background) 
+  elif type(background) == pygame.Surface:
+    surface = background
+  else:
+    raise Exception, "background must be either a colour tuple or a surface, you gave a %s" % type(background)
 
   accumulated_height = 0 
   templist = []
@@ -621,43 +626,69 @@ class filemenu():
 ##### End class filemenu()
 
 class movieinfo():
+  def __getitem__(self, item):
+    if self.iteminfo.has_key(item):
+      return self.iteminfo[item]
+    elif self.config.has_section('local') and self.config.has_option('local', item):
+      return self.config.get('local', item)
+    elif self.config.has_section('IMDB') and self.config.has_option('IMDB', item):
+      return self.config.get('IMDB', item)
+    else:
+      return None
+  def __setitem__(self, item, newvalue):
+    self.config.read(self.iteminfo['info'])
+    if not self.config.has_section('local'):
+      self.config.add_section('local')
+    self.config.set('local', item, newvalue)
+    self.config.write(self.iteminfo['info'])
+  def __delitem__(self, item):
+    self.config.read(self.iteminfo['info'])
+    if not self.config.has_section('local'):
+      self.config.add_section('local')
+    self.config.set('local', item, None)
+    self.config.write(self.iteminfo['info'])
+  def __contains__(self, item):
+    if self.iteminfo.has_key(item):
+      return True
+    elif self.config.has_section('local') and self.config.has_option('local', item):
+      return True
+    elif self.config.has_section('IMDB') and self.config.has_option('IMDB', item):
+      return True
+    else:
+      return False
   def __init__(self, iteminfo):
     global fontname
     self.font = pygame.font.Font(fontname, 18)
-    self.info = {}
-    if iteminfo.has_key('info'):
-      config = ConfigParser.ConfigParser()
-      config.read(iteminfo['info'])
-      if config.has_section('IMDB'):
-        for option in config.options('IMDB'):
-          self.info[option] = config.get('IMDB', option)
-      if config.has_section('local'):
-        for option in config.options('local'):
-          self.info[option] = config.get('local', option)
-    for option in iteminfo.keys():
-      self.info[option] = iteminfo[option]
+    self.iteminfo = iteminfo
+    if self.iteminfo.has_key('info'):
+      self.config = ConfigParser.ConfigParser()
+      self.config.read(self.iteminfo['info'])
   def display(self):
     global screenupdates
     screen.blit(background, (0,0))
     pygame.display.update()
-    if self.info.has_key('thumb'):
-      thumb = pygame.image.load(self.info['thumb'])
+    if self.__contains__('thumb'):
+      thumb = pygame.image.load(str(self['thumb']))
       thumbrect = thumb.get_rect().fit(screen.get_rect())
       thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (thumbrect[2], thumbrect[3]))
       screen.blit(thumb, thumb.get_rect(center=(screen.get_width()/2,screen.get_height()/2)))
-    title = self.font.render(self.info['title'], 1, (255,255,255))
-    title = render_textrect(self.info['title'], self.font, pygame.rect.Rect((0,0,screen.get_width(),self.font.size('')[1]*3)), (255,255,255), (0,0,0,0), 1)
+    title = self.font.render(str(self['title']), 1, (255,255,255))
+    title = render_textrect(str(self['title']), self.font, pygame.rect.Rect((0,0,screen.get_width(),self.font.size('')[1]*3)), (255,255,255), (0,0,0,0), 1)
     screen.blit(title,(0,self.font.size('')[1]))
     vertborder = screen.get_height()/20
     horizborder = (screen.get_width()-self.font.size('')[1]*3)/20
     infosurf = pygame.surface.Surface((screen.get_width()-(horizborder*2),screen.get_height()-(self.font.size('')[1]*3)-vertborder), pygame.SRCALPHA)
-    infosurf.fill((0,0,0,150))
-    if self.info.has_key('plot'):
-      plotsurf = render_textrect(self.info['plot'], self.font, infosurf.get_rect(), (255,255,255), (0,0,0,0), 0)
-      infosurf.blit(plotsurf, (0,0))
-    if self.info.has_key('runtimes'):
-      runtimesurf = self.font.render('Runtime: '+self.info['runtimes'], 1, (255,255,255))
-      infosurf.blit(runtimesurf, runtimesurf.get_rect(left=0, bottom=infosurf.get_height()))
+    directorsurf = infosurf.subsurface(infosurf.get_rect(top=self.font.get_height()/2, height=self.font.get_height()))
+    directorsurf.fill((0,0,0,150))
+    directorsurf = render_textrect('Directed by: '+str(self['director']), self.font, infosurf.get_rect(), (255,255,255), directorsurf, 0)
+    ##FINDME###
+#    infosurf.fill((0,0,0,150))
+#    if self.info.has_key('plot'):
+#      plotsurf = render_textrect(self.info['plot'], self.font, infosurf.get_rect(), (255,255,255), (0,0,0,0), 0)
+#      infosurf.blit(plotsurf, (0,0))
+#    if self.info.has_key('runtimes'):
+#      runtimesurf = self.font.render('Runtime: '+self.info['runtimes'], 1, (255,255,255))
+#      infosurf.blit(runtimesurf, runtimesurf.get_rect(left=0, bottom=infosurf.get_height()))
     screen.blit(infosurf,(horizborder,self.font.size('')[1]*3,))
     pygame.display.update()
     if False:
