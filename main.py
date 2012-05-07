@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import os
-import sys
+class sys:
+  from sys import argv
 import time
 import socket
 import threading
@@ -1150,7 +1151,10 @@ def networkhandler():
 				quit = True
 				clientfile.close()
 			elif data[:4] == 'key ':
-				key = data[4:-1].upper()
+ 				if len(data[4:-1]) == 1:
+ 			 		key = data[4:-1]
+ 				elif len(data[4:-1]) > 1:
+ 					key = data[4:-1].upper()
 				if key.isdigit():
 					pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': int(key)}))
 					pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': int(key)}))
