@@ -406,7 +406,10 @@ class filemenu():
                 surf.blit(thumb, thumb.get_rect(center=(surf.get_width()/2,surf.get_height()/2)))
               else:
                 thumb = render_textrect(self.itemsinfo[item]['title'], self.font, pygame.rect.Rect((0,0,(itemwidth/8)*7,(itemheight/8)*6.5)), (255,255,255), (0,0,0,0))
-                surf.blit(thumb, thumb.get_rect(left=ellipse_width/2, top=ellipse_height/2))
+                if self.itemsinfo[item].has_key('file') and self.itemsinfo[item]['file'] == False:
+                  surf.blit(thumb, thumb.get_rect(left=ellipse_width/2, top=ellipse_height))
+                else:
+                  surf.blit(thumb, thumb.get_rect(left=ellipse_width/2, top=ellipse_height/2))
               self.itemsinfo[item]['surface'] = surf
             top = (rownum*itemheight)+(rownum*rowspace)+(rowspace/2)+titleoffset+(vertborder/2)
             left = (colnum*itemwidth)+(colnum*colspace)+(colspace/2)+(horizborder/2)
