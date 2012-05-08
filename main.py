@@ -400,7 +400,7 @@ class filemenu():
               surf = filebutbg.copy()
             if not self.itemsinfo[item].has_key('surface'):
               if self.itemsinfo[item].has_key('thumb'):
-                thumb = pygame.image.load(self.itemsinfo[item]['thumb'])
+                thumb = pygame.image.load(self.itemsinfo[item]['thumb']).convert()
                 rect = thumb.get_rect().fit((0,0,(itemwidth/8)*7,(itemheight/8)*6.5))
                 thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (rect[2], rect[3]))
                 surf.blit(thumb, thumb.get_rect(center=(surf.get_width()/2,surf.get_height()/2)))
@@ -461,7 +461,7 @@ class filemenu():
     self.select(itemnum)
   def select(self, itemnum):
     global screenupdates
-    if self.selected[1]:
+    if self.selected[0] in self.pagerows and self.selected[1] in self.pagerows[self.pagerows.index(self.selected[0])]:
       screen.blit(background.subsurface(self.itemsinfo[self.selected[1]]['buttonloc']), self.itemsinfo[self.selected[1]]['buttonloc'])
       screen.blit(self.itemsinfo[self.selected[1]]['surface'], self.itemsinfo[self.selected[1]]['buttonloc'])
       screenupdates.append(self.itemsinfo[self.selected[1]]['buttonloc'])
@@ -570,7 +570,7 @@ class filemenu():
         pygame.display.update()
       elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER):
         self.action(self.selected[1])
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+      elif (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3):
         if self.action('../') == pygame.QUIT:
           screen.blit(background, (0,0)) # Put the background on the window.
           pygame.display.update() # Update the display.
@@ -785,7 +785,7 @@ class movieinfo():
         pygame.quit()
       elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER):
         self.action()
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+      elif (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3):
         return
       elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
         self.action()
@@ -1348,7 +1348,7 @@ elif windowed == True:
 try: background = pygame.transform.scale(pygame.image.load('background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
   background = pygame.Surface(screen.get_size()).convert() 
-  background.fill((0,0,255))
+  background.fill((125,0,0))
 screen.blit(background, (0,0)) # Put the background on the window.
 pygame.display.update() # Update the display.
 
