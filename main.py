@@ -743,7 +743,11 @@ class movieinfo():
     render_textrect('User rating\n%2.1f' % self['float:rating'], self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 2)
     plotsurf = infosurf.subsurface(infosurf.get_rect(height=infosurf.get_height()-(self.font.get_height()*5), top=self.font.get_height()*2))
     plotsurf.fill((0,0,0,150))
-    render_textrect(self['str:plot'], self.font, plotsurf.get_rect(), (255,255,255), plotsurf, 0)
+    plots = ''
+    for plot in self['str:plot'].split('\0'):
+      if not plot == '':
+        plots += 'Plot written by '+plot.split('::')[-1]+':\n      '+'::'.join(plot.split('::')[0:-1])+'\n\n'
+    render_textrect(plots, self.font, plotsurf.get_rect(), (255,255,255), plotsurf, 0)
     ##FINDME###
 #    infosurf.fill((0,0,0,150))
 #    if self.info.has_key('plot'):

@@ -28,7 +28,7 @@ else:
       for listitem in item:
   #     try:
         if not listitem == '':
-          itemstring += str(listitem)+', '
+          itemstring += str(listitem)+'\0'
   #     except:
   #       print type(listitem), dir(listitem), listitem.encode('utf8')
   #       raise Exception, "Bye bye"
@@ -41,11 +41,14 @@ else:
   infofile.flush()
   infofile.close()
 
-print 'poster.'
-postersock = urllib.urlopen(Config.get('IMDB', 'full-size cover url'))
-posterdata = postersock.read()
-if not posterdata == None:
-  posterfile = open('.'.join(sys.argv[1].split('.')[:-1])+'.jpg', 'wb')
-  posterfile.write(posterdata)
-  posterfile.flush()
-  posterfile.close()
+if not os.path.isfile('.'.join(sys.argv[1].split('.')[:-1])+'.jpg'):
+  print 'poster.'
+  postersock = urllib.urlopen(Config.get('IMDB', 'full-size cover url'))
+  posterdata = postersock.read()
+  if not posterdata == None:
+    posterfile = open('.'.join(sys.argv[1].split('.')[:-1])+'.jpg', 'wb')
+    posterfile.write(posterdata)
+    posterfile.flush()
+    posterfile.close()
+else:
+  print 'poster already done.'
