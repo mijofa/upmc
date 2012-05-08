@@ -298,7 +298,7 @@ class filemenu():
           self.itemsinfo[directory+item]['title'] = item
           self.itemsinfo[directory+item]['filename'] = directory+item + '/'
           if not self.itemsinfo[directory+item].has_key('thumb'):
-            for extension in ['.png', '.jpg', '.jpeg', '.gif']:
+            for extension in ['.jpg', '.png', '.jpeg', '.gif']:
               if os.path.isfile(directory + item + 'folder'+extension) and os.access(directory + item + 'folder'+extension, os.R_OK):
                 self.itemsinfo[directory+item]['thumb'] = directory + item + 'folder'+extension
                 break
