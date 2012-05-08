@@ -722,7 +722,7 @@ class movieinfo():
     screen.blit(background, (0,0))
     pygame.display.update()
     if 'thumb' in self:
-      thumb = pygame.image.load(self['thumb'])
+      thumb = pygame.image.load(self['thumb']).convert()
       thumbrect = thumb.get_rect().fit(screen.get_rect())
       thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (thumbrect[2], thumbrect[3]))
       screen.blit(thumb, thumb.get_rect(center=(screen.get_width()/2,screen.get_height()/2)))
@@ -1345,7 +1345,7 @@ if windowed == False:
   screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN) # Create a new window.
 elif windowed == True:
   screen = pygame.display.set_mode((int(resolution.split('x')[0]),int(resolution.split('x')[1]))) # Create a new window.
-try: background = pygame.transform.scale(pygame.image.load('background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
+try: background = pygame.transform.scale(pygame.image.load(os.path.dirname(sys.argv[0])+'/background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
   background = pygame.Surface(screen.get_size()).convert() 
   background.fill((125,0,0))
