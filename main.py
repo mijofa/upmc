@@ -1365,9 +1365,7 @@ menu = textmenu(menuitems)
 
 if android:
   os.chdir('/sdcard/Movies')
-elif founddir == False:
-  os.chdir(os.getenv('HOME')+'/Videos/')
-else:
+elif not founddir == False:
   os.chdir(founddir)
 rootdir = os.getcwd()
 
