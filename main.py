@@ -680,7 +680,10 @@ class movieinfo():
       else:
         return 'Unknown'
   def __setitem__(self, item, newvalue):
-    self.config.read(self.iteminfo['info'])
+    if self.iteminfo.has_key('info'):
+      self.config.read(self.iteminfo['info'])
+    else:
+      self.iteminfo['info'] = '.'.join(self['filename'].split('.')[:-1])+'.info'
     if not self.config.has_section('local'):
       self.config.add_section('local')
     self.config.set('local', item, newvalue)
@@ -691,6 +694,8 @@ class movieinfo():
       configfile.flush()
       configfile.close()
   def __delitem__(self, item):
+    if not self.iteminfo.has_key('info'):
+      return
     self.config.read(self.iteminfo['info'])
     if not self.config.has_section('local'):
       self.config.add_section('local')
