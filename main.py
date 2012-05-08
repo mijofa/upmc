@@ -432,7 +432,7 @@ class filemenu():
     try: item = pygame.Rect(mousepos[0],mousepos[1],0,0).collidedict(self.clickables)[1]
     except TypeError: item = None
     if item:# and item != self.selected[1]:
-      self.select(self.items.index(item))
+      return self.select(self.items.index(item))
   def keyselect(self, direction):
     global screenupdates
     prevselected = None
@@ -528,6 +528,7 @@ class filemenu():
     screenupdates.append(titlepos)
     pygame.display.update(screenupdates)
     screenupdates = []
+    return itemnum
   def scroll(self, direction, distance = 1):
     if direction:
       self.rowoffset = self.rowoffset+distance
@@ -583,6 +584,11 @@ class filemenu():
         item = self.mouseselect(event.pos)
         while released != True:
           event = pygame.event.wait()
+          if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            if not item == None and self.mouseselect(event.pos) == item and not scrolled:
+              self.action(self.selected[1])
+            released = True
+            break
           if origpos[1] >= event.pos[1]+140:
             scrolled = True
             origpos = event.pos
@@ -591,10 +597,6 @@ class filemenu():
             scrolled = True
             origpos = event.pos
             self.scroll(0,1)
-          if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            if item and self.mouseselect(event.pos) == item and not scrolled:
-                self.action(self.selected[1])
-            released = True
       elif event.type == pygame.MOUSEBUTTONDOWN and (event.button == 4 or event.button == 5):
         self.scroll(event.button==5, 1)
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
@@ -1357,7 +1359,9 @@ def terminal():
 menuitems = [('Videos', filemenu), ('Terminal', terminal), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
 menu = textmenu(menuitems)
 
-if founddir == False:
+if android:
+  os.chdir('/sdcard/Movies')
+elif founddir == False:
   os.chdir(os.getenv('HOME')+'/Videos/')
 else:
   os.chdir(founddir)
