@@ -7,7 +7,7 @@ class sys:
   reload(sys).setdefaultencoding("utf8")
   del sys
 import urllib
-import imdb
+import imdb #Needs a newer version of imdbpy module, get it from http://imdbpy.sourceforge.net/development.html (imdbpy, not the other ones).
 import ConfigParser
 Config = ConfigParser.ConfigParser()
 
@@ -20,7 +20,12 @@ else:
   Config.add_section('IMDB')
   IMDB = imdb.IMDb('http')
   m = IMDB.search_movie('.'.join(sys.argv[1].split('/')[-1].split('.')[:-1]))
+  print '.'.join(sys.argv[1].split('/')[-1].split('.')[:-1]),  m
   movie = IMDB.get_movie(m[0].getID())
+  if sys.argv[2] == '-tv':
+    print movie.get('episodes')
+    raise Exception, "testing"
+  Config.set('IMDB', 'ID', m[0].getID())
   for key in movie.keys():
     item = movie[key]
     if type(item) == list:
