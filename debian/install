@@ -1,6 +1,7 @@
 background.png      /usr/share/upmc/
 main.py             /usr/share/upmc/
 network-remote.py   /usr/share/upmc/
+imdb                /usr/share/upmc/
 
 upmc.desktop        /usr/share/applications/
 
