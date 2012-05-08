@@ -1,0 +1,49 @@
+#!/usr/bin/python
+class os:
+  from os import path
+class sys:
+  from sys import argv
+  import sys
+  reload(sys).setdefaultencoding("utf8")
+  del sys
+import urllib
+import imdb
+import ConfigParser
+Config = ConfigParser.ConfigParser()
+
+print 'Processing', '.'.join(sys.argv[1].split('.')[:-1]),
+
+if os.path.isfile('.'.join(sys.argv[1].split('.')[:-1])+'.info'):
+  Config.read('.'.join(sys.argv[1].split('.')[:-1])+'.info')
+else:
+  print 'IMDB info,',
+  Config.add_section('IMDB')
+  IMDB = imdb.IMDb('http')
+  m = IMDB.search_movie('.'.join(sys.argv[1].split('/')[-1].split('.')[:-1]))
+  movie = IMDB.get_movie(m[0].getID())
+  for key in movie.keys():
+    item = movie[key]
+    if type(item) == list:
+      itemstring = ''
+      for listitem in item:
+  #     try:
+        if not listitem == '':
+          itemstring += str(listitem)+', '
+  #     except:
+  #       print type(listitem), dir(listitem), listitem.encode('utf8')
+  #       raise Exception, "Bye bye"
+      if not itemstring.rstrip(', ') == '':
+        Config.set('IMDB',key,itemstring.rstrip(', '))
+    elif not str(item) == '':
+      Config.set('IMDB',key,str(item))
+  infofile = open('.'.join(sys.argv[1].split('.')[:-1])+'.info','w')
+  Config.write(infofile)
+  infofile.flush()
+  infofile.close()
+
+print 'poster.'
+posterfile = open('.'.join(sys.argv[1].split('.')[:-1])+'.jpg', 'wb')
+postersock = urllib.urlopen(Config.get('IMDB', 'full-size cover url'))
+posterfile.write(postersock.read())
+posterfile.flush()
+posterfile.close()
