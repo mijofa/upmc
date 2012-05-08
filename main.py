@@ -949,8 +949,12 @@ class movieplayer():
   def skip(self, seconds):
     # Advance the movie playback time in seconds. This can be called before the movie is played to set the starting playback time. This can only skip the movie forward, not backwards. The argument is a floating point number.
     ### I've added being able to go backwards.
+    self.showosd(2, osdtype='time')
     if type(seconds) == float or type(seconds) == int:
-      mplayer.stdin.write('seek +%s\n' % seconds)
+      if seconds < 0:
+        mplayer.stdin.write('seek %s\n' % seconds)
+      else:
+        mplayer.stdin.write('seek +%s\n' % seconds)
     else:
       mplayer.stdin.write('seek %s\n' % seconds)
   def rewind(self, seconds=0):
@@ -1211,17 +1215,13 @@ class movieplayer():
           self.showosd(2, osdtype='time')
           self.pause()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
-          self.showosd(2, osdtype='time')
-          self.mplayer.stdin.write('seek +60\n')
+          self.skip(60)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
-          self.showosd(2, osdtype='time')
-          self.mplayer.stdin.write('seek -50\n')
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
-          self.showosd(2, osdtype='time')
-          self.mplayer.stdin.write('seek -20\n')
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
-          self.showosd(2, osdtype='time')
-          self.mplayer.stdin.write('seek +30\n')
+          self.skip(-50)
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
+          self.skip(-20)
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
+          self.skip(30)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
           self.showosd(2, osdtype='time')
           self.mplayer.stdin.write('osd\n')
