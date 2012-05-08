@@ -956,20 +956,20 @@ class movieplayer():
     self.showosd(2, osdtype='time')
     if type(seconds) == float or type(seconds) == int:
       if seconds < 0:
-        mplayer.stdin.write('seek %s\n' % seconds)
+        self.mplayer.stdin.write('seek %s\n' % seconds)
       else:
-        mplayer.stdin.write('seek +%s\n' % seconds)
+        self.mplayer.stdin.write('seek +%s\n' % seconds)
     else:
-      mplayer.stdin.write('seek %s\n' % seconds)
+      self.mplayer.stdin.write('seek %s\n' % seconds)
   def rewind(self, seconds=0):
     # Sets the movie playback position to the start of the movie. The movie will automatically begin playing even if it stopped.
     ### I've added being able to specify how far back to go
     if seconds == 0:
-      mplayer.stdin.write('seek 0\n')
+      self.mplayer.stdin.write('seek 0\n')
     elif type(seconds) == float or type(seconds) == int:
-      mplayer.stdin.write('seek -%s\n' % seconds)
+      self.mplayer.stdin.write('seek -%s\n' % seconds)
     else:
-      mplayer.stdin.write('seek %s\n' % seconds)
+      self.mplayer.stdin.write('seek %s\n' % seconds)
   def render_frame(self,frame_number):
     # This takes an integer frame number to render. It attempts to render the given frame from the movie to the target Surface. It returns the real frame number that got rendered.
     ### Might be worth implementing via 'jpeg' (or similar) video output driver, I can't be bothered with it for now.
