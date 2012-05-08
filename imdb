@@ -42,8 +42,10 @@ else:
   infofile.close()
 
 print 'poster.'
-posterfile = open('.'.join(sys.argv[1].split('.')[:-1])+'.jpg', 'wb')
 postersock = urllib.urlopen(Config.get('IMDB', 'full-size cover url'))
-posterfile.write(postersock.read())
-posterfile.flush()
-posterfile.close()
+posterdata = postersock.read()
+if not posterdata == None:
+  posterfile = open('.'.join(sys.argv[1].split('.')[:-1])+'.jpg', 'wb')
+  posterfile.write(posterdata)
+  posterfile.flush()
+  posterfile.close()
