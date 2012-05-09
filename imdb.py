@@ -105,7 +105,7 @@ else:
         try: movie = IMDB.get_movie(show['episodes'][seasonnum][episodenum].getID())
         except KeyError: raise KeyError, imdb.__file__+': unable to find episode S%02dE%02d' % (seasonnum,episodenum)
       if not Config.has_section('local'): Config.add_section('local')
-      Config.set('local', 'title', ' - '.join([showname, 'S%02dE%02d'%(seasonnum,episodenum), movie['title']]))
+      if not Config.get_option('local', 'title'): Config.set('local', 'title', ' - '.join([showname, 'S%02dE%02d'%(seasonnum,episodenum), movie['title']]))
   else:
     search = IMDB.search_movie(title)
     movie = IMDB.get_movie(search[0].getID())
