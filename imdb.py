@@ -47,11 +47,11 @@ else:
   IMDBid = 0
   if os.path.isfile(path+'/'+title+'.info'):
     Config.read(path+'/'+title+'.info')
-    if Config.has_section('IMDB') and Config.has_option('IMDB', 'id'):
+    if Config.has_section('local') and Config.has_option('local', 'imdb id'):
+      IMDBid = Config.getint('local', 'imdb id')
+    elif Config.has_section('IMDB') and Config.has_option('IMDB', 'id'):
       IMDBid = Config.getint('IMDB', 'id')
-    for section in Config.sections():
-      if not section == 'local':
-        Config.remove_section(section)
+    if Config.has_section('IMDB'): Config.remove_section(section)
   Config.add_section('IMDB')
   IMDB = imdb.IMDb('http')
   if not IMDBid == 0:
@@ -87,7 +87,7 @@ else:
       raise Exception, 'Unable to determine TV show name.'
     else:
       if path.split('/')[-1].lstrip('S').isdigit() or (path.split('/')[-1].startswith('Season ') and ' '.join(path.split('/')[-1].split(' ')[1:]).isdigit()):
-        showrootpath = path.split('/')[-1]
+        showrootpath = '/'.join(path.split('/')[:-1])
       else:
         showrootpath = path
       if os.path.isfile(showrootpath+'/'+'.IMDBid.txt'):
