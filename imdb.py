@@ -51,7 +51,7 @@ else:
       IMDBid = Config.getint('local', 'imdb id')
     elif Config.has_section('IMDB') and Config.has_option('IMDB', 'id'):
       IMDBid = Config.getint('IMDB', 'id')
-    if Config.has_section('IMDB'): Config.remove_section(section)
+    if Config.has_section('IMDB'): Config.remove_section('IMDB')
   Config.add_section('IMDB')
   IMDB = imdb.IMDb('http')
   if not IMDBid == 0:
