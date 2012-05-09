@@ -641,45 +641,60 @@ class movieinfo():
   def __getitem__(self, item):
     if item.startswith('int:'):
       item = item[len('int:'):]
-      if self.iteminfo.has_key(item):
-        return int(self.iteminfo[item])
-      elif self.config.has_section('local') and self.config.has_option('local', item):
+      if self.config.has_section('local') and self.config.has_option('local', item):
         return self.config.getint('local', item)
+      elif self.iteminfo.has_key(item):
+        return int(self.iteminfo[item])
       elif self.config.has_section('IMDB') and self.config.has_option('IMDB', item):
         return self.config.getint('IMDB', item)
       else:
         return 0
     elif item.startswith('float:'):
       item = item[len('float:'):]
-      if self.iteminfo.has_key(item):
-        return float(self.iteminfo[item])
-      elif self.config.has_section('local') and self.config.has_option('local', item):
+      if self.config.has_section('local') and self.config.has_option('local', item):
         return self.config.getfloat('local', item)
+      elif self.iteminfo.has_key(item):
+        return float(self.iteminfo[item])
       elif self.config.has_section('IMDB') and self.config.has_option('IMDB', item):
         return self.config.getfloat('IMDB', item)
       else:
         return 0.0
     elif item.startswith('boolean:'):
       item = item[len('boolean:'):]
-      if self.iteminfo.has_key(item):
-        return boolean(self.iteminfo[item])
-      elif self.config.has_section('local') and self.config.has_option('local', item):
+      if self.config.has_section('local') and self.config.has_option('local', item):
         return self.config.getboolean('local', item)
+      elif self.iteminfo.has_key(item):
+        return boolean(self.iteminfo[item])
       elif self.config.has_section('IMDB') and self.config.has_option('IMDB', item):
         return self.config.getboolean('IMDB', item)
       else:
         return False
+    if item.startswith('list:'):
+      item = item[len('list:'):]
+      if self.config.has_section('local') and self.config.has_option('local', item):
+        return self.config.get('local', item).split(' | ')
+      elif self.iteminfo.has_key(item):
+        if type(self.iteminfo[item]) == str:
+          return self.iteminfo[item].split(' | ')
+        else:
+          return list(self.iteminfo[item])
+      elif self.config.has_section('IMDB') and self.config.has_option('IMDB', item):
+        return self.config.get('IMDB', item).split(' | ')
+      else:
+        return ['Unknown']
     else:
       if item.startswith('str:'): item = item[len('str:'):]
-      if self.iteminfo.has_key(item):
-        return self.iteminfo[item]
-      elif self.config.has_section('local') and self.config.has_option('local', item):
+      if self.config.has_section('local') and self.config.has_option('local', item):
         return self.config.get('local', item)
+      elif self.iteminfo.has_key(item):
+        return self.iteminfo[item]
       elif self.config.has_section('IMDB') and self.config.has_option('IMDB', item):
         return self.config.get('IMDB', item)
       else:
         return 'Unknown'
   def __setitem__(self, item, newvalue):
+    if type(newvalue) == list:
+      newvalue = ' | '.join(newvalue)
     if self.iteminfo.has_key('info'):
       self.config.read(self.iteminfo['info'])
     else:
@@ -707,9 +722,9 @@ class movieinfo():
       configfile.flush()
       configfile.close()
   def __contains__(self, item):
-    if self.iteminfo.has_key(item):
+    if self.config.has_section('local') and self.config.has_option('local', item):
       return True
-    elif self.config.has_section('local') and self.config.has_option('local', item):
+    elif self.iteminfo.has_key(item):
       return True
     elif self.config.has_section('IMDB') and self.config.has_option('IMDB', item):
       return True
@@ -743,15 +758,22 @@ class movieinfo():
     miscsurf = infosurf.subsurface(infosurf.get_rect(top=(infosurf.get_height()-(self.font.get_height()/2))-(self.font.get_height()*2), height=self.font.get_height()*2))
     miscsurf.fill((0,0,0,100), (0,0,miscsurf.get_width(),self.font.get_height()))
     miscsurf.fill((0,0,0,200), (0,self.font.get_height(),miscsurf.get_width(),self.font.get_height()))
-    render_textrect('Runtime\n%s minutes' % self['str:runtimes'], self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 0)
+    render_textrect('Runtime\n%d minutes' % self['int:runtimes'], self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 0)
     render_textrect('Year\n%d' % self['int:year'], self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 1)
     render_textrect('User rating\n%2.1f' % self['float:rating'], self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 2)
     plotsurf = infosurf.subsurface(infosurf.get_rect(height=infosurf.get_height()-(self.font.get_height()*5), top=self.font.get_height()*2))
     plotsurf.fill((0,0,0,150))
     plots = ''
-    for plot in self['str:plot'].split('\0'):
-      if not plot == '':
-        plots += 'Plot written by '+plot.split('::')[-1]+':\n      '+'::'.join(plot.split('::')[0:-1])+'\n\n'
+    for plot in self['list:plot']:
+      if not plot == '' and not plot == 'Unknown':
+        if '::' in plot:
+          author = plot.split('::')[-1]
+          plot = '::'.join(plot.split('::')[0:-1])
+        else:
+          author = 'Anonymous'
+        plots += 'Plot written by '+author+':\n      '+plot+'\n\n'
+    if plots == '':
+      plots = 'None'
     render_textrect(plots, self.font, plotsurf.get_rect(), (255,255,255), plotsurf, 0)
     ##FINDME###
 #    infosurf.fill((0,0,0,150))
