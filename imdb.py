@@ -88,6 +88,8 @@ else:
     else:
       if path.split('/')[-1].lstrip('S').isdigit() or (path.split('/')[-1].startswith('Season ') and ' '.join(path.split('/')[-1].split(' ')[1:]).isdigit()):
         showrootpath = path.split('/')[-1]
+      else:
+        showrootpath = path
       if os.path.isfile(showrootpath+'/'+'.IMDBid.txt'):
         show = IMDB.get_movie(int(open(showrootpath+'/'+'.IMDBid.txt', 'r').readline()))
       else:
@@ -95,7 +97,7 @@ else:
         for result in search:
           if result['kind'] == 'tv series':
             show = IMDB.get_movie(result.getID())
-            open(showrootpath+'/'+'.IMDBid.txt', 'w').writeline(str(result.getID()))
+            open(showrootpath+'/'+'.IMDBid.txt', 'w').write(str(result.getID()+'\n'))
             break
       IMDB.update(show, 'episodes')
       if seasonnum == None:
@@ -105,7 +107,7 @@ else:
         try: movie = IMDB.get_movie(show['episodes'][seasonnum][episodenum].getID())
         except KeyError: raise KeyError, imdb.__file__+': unable to find episode S%02dE%02d' % (seasonnum,episodenum)
       if not Config.has_section('local'): Config.add_section('local')
-      if not Config.get_option('local', 'title'): Config.set('local', 'title', ' - '.join([showname, 'S%02dE%02d'%(seasonnum,episodenum), movie['title']]))
+      if not Config.has_option('local', 'title'): Config.set('local', 'title', ' - '.join([showname, 'S%02dE%02d'%(seasonnum,episodenum), movie['title']]))
   else:
     search = IMDB.search_movie(title)
     movie = IMDB.get_movie(search[0].getID())
