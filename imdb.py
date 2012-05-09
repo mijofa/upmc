@@ -29,6 +29,8 @@ while n < len(sys.argv):
 
 title = '.'.join(sys.argv[1].split('/')[-1].split('.')[:-1])
 path = os.path.dirname(sys.argv[1])
+if path == '':
+  path = '.'
 
 sys.stdout.write('Processing '+path+'/'+title+', ')
 sys.stdout.flush()
