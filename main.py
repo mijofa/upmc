@@ -672,24 +672,24 @@ class movieinfo():
     if item.startswith('list:'):
       item = item[len('list:'):]
       if self.config.has_section('local') and self.config.has_option('local', item):
-        return self.config.get('local', item).split(' | ')
+        return self.config.get('local', item).rstrip(' | ').split(' | ')
       elif self.iteminfo.has_key(item):
         if type(self.iteminfo[item]) == str:
-          return self.iteminfo[item].split(' | ')
+          return self.iteminfo[item].rstrip(' | ').split(' | ')
         else:
           return list(self.iteminfo[item])
       elif self.config.has_section('IMDB') and self.config.has_option('IMDB', item):
-        return self.config.get('IMDB', item).split(' | ')
+        return self.config.get('IMDB', item).rstrip(' | ').split(' | ')
       else:
         return ['Unknown']
     else:
       if item.startswith('str:'): item = item[len('str:'):]
       if self.config.has_section('local') and self.config.has_option('local', item):
-        return self.config.get('local', item)
+        return self.config.get('local', item).rstrip(' | ')
       elif self.iteminfo.has_key(item):
         return self.iteminfo[item]
       elif self.config.has_section('IMDB') and self.config.has_option('IMDB', item):
-        return self.config.get('IMDB', item)
+        return self.config.get('IMDB', item).rstrip(' | ')
       else:
         return 'Unknown'
   def __setitem__(self, item, newvalue):
@@ -758,7 +758,19 @@ class movieinfo():
     miscsurf = infosurf.subsurface(infosurf.get_rect(top=(infosurf.get_height()-(self.font.get_height()/2))-(self.font.get_height()*2), height=self.font.get_height()*2))
     miscsurf.fill((0,0,0,100), (0,0,miscsurf.get_width(),self.font.get_height()))
     miscsurf.fill((0,0,0,200), (0,self.font.get_height(),miscsurf.get_width(),self.font.get_height()))
-    render_textrect('Runtime\n%d minutes' % self['int:runtimes'], self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 0)
+    runtime = self['list:runtimes']
+    if runtime == ['Unknown']:
+      runtime = 0
+    elif runtime[0].isdigit():
+      runtime = int(runtime[0])
+    else:
+      if self['list:runtimes'][0].split(':')[0].strip(' ').isdigit():
+        runtime = int(self['list:runtimes'][0].split(':')[0].strip(' '))
+      elif self['list:runtimes'][0].split(':')[1].strip(' ').isdigit():
+        runtime = int(self['list:runtimes'][0].split(':')[1].strip(' '))
+      else:
+        runtime = ', '.join(runtime)
+    render_textrect('Runtime\n%s minutes' % runtime, self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 0)
     render_textrect('Year\n%d' % self['int:year'], self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 1)
     render_textrect('User rating\n%2.1f' % self['float:rating'], self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 2)
     plotsurf = infosurf.subsurface(infosurf.get_rect(height=infosurf.get_height()-(self.font.get_height()*5), top=self.font.get_height()*2))
