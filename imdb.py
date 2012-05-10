@@ -37,21 +37,21 @@ if path == '':
 sys.stdout.write('Processing '+path+'/'+title+', ')
 sys.stdout.flush()
 
-if noforceimdb == True and os.path.isfile(path+'/'+title+'.info'):
+if os.path.isfile(path+'/'+title+'.info'):
+  Config.read(path+'/'+title+'.info')
+
+if noforceimdb == True and (Config.has_section('IMDB') and not Config.options('IMDB') == ['id']):
   sys.stdout.write("'.info' file already exists, ")
   sys.stdout.flush()
-  Config.read(path+'/'+title+'.info')
 else:
   sys.stdout.write('IMDB info, ')
   sys.stdout.flush()
   IMDBid = 0
-  if os.path.isfile(path+'/'+title+'.info'):
-    Config.read(path+'/'+title+'.info')
-    if Config.has_section('local') and Config.has_option('local', 'imdb id'):
-      IMDBid = Config.getint('local', 'imdb id')
-    elif Config.has_section('IMDB') and Config.has_option('IMDB', 'id'):
-      IMDBid = Config.getint('IMDB', 'id')
-    if Config.has_section('IMDB'): Config.remove_section('IMDB')
+  if Config.has_section('local') and Config.has_option('local', 'imdb id'):
+    IMDBid = Config.getint('local', 'imdb id')
+  elif Config.has_section('IMDB') and Config.has_option('IMDB', 'id'):
+    IMDBid = Config.getint('IMDB', 'id')
+  if Config.has_section('IMDB'): Config.remove_section('IMDB')
   Config.add_section('IMDB')
   IMDB = imdb.IMDb('http')
   if not IMDBid == 0:
@@ -140,11 +140,14 @@ if (forceposter == True or not os.path.isfile(path+'/'+title+'.jpg')) and Config
     posterfile.flush()
     posterfile.close()
 else:
-  if os.path.isfile(path+'/'+title+'.jpg'):
+  if not Config.has_option('IMDB', 'full-size cover url'):
+    sys.stdout.write('IMDB has no full-size cover URL.')
+    sys.stdout.flush()
+  elif os.path.isfile(path+'/'+title+'.jpg'):
     sys.stdout.write('poster already done.')
     sys.stdout.flush()
   else:
-    sys.stdout.write('IMDB has no full-size cover URL.')
+    sys.stdout.write('unknown issue with grabbing poster.')
     sys.stdout.flush()
 
 sys.stdout.write('\n')
