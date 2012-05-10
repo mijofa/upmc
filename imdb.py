@@ -37,8 +37,8 @@ if path == '':
 sys.stdout.write('Processing '+path+'/'+title+', ')
 sys.stdout.flush()
 
-if noforceimdb == True and os.path.isfile(path+title+'.info'):
-  sys.stdout.write('.info file already exists, ')
+if noforceimdb == True and os.path.isfile(path+'/'+title+'.info'):
+  sys.stdout.write("'.info' file already exists, ")
   sys.stdout.flush()
   Config.read(path+'/'+title+'.info')
 else:
@@ -131,7 +131,8 @@ else:
 if (forceposter == True or not os.path.isfile(path+'/'+title+'.jpg')) and Config.has_option('IMDB', 'full-size cover url'):
   sys.stdout.write('poster.')
   sys.stdout.flush()
-  postersock = urllib.urlopen(Config.get('IMDB', 'full-size cover url'))
+  posterurl = '.'.join(Config.get('IMDB', 'full-size cover url').split('.')[:-1])+'._V1_SX560_SY420.jpg'
+  postersock = urllib.urlopen(posterurl)
   posterdata = postersock.read()
   if not posterdata == None:
     posterfile = open(path+'/'+title+'.jpg', 'wb')
