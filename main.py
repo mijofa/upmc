@@ -244,34 +244,11 @@ class filemenu():
     self.builditems()
     self.render()
     self.loop()
-  def find(self, directory = cwd, filetype = ''):
-    dirs = []
-    files = []
-    if filetype == '' or filetype == 'all':
-      for f in os.listdir(directory):
-        if os.access(directory+f, os.R_OK):
-          if os.path.isdir(directory+f):
-            dirs.append(f + '/')
-          else:
-            files.append(f)
-      dirs.sort()
-      files.sort()
-      if filetype == 'all':
-        return dirs, files
-      else:
-        return dirs + files
-    elif filetype == 'directory' or filetype == 'dir' or filetype == 'd':
-      for f in os.listdir(directory):
-        if os.path.isdir(directory+f) and os.access(directory+f, os.R_OK):
-          dirs.append(f + '/')
-      dirs.sort()
-      return dirs
-    elif filetype == 'file' or filetype == 'f':
-      for f in os.listdir(directory):
-        if os.path.isfile(directory+f) and os.access(directory+f, os.R_OK):
-          files.append(f)
-      files.sort()
-      return files
+  def customsortkey(self, item):
+    if item.lower().startswith('the '):
+      return item[4:]
+    else:
+      return item
   def builditems(self, directory = './'):
     self.items = []
     if not directory == rootdir and not (directory == './' and os.getcwd() == rootdir):
@@ -287,8 +264,8 @@ class filemenu():
           directories.append(item + '/')
         else:
           files.append(item)
-    directories.sort()
-    files.sort()
+    directories.sort(key=self.customsortkey)
+    files.sort(key=self.customsortkey)
     for item in directories:
       if not directory+item in self.items:
         self.items.append(directory+item)
