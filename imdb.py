@@ -99,6 +99,21 @@ else:
             show = IMDB.get_movie(result.getID())
             open(showrootpath+'/'+'.IMDBid.txt', 'w').write(str(result.getID()+'\n'))
             break
+      grabshowposter = True
+      for extension in ['.jpg', '.png', '.jpeg', '.gif']:
+        if (os.path.isfile(showrootpath+'/'+'folder'+extension) or os.path.isfile(showrootpath+'/'+'folder'+extension.upper())) or (os.path.isfile(showrootpath+'/'+'.folder'+extension) or os.path.isfile(showrootpath+'/'+'.folder'+extension.upper())):
+          grabshowposter = False
+          break
+      if grabshowposter == True:
+        if show.has_key('full-size cover url'):
+          showposterurl = '.'.join(show['full-size cover url'].split('.')[:-1])+'._V1_SX560_SY420.jpg'
+          showpostersock = urllib.urlopen(showposterurl)
+          showposterdata = showpostersock.read()
+          if not showposterdata == None:
+            showposterfile = open(showrootpath+'/'+'.folder.jpg', 'wb')
+            showposterfile.write(showposterdata)
+            showposterfile.flush()
+            showposterfile.close
       IMDB.update(show, 'episodes')
       if seasonnum == None:
         try: movie = IMDB.get_movie(show['episodes'][episodenum].getID())
