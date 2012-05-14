@@ -4,6 +4,8 @@ class sys:
   from sys import argv
 import time
 import socket
+class string:
+  from string import digits
 import threading
 import subprocess
 import ConfigParser
@@ -245,10 +247,20 @@ class filemenu():
     self.render()
     self.loop()
   def customsortkey(self, item):
-    if item.lower().startswith('the '):
-      return item[4:]
-    else:
-      return item
+    newitem = item
+    itemHasDigit = False
+    for num in string.digits:
+      if num in newitem:
+        itemHasDigit = True
+        break
+    if not itemHasDigit:
+      if ' - ' in newitem:
+        newitem = newitem.replace(' - ', ' 1 - ')
+      else:
+        newitem = ' 1.'.join(newitem.rsplit('.', 1))
+    if newitem.lower().startswith('the '):
+      newitem = newitem[4:]
+    return newitem
   def builditems(self, directory = './'):
     self.items = []
     if not directory == rootdir and not (directory == './' and os.getcwd() == rootdir):
