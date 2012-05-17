@@ -953,14 +953,24 @@ class movieplayer():
         args += ['-volume', starttime.split(';')[1]]
         starttime = starttime.split(';')[0]
       args += ['-ss', starttime]
-      os.remove(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save')
+      try: os.remove(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save')
+      except OSError, (Errno, Errmsg):
+        if Errno == 30:
+          pass # Read-only, nothing I can do about it.
+        else:
+          raise OSError((Errno, Errmsg))
     elif os.path.isfile(os.path.dirname(self.filename)+'/'+self.filename+'-'+os.uname()[1]+'.save'):
       starttime = open(os.path.dirname(self.filename)+'/'+self.filename+'-'+os.uname()[1]+'.save', 'r').readline().strip('\n')
       if ';' in starttime:
         args += ['-volume', starttime.split(';')[1]]
         starttime = starttime.split(';')[0]
       args += ['-ss', starttime]
-      os.remove(os.path.dirname(self.filename)+'/'+self.filename+'-'+os.uname()[1]+'.save')
+      try: os.remove(os.path.dirname(self.filename)+'/'+self.filename+'-'+os.uname()[1]+'.save')
+      except OSError, (Errno, Errmsg):
+        if Errno == 30:
+          pass # Read-only, nothing I can do about it.
+        else:
+          raise OSError((Errno, Errmsg))
     self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
     if self.mplayer.poll() != None:
       raise Exception(mplayer.stdout.read())
@@ -1270,8 +1280,15 @@ class movieplayer():
           save_hrs = int(save_pos/60.0/60.0)
           save_mins = int((save_pos-(save_hrs*60*60))/60)
           save_secs = int(save_pos-((save_hrs*60*60)+(save_mins*60)))
-          open(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'w').write('%s;%s\n# This line and everything below is ignored, it is only here so that you don\'t need to understand ^ that syntax.\nTime: %02d:%02d:%02d\nVolume: %d%%\n' % (save_pos, self.volume, save_hrs, save_mins, save_secs, self.volume))
-          self.mplayer.stdin.write('osd_show_text "Saved position: %02d:%02d:%02d"\n' % (save_hrs, save_mins, save_secs))
+          try: open(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'w').write('%s;%s\n# This line and everything below is ignored, it is only here so that you don\'t need to understand ^ that syntax.\nTime: %02d:%02d:%02d\nVolume: %d%%\n' % (save_pos, self.volume, save_hrs, save_mins, save_secs, self.volume))
+          except IOError, (Errno, Errmsg):
+            if Errno == 13:
+              pass # Permission denied
+              self.mplayer.stdin.write('osd_show_text "Unable to save, permission denied."\n')
+            else:
+              raise OSError((Errno, Errmsg))
+          else:
+            self.mplayer.stdin.write('osd_show_text "Saved position: %02d:%02d:%02d"\n' % (save_hrs, save_mins, save_secs))
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_9:
           self.showosd(2, osdtype='volume')
           self.set_volume('-0.02')
