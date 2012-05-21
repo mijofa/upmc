@@ -1389,6 +1389,7 @@ if len(sys.argv) > 1:
 
 
 if windowed == False:
+  pygame.mouse.set_visible(True)
   screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN) # Create a new window.
 elif windowed == True:
   screen = pygame.display.set_mode((int(resolution.split('x')[0]),int(resolution.split('x')[1]))) # Create a new window.
