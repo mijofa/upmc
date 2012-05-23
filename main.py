@@ -1226,14 +1226,16 @@ class movieplayer():
     try:
       self.mplayer.stdin.write('quit\n')
       self.mplayer.stdin.close()
-    except:
-      try: self.mplayer.kill()
-      except OSError: pass
+    except: pass
     try:
       os.close(self.bmovl)
       os.unlink('/tmp/bmovl-%s-%s' % (os.geteuid(), os.getpid()))
     except: pass
     if self.mplayer.poll() != None:
+      try:
+        self.mplayer.terminate()
+        self.mplayer.kill()
+      except OSError: pass
       response = self.mplayer.wait()
     else:
       response = self.mplayer.poll()
