@@ -181,7 +181,7 @@ class textmenu():
         screenupdates.append(self.selected[2])
       self.selected = self.realmenuitems[item[1]]
       surf = pygame.Surface(self.selected[2][2:4], pygame.SRCALPHA)
-      surf.fill((0,0,0,50))
+      surf.fill((0,0,0,75))
       screen.blit(surf, self.selected[2])
       screen.blit(self.selected[0], self.selected[2])
       screenupdates.append(self.selected[2])
@@ -213,7 +213,7 @@ class textmenu():
         try: self.selected = self.realmenuitems[self.realmenuitems.index(self.selected)+1]
         except IndexError: self.selected = self.realmenuitems[0]
     surf = pygame.Surface(self.selected[2][2:4], pygame.SRCALPHA)
-    surf.fill((0,0,0,50))
+    surf.fill((0,0,0,75))
     screen.blit(surf, self.selected[2])
     screen.blit(self.selected[0], self.selected[2])
     screenupdates.append(self.selected[2])
