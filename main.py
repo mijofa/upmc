@@ -1358,15 +1358,6 @@ netthread = threading.Thread(target=networkhandler, name='networkhandler')
 netthread.setDaemon(True)
 netthread.start()
 
-global windowed
-if len(sys.argv) > 1 and ('--windowed' in sys.argv or '-w' in sys.argv):
-  try: resolution = sys.argv[sys.argv.index('--windowed')+1]
-  except ValueError: resolution = sys.argv[sys.argv.index('-w')+1]
-  windowed = True
-else:
-  windowed = False
-  resolution = '0x0'
-
 ## Pygame on Android doesn't handle system fonts properly, and since I would rather use the system things whereever possible I have told this to treat Android differently.
 ### This could be done better, possible pack a font with the program?
 global fontname
@@ -1390,10 +1381,18 @@ if len(sys.argv) > 1:
     quit()
 
 
-if windowed == False:
+global windowed
+if len(sys.argv) > 1 and ('--windowed' in sys.argv or '-w' in sys.argv):
+  try: resolution = sys.argv[sys.argv.index('--windowed')+1]
+  except ValueError: resolution = sys.argv[sys.argv.index('-w')+1]
+  if resolution == '0x0':
+    windowed = False
+  else:
+    windowed = True
   screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN) # Create a new window.
-elif windowed == True:
-  screen = pygame.display.set_mode((int(resolution.split('x')[0]),int(resolution.split('x')[1]))) # Create a new window.
+else:
+  windowed = False
+  screen = pygame.display.set_mode((0,0)) # Create a new window.
 try: background = pygame.transform.scale(pygame.image.load(os.path.dirname(sys.argv[0])+'/background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
   background = pygame.Surface(screen.get_size()).convert() 
