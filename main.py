@@ -1389,10 +1389,10 @@ if len(sys.argv) > 1 and ('--windowed' in sys.argv or '-w' in sys.argv):
     windowed = False
   else:
     windowed = True
-  screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN) # Create a new window.
+  screen = pygame.display.set_mode((0,0)) # Create a new window.
 else:
   windowed = False
-  screen = pygame.display.set_mode((0,0)) # Create a new window.
+  screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN) # Create a new window.
 try: background = pygame.transform.scale(pygame.image.load(os.path.dirname(sys.argv[0])+'/background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
   background = pygame.Surface(screen.get_size()).convert() 
