@@ -300,8 +300,7 @@ class filemenu():
           item = item[0]
         else:
           item = item[2]
-        fextension = '.'+filename.rsplit('.')[-1]
-        try: ftype = mimetypes.types_map[fextension].split('/')[0]
+        try: ftype = mimetypes.guess_type(filename)
         except KeyError: ftype = 'Unknown'
         if ftype == 'video':
           self.items.append(directory+item)
@@ -315,7 +314,7 @@ class filemenu():
           if not self.itemsinfo.has_key(directory+item):
             self.itemsinfo[directory+item] = {}
           self.itemsinfo[directory+item]['thumb'] = directory+filename
-        elif fextension == '.info':
+        elif filename[-5:] == '.info':
           if not self.itemsinfo.has_key(directory+item):
             self.itemsinfo[directory+item] = {}
           self.itemsinfo[directory+item]['info'] = directory+filename
