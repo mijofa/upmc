@@ -300,8 +300,8 @@ class filemenu():
           item = item[0]
         else:
           item = item[2]
-        try: ftype = mimetypes.guess_type(filename).split('/')[0]
-        except KeyError: ftype = 'Unknown'
+        try: ftype = mimetypes.guess_type(filename)[0].split('/')[0]
+        except AttributeError: ftype = 'Unknown'
         if ftype == 'video':
           self.items.append(directory+item)
           if not self.itemsinfo.has_key(directory+item):
@@ -933,7 +933,7 @@ class movieplayer():
 #    self.screenbkup = screen.copy()
 #    screen.blit(surf, (0,0))
 #    pygame.display.update()
-    args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','identify=5:global=4:input=5:cplayer=5:vfilter=5:statusline=0','-slave','-identify','-stop-xscreensaver', '-volume', '75']
+    args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','identify=5:global=4:input=5:cplayer=5:vfilter=5:statusline=0','-slave','-identify','-stop-xscreensaver','-volume','75','-idx']
     if len(sys.argv) > 1 and sys.argv[1] == '--no-sound': args += ['-ao', 'null']
     if windowed == False: args += ['-fs']
     if loops == 0:
@@ -1368,6 +1368,17 @@ if android:
 else:
   fontname = pygame.font.match_font(u'trebuchetms') # Might want to use a non-MS font.
 
+global windowed
+if len(sys.argv) > 1 and ('--windowed' in sys.argv or '-w' in sys.argv):
+  try: resolution = sys.argv[sys.argv.index('--windowed')+1]
+  except ValueError: resolution = sys.argv[sys.argv.index('-w')+1]
+  if resolution == '0x0':
+    windowed = False
+  else:
+    windowed = True
+else:
+  windowed = False
+
 foundfile = False
 founddir = False
 if len(sys.argv) > 1:
@@ -1383,17 +1394,9 @@ if len(sys.argv) > 1:
     quit()
 
 
-global windowed
-if len(sys.argv) > 1 and ('--windowed' in sys.argv or '-w' in sys.argv):
-  try: resolution = sys.argv[sys.argv.index('--windowed')+1]
-  except ValueError: resolution = sys.argv[sys.argv.index('-w')+1]
-  if resolution == '0x0':
-    windowed = False
-  else:
-    windowed = True
+if windowed == False or resolution == "0x0":
   screen = pygame.display.set_mode((0,0)) # Create a new window.
 else:
-  windowed = False
   screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN) # Create a new window.
 try: background = pygame.transform.scale(pygame.image.load(os.path.dirname(sys.argv[0])+'/background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
