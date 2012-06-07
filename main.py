@@ -1297,6 +1297,9 @@ class movieplayer():
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_0:
           self.showosd(2, osdtype='volume')
           self.set_volume('+0.02')
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
+          if self.get_busy():
+            self.pause()
     self.stop()
     for thread in self.threads.keys(): self.threads[thread].isAlive() # It seems as though if I don't interact with these processes Python gets confused and waits for them to finish even though they are already finished, simply checking all processes '.isAlive()' gets around this.
 ##### End class movieplayer()
