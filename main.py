@@ -300,7 +300,7 @@ class filemenu():
           item = item[0]
         else:
           item = item[2]
-        try: ftype = mimetypes.guess_type(filename)
+        try: ftype = mimetypes.guess_type(filename).split('/')[0]
         except KeyError: ftype = 'Unknown'
         if ftype == 'video':
           self.items.append(directory+item)
