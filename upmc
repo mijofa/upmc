@@ -1,2 +1,2 @@
 #!/bin/sh
-python2 /usr/share/upmc/main.py "$@"
+python /usr/share/upmc/main.py "$@"
