@@ -978,7 +978,7 @@ class movieplayer():
     thread = threading.Thread(target=self.procoutput, name='stdout')
     self.threads.update({thread.name: thread})
     thread.start()
-    while self.paused == None: pass
+#    while self.paused == None: pass
     threading.Thread(target=self.showosd, args=[5, 'time', True], name='showosd').start()
     return self.mplayer
   def pause(self):
