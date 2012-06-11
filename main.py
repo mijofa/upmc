@@ -242,7 +242,7 @@ class filemenu():
   cwd = './'
   rowoffset = 0
   def __init__(self):
-    self.font = pygame.font.Font(fontname, 18)
+    self.font = pygame.font.Font(fontname, 30)
     self.builditems()
     self.render()
     self.loop()
@@ -718,7 +718,7 @@ class movieinfo():
       return False
   def __init__(self, iteminfo):
     global fontname
-    self.font = pygame.font.Font(fontname, 18)
+    self.font = pygame.font.Font(fontname, 30)
     self.iteminfo = iteminfo
     self.config = ConfigParser.ConfigParser()
     if self.iteminfo.has_key('info'):
@@ -729,7 +729,7 @@ class movieinfo():
     pygame.display.update()
     if 'thumb' in self:
       thumb = pygame.image.load(self['thumb']).convert()
-      thumbrect = thumb.get_rect().fit(screen.get_rect())
+      thumbrect = thumb.get_rect().fit(screen.get_rect(width=(screen.get_width()/100)*95, height=(screen.get_height()/100)*95, center=(screen.get_width()/2, screen.get_height()/2)))
       thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (thumbrect[2], thumbrect[3]))
       screen.blit(thumb, thumb.get_rect(center=(screen.get_width()/2,screen.get_height()/2)))
     title = self.font.render(self['title'], 1, (255,255,255))
@@ -1368,6 +1368,7 @@ if android:
 else:
   fontname = pygame.font.match_font(u'trebuchetms') # Might want to use a non-MS font.
 
+resolution = None
 global windowed
 if len(sys.argv) > 1 and ('--windowed' in sys.argv or '-w' in sys.argv):
   try: resolution = sys.argv[sys.argv.index('--windowed')+1]
@@ -1394,10 +1395,10 @@ if len(sys.argv) > 1:
     quit()
 
 
-if windowed == False or resolution == "0x0":
-  screen = pygame.display.set_mode((0,0)) # Create a new window.
-else:
+if windowed == False and resolution == None:
   screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN) # Create a new window.
+else:
+  screen = pygame.display.set_mode((int(resolution.split('x')[0]),int(resolution.split('x')[1]))) # Create a new window.
 try: background = pygame.transform.scale(pygame.image.load(os.path.dirname(sys.argv[0])+'/background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
 except: # Failing that (no background image?) just create a completely blue background.
   background = pygame.Surface(screen.get_size()).convert() 
