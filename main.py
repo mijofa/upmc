@@ -923,7 +923,7 @@ class movieplayer():
           else: self.mplayer.stdin.write('osd_show_text "Subtitles disabled"\n')
       elif response.startswith('vf_bmovl: '):
         response = response[len('vf_bmovl: '):]
-        if response.startswith('Opened fifo '):
+        if response.startswith('Opened fifo ') and self.bmovl == None:
           response = response[len('Opened fifo '):]
           self.bmovl = os.open(response[:response.rindex(' as FD ')], os.O_WRONLY)
       response = ''
@@ -933,7 +933,7 @@ class movieplayer():
 #    self.screenbkup = screen.copy()
 #    screen.blit(surf, (0,0))
 #    pygame.display.update()
-    args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','identify=5:global=4:input=5:cplayer=5:vfilter=5:statusline=0','-slave','-identify','-stop-xscreensaver','-volume','75','-idx']
+    args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','identify=5:global=4:input=5:cplayer=5:statusline=0','-slave','-identify','-stop-xscreensaver','-volume','75','-idx']
     if len(sys.argv) > 1 and sys.argv[1] == '--no-sound': args += ['-ao', 'null']
     if windowed == False: args += ['-fs']
     if loops == 0:
@@ -942,10 +942,12 @@ class movieplayer():
       loops = 0
     if loops != None:
       args += ['-loop', str(loops)]
-    if osd:
+    if osd and not (self.filename.endswith('.mpg') or self.filename.endswith('.mpeg') or self.filename.endswith('.MPG') or self.filename.endswith('.MPEG')):
       bmovlfile = '/tmp/bmovl-%s-%s' % (os.geteuid(), os.getpid())
       os.mkfifo(bmovlfile)
       args += ['-vc', '-ffodivx,-ffodivxvdpau,', '-osdlevel','0','-vf','bmovl=1:0:'+bmovlfile]
+    elif osd:
+      osd = False
     if os.path.isfile(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'):
       starttime = open(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'r').readline().strip('\n')
       if ';' in starttime:
@@ -971,6 +973,8 @@ class movieplayer():
         else:
           raise OSError((Errno, Errmsg))
     self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    if osd:
+      self.bmovl = os.open(bmovlfile, os.O_WRONLY)
     if self.mplayer.poll() != None:
       raise Exception(mplayer.stdout.read())
     self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
