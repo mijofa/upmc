@@ -1263,9 +1263,9 @@ class movieplayer():
           self.skip(60)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
           self.skip(-50)
-        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
           self.skip(-20)
-        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
           self.skip(30)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
           self.showosd(2, osdtype='time')
@@ -1294,10 +1294,10 @@ class movieplayer():
               raise OSError((Errno, Errmsg))
           else:
             self.mplayer.stdin.write('osd_show_text "Saved position: %02d:%02d:%02d"\n' % (save_hrs, save_mins, save_secs))
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_9:
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
           self.showosd(2, osdtype='volume')
           self.set_volume('-0.02')
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_0:
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
           self.showosd(2, osdtype='volume')
           self.set_volume('+0.02')
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
