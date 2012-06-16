@@ -886,7 +886,6 @@ class movieplayer():
 #            char = '\n'
 ##      response = response.replace('\r', '\n')
       response = self.mplayer.stdout.read(1)+self.mplayer.stdout.readline()
-      sys.stdout.write(response)
       if response.startswith("No bind found for key '"):
         key = response.strip(' ')[len("No bind found for key '"):][:-3]
         if key in self.remapped_keys.keys(): key = self.remapped_keys[key]
