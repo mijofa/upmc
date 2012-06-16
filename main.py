@@ -866,23 +866,29 @@ class movieplayer():
     self.filename = filename
   def procoutput(self):
     statusline = None
-    response = ''
-    char = None
-    while not char == '' and not self.mplayer.stdout.closed:
-      char = self.mplayer.stdout.read(1)
-      while not char == '\n' and not char == '' and not self.mplayer.stdout.closed:
-        response = response+char
-        if response[-4:] == '\x1b[J\n':
-          self.time_pos = float(response[response.index('V:')+2:response.index('A-V:')].strip(' '))
-          if not self.time_pos == 0 and not self.time_length == 0:
-            self.percent_pos = self.time_pos/(self.time_length/100)
-          response = ''
-        char = self.mplayer.stdout.read(1)
-        if char == '\r':
-          char = '\n'
-#      response = response.replace('\r', '\n')
-      if response.strip(' ').startswith("No bind found for key '"):
-        key = response.strip(' ')[len("No bind found for key '"):][:-2]
+    response = None
+    while not response == '' and not self.mplayer.stdout.closed:
+#      char = self.mplayer.stdout.read(1)
+#      sys.stdout.write('\n')
+#      while not char == '\n' and not char == '' and not self.mplayer.stdout.closed:
+#        response = response+char
+#        if response[-3:] == '\x1b[J':
+#          char = self.mplayer.stdout.read(1)
+#          if char == '\r' or char == '\n':
+##            print 'status'
+##            self.time_pos = float(response[response.index('V:')+2:response.index('A-V:')].strip(' '))
+##            if not self.time_pos == 0 and not self.time_length == 0:
+##              self.percent_pos = self.time_pos/(self.time_length/100)
+#            response = ''
+#        else:
+#          char = self.mplayer.stdout.read(1)
+#          if char == '\r':
+#            char = '\n'
+##      response = response.replace('\r', '\n')
+      response = self.mplayer.stdout.read(1)+self.mplayer.stdout.readline()
+      sys.stdout.write(response)
+      if response.startswith("No bind found for key '"):
+        key = response.strip(' ')[len("No bind found for key '"):][:-3]
         if key in self.remapped_keys.keys(): key = self.remapped_keys[key]
         if 'K_'+key in dir(pygame):
           pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
@@ -926,14 +932,13 @@ class movieplayer():
         if response.startswith('Opened fifo ') and self.bmovl == None:
           response = response[len('Opened fifo '):]
           self.bmovl = os.open(response[:response.rindex(' as FD ')], os.O_WRONLY)
-      response = ''
   def play(self, loops=None, osd=True):
     # Starts playback of the movie. Sound and video will begin playing if they are not disabled. The optional loops argument controls how many times the movie will be repeated. A loop value of -1 means the movie will repeat forever.
 #    surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
 #    self.screenbkup = screen.copy()
 #    screen.blit(surf, (0,0))
 #    pygame.display.update()
-    args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','identify=5:global=4:input=5:cplayer=5:statusline=0','-slave','-identify','-stop-xscreensaver','-volume','75','-idx']
+    args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','vfilter=5:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify','-stop-xscreensaver','-volume','75','-idx']
     if len(sys.argv) > 1 and sys.argv[1] == '--no-sound': args += ['-ao', 'null']
     if windowed == False: args += ['-fs']
     if loops == 0:
@@ -972,11 +977,12 @@ class movieplayer():
           pass # Read-only, nothing I can do about it.
         else:
           raise OSError((Errno, Errmsg))
-    self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-    if osd:
-      self.bmovl = os.open(bmovlfile, os.O_WRONLY)
+    self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=1)
     if self.mplayer.poll() != None:
       raise Exception(mplayer.stdout.read())
+#    if osd:
+#      print 'opening bmovl'
+#      self.bmovl = os.open(bmovlfile, os.O_WRONLY)
     self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
     self.mplayer.stdin.write('pausing_keep_force get_property volume\n')
     thread = threading.Thread(target=self.procoutput, name='stdout')
