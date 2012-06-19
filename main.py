@@ -946,12 +946,10 @@ class movieplayer():
       loops = 0
     if loops != None:
       args += ['-loop', str(loops)]
-    if osd and not (self.filename.endswith('.mpg') or self.filename.endswith('.mpeg') or self.filename.endswith('.MPG') or self.filename.endswith('.MPEG')):
+    if osd:
       bmovlfile = '/tmp/bmovl-%s-%s' % (os.geteuid(), os.getpid())
       os.mkfifo(bmovlfile)
       args += ['-vc', '-ffodivx,-ffodivxvdpau,', '-osdlevel','0','-vf','bmovl=1:0:'+bmovlfile]
-    elif osd:
-      osd = False
     if os.path.isfile(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'):
       starttime = open(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'r').readline().strip('\n')
       if ';' in starttime:
