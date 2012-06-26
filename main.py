@@ -868,24 +868,7 @@ class movieplayer():
     statusline = None
     response = None
     while not response == '' and not self.mplayer.stdout.closed:
-#      char = self.mplayer.stdout.read(1)
-#      sys.stdout.write('\n')
-#      while not char == '\n' and not char == '' and not self.mplayer.stdout.closed:
-#        response = response+char
-#        if response[-3:] == '\x1b[J':
-#          char = self.mplayer.stdout.read(1)
-#          if char == '\r' or char == '\n':
-##            print 'status'
-##            self.time_pos = float(response[response.index('V:')+2:response.index('A-V:')].strip(' '))
-##            if not self.time_pos == 0 and not self.time_length == 0:
-##              self.percent_pos = self.time_pos/(self.time_length/100)
-#            response = ''
-#        else:
-#          char = self.mplayer.stdout.read(1)
-#          if char == '\r':
-#            char = '\n'
-##      response = response.replace('\r', '\n')
-      response = self.mplayer.stdout.read(1)+self.mplayer.stdout.readline()
+      response = self.mplayer.stdout.read(1)+self.mplayer.stdout.readline().strip('\r\n')
       if response.startswith("No bind found for key '"):
         key = response.strip(' ')[len("No bind found for key '"):][:-3]
         if key in self.remapped_keys.keys(): key = self.remapped_keys[key]
