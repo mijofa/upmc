@@ -870,7 +870,7 @@ class movieplayer():
     while not response == '' and not self.mplayer.stdout.closed:
       response = self.mplayer.stdout.read(1)+self.mplayer.stdout.readline().strip('\r\n')
       if response.startswith("No bind found for key '"):
-        key = response.strip(' ')[len("No bind found for key '"):][:-3]
+        key = response.strip(' ')[len("No bind found for key '"):].rstrip('.').rstrip("'")
         if key in self.remapped_keys.keys(): key = self.remapped_keys[key]
         if 'K_'+key in dir(pygame):
           pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
