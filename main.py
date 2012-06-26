@@ -1327,12 +1327,14 @@ def networkhandler():
          if key.isdigit():
            pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': int(key)}))
            pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': int(key)}))
+         elif key in remapped_keys.keys() and 'K_'+remapped_keys[key] in dir(pygame):
+           pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+remapped_keys[key]}))
+           pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+remapped_keys[key])}))
          elif 'K_'+key in dir(pygame):
-           if key in remapped_keys.keys(): key = remapped_keys[key]
            pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
            pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
          else:
-           client.send("Unrecognised key '"+data[4:-1]+"'.\n")
+           client.send("Unrecognised key '"+key+"'.\n")
     if quit:
       break
   server.close()
