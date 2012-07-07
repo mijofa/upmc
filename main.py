@@ -932,7 +932,7 @@ class movieplayer():
     if osd:
       bmovlfile = '/tmp/bmovl-%s-%s' % (os.geteuid(), os.getpid())
       os.mkfifo(bmovlfile)
-      args += ['-vc', '-ffodivx,-ffodivxvdpau,', '-osdlevel','0','-vf','bmovl=1:0:'+bmovlfile]
+      args += ['-osdlevel','0','-vf','bmovl=1:0:'+bmovlfile] #'-vc', '-ffodivx,-ffodivxvdpau,', 
     if os.path.isfile(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'):
       starttime = open(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'r').readline().strip('\n')
       if ';' in starttime:
