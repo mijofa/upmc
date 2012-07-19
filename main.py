@@ -1343,13 +1343,11 @@ def networkhandler():
   server.close()
 
 def LIRChandler():
-  pylirc.blocking(False)
+  pylirc.blocking(True)
   lirc = pylirc.init("UPMC")
   while lirc != 0:
     codes = pylirc.nextcode()
-    if codes == None:
-      pass
-    else:
+    if not codes == None:
       for code in codes:
         if code.startswith('key '):
           key = code[4:-1]
