@@ -1342,21 +1342,22 @@ def networkhandler():
       break
   server.close()
 
-def lirchandler():
+def LIRChandler():
+  pylirc.blocking(False)
   lirc = pylirc.init("UPMC")
-  pylirc.blocking(True)
   while lirc != 0:
-    data = pylirc.nextcode()
-    if data == None:
+    codes = pylirc.nextcode()
+    if codes == None:
       pass
     else:
-      if data.startswith('key '):
-        key = data[4:-1]
-      else
-        key = data
-      if 'K_'+key in dir(pygame):
-        pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
-        pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
+      for code in codes:
+        if code.startswith('key '):
+          key = code[4:-1]
+        else:
+          key = code
+        if 'K_'+key in dir(pygame):
+          pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
+          pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
   pylirc.exit()
 
 ## The Pygame modules need to be initialised before they can be used.
