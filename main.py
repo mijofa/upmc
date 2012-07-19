@@ -3,6 +3,7 @@ import os
 class sys:
   from sys import argv
 import time
+import pylirc
 import socket
 class string:
   from string import digits
@@ -256,6 +257,8 @@ class filemenu():
     if not itemHasDigit:
       if ' - ' in newitem:
         newitem = newitem.replace(' - ', ' 1 - ')
+      elif ': ' in newitem:
+        newitem = newitem.replace(': ', '1: ')
       else:
         newitem = ' 1.'.join(newitem.rsplit('.', 1))
     if newitem.lower().startswith('the '):
@@ -1339,6 +1342,23 @@ def networkhandler():
       break
   server.close()
 
+def lirchandler():
+  lirc = pylirc.init("UPMC")
+  pylirc.blocking(True)
+  while lirc != 0:
+    data = pylirc.nextcode()
+    if data == None:
+      pass
+    else:
+      if data.startswith('key '):
+        key = data[4:-1]
+      else
+        key = data
+      if 'K_'+key in dir(pygame):
+        pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
+        pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
+  pylirc.exit()
+
 ## The Pygame modules need to be initialised before they can be used.
 ### The Pygame docs say to just initialise *everything* at once, I think this is wasteful and am only initialising the bits I'm using.
 #pygame.init()
@@ -1351,6 +1371,9 @@ pygame.display.init()
 netthread = threading.Thread(target=networkhandler, name='networkhandler')
 netthread.setDaemon(True)
 netthread.start()
+lircthread = threading.Thread(target=LIRChandler, name='LIRChandler')
+lircthread.setDaemon(True)
+lircthread.start()
 
 ## Pygame on Android doesn't handle system fonts properly, and since I would rather use the system things whereever possible I have told this to treat Android differently.
 ### This could be done better, possible pack a font with the program?
