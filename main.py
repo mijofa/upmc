@@ -4,6 +4,8 @@ class sys:
   from sys import argv
 import time
 import pylirc
+class select:
+  from select import select
 import socket
 class string:
   from string import digits
@@ -1343,19 +1345,20 @@ def networkhandler():
   server.close()
 
 def LIRChandler():
-  pylirc.blocking(True)
+  pylirc.blocking(False)
   lirc = pylirc.init("UPMC")
   while lirc != 0:
-    codes = pylirc.nextcode()
-    if not codes == None:
-      for code in codes:
-        if code.startswith('key '):
-          key = code[4:-1]
-        else:
-          key = code
-        if 'K_'+key in dir(pygame):
-          pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
-          pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
+    if select.select([lirc], [], [], 6) != ([], [], []):
+      codes = pylirc.nextcode()
+      if not codes == None:
+        for code in codes:
+          if code.startswith('key '):
+            key = code[4:-1]
+          else:
+            key = code
+          if 'K_'+key in dir(pygame):
+            pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
+            pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
   pylirc.exit()
 
 ## The Pygame modules need to be initialised before they can be used.
