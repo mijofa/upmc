@@ -332,8 +332,8 @@ class filemenu():
     horizborder = 75
     screenheight = screen.get_height()-titleoffset-vertborder
     screenwidth = screen.get_width()-horizborder
-    itemheight = 256 #5 on 1280 #210 #280 # 5 on 1050 vertical resolution
-    itemwidth = 120 #6 on 720 #280 # 6 on 1680 horizontal resolution
+    itemheight = 120 #5 on 1280 #210 # 5 on 1050 vertical resolution
+    itemwidth = 256 #6 on 720 #280 # 6 on 1680 horizontal resolution
     numcols = screenwidth/itemwidth
     numrows = screenheight/itemheight
     self.pagerows = []
