@@ -1018,12 +1018,16 @@ class movieplayer():
     ### This is easy to implement so do so even though the pygame version fails.
     self.time_pos = None
     self.mplayer.stdin.write('pausing_keep_force get_property time_pos\n')
-    while self.time_pos == None: pass
+    while self.time_pos == None: 
+      if not (self.threads.has_key('stdout') and self.threads['stdout'].isAlive()):
+        self.time_pos = 0
     return self.time_pos
   def get_busy(self):
     self.paused = None
     self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
-    while self.paused == None: pass
+    while self.paused == None:
+      if not (self.threads.has_key('stdout') and self.threads['stdout'].isAlive()):
+        self.paused = True
     return not self.paused
   def get_length(self):
     # Returns the length of the movie in seconds as a floating point value.
@@ -1476,3 +1480,4 @@ while running == True:
     else:
       pass
 
+print threading.enumerate()
