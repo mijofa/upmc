@@ -330,15 +330,15 @@ class filemenu():
     titleoffset = self.font.size('')[1]
     vertborder = 50
     horizborder = 75
-    screenheight = screen.get_height()-titleoffset-vertborder
     screenwidth = screen.get_width()-horizborder
-    itemheight = 110 #5 on 1280 #210 #280 # 5 on 1050 vertical resolution
-    itemwidth = 190 #6 on 720 #280 # 6 on 1680 horizontal resolution
+    screenheight = screen.get_height()-titleoffset-vertborder
+    itemwidth = 190 #6 on 1280 #280 # 5 on 1050 vertical resolution
+    itemheight = 110 #5 on 720 #210 # 6 on 1680 horizontal resolution
     numcols = screenwidth/itemwidth
     numrows = screenheight/itemheight
     self.pagerows = []
-    rowspace = (screenheight-(numrows*itemheight))/numrows
     colspace = (screenwidth-(numcols*itemwidth))/numcols
+    rowspace = (screenheight-(numrows*itemheight))/numrows
     self.titleoffset = colspace, rowspace/4
     if rowoffset < 0 and len(self.items) > (numrows*numcols):
       rowoffset = -(((numrows*numcols)-len(self.items))/numcols)
