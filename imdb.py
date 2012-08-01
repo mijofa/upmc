@@ -68,21 +68,21 @@ else:
       seasonnum = int(' '.join(path.split('/')[-1].split(' ')[1:]))
     else:
       showname = path.split('/')[-1]
-    if title.lstrip('E').isdigit():
-      episodenum = int(title.lstrip('E'))
+    if title.lstrip('E').split('-')[0].isdigit():
+      episodenum = int(title.lstrip('E').split('-')[0])
     elif title.startswith('S') and title.lstrip('S').split('E')[0].isdigit():
       seasonnum = int(title.lstrip('S').split('E')[0])
-      if title.split('E')[1].split(' ')[0].isdigit():
-        episodenum = int(title.split('E')[1].split(' ')[0])
+      if title.split('E')[1].split(' ')[0].split('-')[0].isdigit():
+        episodenum = int(title.split('E')[1].split(' ')[0].split('-')[0])
     elif ' - ' in title:
       showname = title.split(' - ')[0]
       temptitle = title.split(' - ')[1]
-      if temptitle.lstrip('E').isdigit():
-        episodenum = int(temptitle.lstrip('E'))
+      if temptitle.lstrip('E').split('-')[0].isdigit():
+        episodenum = int(temptitle.lstrip('E').split('-')[0])
       elif temptitle.startswith('S') and temptitle.lstrip('S').split('E')[0].isdigit():
         seasonnum = int(temptitle.lstrip('S').split('E')[0])
-        if temptitle.split('E')[1].split(' ')[0].isdigit():
-          episodenum = int(temptitle.split('E')[1].split(' ')[0])
+        if temptitle.split('E')[1].split(' ')[0].split('-')[0].isdigit():
+          episodenum = int(temptitle.split('E')[1].split(' ')[0].split('-')[0])
     if showname == None:
       raise Exception, 'Unable to determine TV show name.'
     else:
