@@ -564,7 +564,7 @@ class filemenu():
         player.loop()
         screen.blit(screenbkup, (0,0))
         pygame.display.update()
-      elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER):
+      elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
         self.action(self.selected[1])
       elif (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3):
         if self.action('../') == pygame.QUIT:
