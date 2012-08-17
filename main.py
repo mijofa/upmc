@@ -1330,7 +1330,7 @@ class musicplayer():
     #   return False
     return False
   def set_pos(self, pos):
-    # Also not possible with a stream: This sets the position in the music file where playback will start. The meaning of “pos”, a float (or a number that can be converted to a float), depends on the music format. Newer versions of SDL_mixer have better positioning support than earlier. An SDLError is raised if a particular format does not support positioning.
+    # Also not possible with a stream: This sets the position in the music file where playback will start. The meaning of "pos", a float (or a number that can be converted to a float), depends on the music format. Newer versions of SDL_mixer have better positioning support than earlier. An SDLError is raised if a particular format does not support positioning.
     return None
   def get_pos(self):
     # Possible, but not useful, don't care to support it: This gets the number of milliseconds that the music has been playing for. The returned time only represents how long the music has been playing; it does not take into account any starting position offsets.
