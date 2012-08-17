@@ -1247,6 +1247,8 @@ class movieplayer():
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
           self.mplayer.stdin.write('step_property switch_audio\n')
           self.mplayer.stdin.write('get_property switch_audio\n')
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_m:
+          self.mplayer.stdin.write('step_property mute\n')
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER):
           save_pos = self.get_time()-10
           save_hrs = int(save_pos/60.0/60.0)
