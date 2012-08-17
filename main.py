@@ -1273,6 +1273,80 @@ class movieplayer():
     for thread in self.threads.keys(): self.threads[thread].isAlive() # It seems as though if I don't interact with these processes Python gets confused and waits for them to finish even though they are already finished, simply checking all processes '.isAlive()' gets around this.
 ##### End class movieplayer()
 
+class musicplayer():
+  # This should be a drop-in replacement for pygame.mixer.music but this only needs to support a HTTP streamed audio stream via Mplayer.
+  def load(self, url):
+    # This will load a music URL object and prepare it for playback. This does not start the music playing.
+    return None
+  def play(self, loops=0, start=0.0):
+    # This will play the loaded music stream. If the music is already playing it will be restarted.
+    # This can't work for streaming audio: The loops argument controls the number of repeats a music will play. play(5) will cause the music to played once, then repeated five times, for a total of six. If the loops is -1 then the music will repeat indefinitely.
+    # Neither can this: The starting position argument controls where in the music the song starts playing. The starting position is dependent on the format of music playing. MP3 and OGG use the position as time (in seconds). MOD music it is the pattern order number. Passing a startpos will raise a NotImplementedError if it cannot set the start position
+
+    # if mplayer.running:
+    #   unpause
+    # else:
+    #   subprocess.Popen(mplayer...)
+    return None
+  def rewind(self):
+    # This could be done if there is decent buffering, don't care not worth it: Resets playback of the current music to the beginning.
+    return None
+  def stop(self):
+    # Stops the music playback if it is currently playing.
+    
+    # if mplayer.running:
+    #   mplayer.stop # don't want to kill mplayer, just make the audio playback stop.
+    # else:
+    #   do nothing
+    return None
+  def pause(self):
+    # Could also be possible if good buffering is in use, don't care not worth it: Temporarily stop playback of the music stream. It can be resumed with the pygame.mixer.music.unpause() function.
+    return self.stop()
+  def unpause(self):
+    # Could also be possible if good buffering is in use, don't care not worth it: This will resume the playback of a music stream after it has been paused.
+    return self.play()
+  def fadeout(self, fadetime):
+    # This will stop the music playback after it has been faded out over the specified time (measured in milliseconds).
+
+    # orig_volume = mplayer.volume
+    # for i in range(mplayer.volume,0,-(mplayer.volume/fadetime)):
+    #   self.set_volume(i)
+    # 
+    # mplayer.stop()
+    # self.set_volume(orig_volume)
+    return None
+  def set_volume(self, volume):
+    # Set the volume of the music playback. The value argument is between 0.0 and 1.0. When new music is loaded the volume is reset.
+    return None
+  def get_volume(self):
+    # Returns the current volume for the mixer. The value will be between 0.0 and 1.0.
+    return 0
+  def get_busy(self):
+    # Returns True when the music stream is actively playing. When the music is idle this returns False.
+
+    # if mplayer.running and mplayer.playing:
+    #   return True
+    # else:
+    #   return False
+    return False
+  def set_pos(self, pos):
+    # Also not possible with a stream: This sets the position in the music file where playback will start. The meaning of “pos”, a float (or a number that can be converted to a float), depends on the music format. Newer versions of SDL_mixer have better positioning support than earlier. An SDLError is raised if a particular format does not support positioning.
+    return None
+  def get_pos(self):
+    # Possible, but not useful, don't care to support it: This gets the number of milliseconds that the music has been playing for. The returned time only represents how long the music has been playing; it does not take into account any starting position offsets.
+    return None
+  def queue(self, url):
+    # Not useful because the stream should always be there: This will load a music file and queue it. A queued music file will begin as soon as the current music naturally ends. If the current music is ever stopped or changed, the queued song will be lost.
+    return None
+  def set_endevent(self, type = None):
+    # This causes Pygame to signal (by means of the event queue) when the music is done playing. The argument determines the type of event that will be queued.
+    # The event will be queued every time the music finishes, not just the first time. To stop the event from being queued, call this method with no argument.
+    ## Possible, not very useful, can't be bothered.
+    return None
+  def get_endevent(self):
+    # Returns the event type to be sent every time the music finishes playback. If there is no endevent the function returns pygame.NOEVENT.
+    return pygame.NOEVENT
+
 def networkhandler():
   remapped_keys = {'ESC': 'ESCAPE', 'ENTER': 'RETURN', 'ZERO': '0', 'ONE': '1', 'TWO': '2', 'THREE': '3', 'FOUR': '4', 'FIVE': '5', 'SIX': '6', 'SEVEN': '7', 'EIGHT': '8', 'NINE': '9'}
   server = socket.socket()
