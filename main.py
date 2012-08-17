@@ -934,7 +934,6 @@ class movieplayer():
 #    screen.blit(surf, (0,0))
 #    pygame.display.update()
     args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','vfilter=5:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify','-stop-xscreensaver','-volume','75','-idx']
-    if len(sys.argv) > 1 and sys.argv[1] == '--no-sound': args += ['-ao', 'null']
     if windowed == False: args += ['-fs']
     if loops == 0:
       loops = None
@@ -1436,17 +1435,22 @@ if android:
 else:
   fontname = pygame.font.match_font(u'trebuchetms') # Might want to use a non-MS font.
 
-resolution = None
 global windowed
-if len(sys.argv) > 1 and ('--windowed' in sys.argv or '-w' in sys.argv):
-  try: resolution = sys.argv[sys.argv.index('--windowed')+1]
-  except ValueError: resolution = sys.argv[sys.argv.index('-w')+1]
-  if resolution == '0x0':
-    windowed = False
-  else:
-    windowed = True
-else:
-  windowed = False
+resolution = None
+windowed = False
+music_url = None
+
+if len(sys.argv) > 1:
+  options, arguments = getopt.getopt(argv[1:], 'w:m:', ['windowed=', 'music-url='])
+  for o, a in options:
+    if o == '--windowed' or o == '-w':
+      resolution = a
+      if resolution == '0x0':
+        windowed = False
+      else:
+        windowed = True
+    elif o = '--music-url' or o == '-m':
+      music_url = a
 
 foundfile = False
 founddir = False
