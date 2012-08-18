@@ -872,12 +872,12 @@ class movieplayer():
   volume = 0
   threads = {}
   osdtype = 'time'
-  global osdqueue
   osdqueue = Queue.Queue()
   def __init__(self, filename):
     global fontname
     self.font = pygame.font.Font(fontname, 18)
     self.filename = filename
+    self.osdqueue.queue.clear()
   def procoutput(self):
     statusline = None
     response = None
@@ -927,7 +927,9 @@ class movieplayer():
         response = response[len('vf_bmovl: '):]
         if response.startswith('Opened fifo ') and self.bmovl == None:
           response = response[len('Opened fifo '):]
-          self.bmovl = os.open(response[:response.rindex(' as FD ')], os.O_WRONLY)
+          os.remove(response[:response.rindex(' as FD ')])
+          self.bmovl = os.open('/proc/%s/fd/%s' % (self.mplayer.pid, response[response.rindex(' ')+1:]), os.O_WRONLY)
+    return
   def play(self, loops=None, osd=True):
     # Starts playback of the movie. Sound and video will begin playing if they are not disabled. The optional loops argument controls how many times the movie will be repeated. A loop value of -1 means the movie will repeat forever.
 #    surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
@@ -943,7 +945,7 @@ class movieplayer():
     if loops != None:
       args += ['-loop', str(loops)]
     if osd:
-      bmovlfile = '/tmp/bmovl-%s-%s' % (os.geteuid(), os.getpid())
+      bmovlfile = os.tempnam(None, 'UPMC-')
       os.mkfifo(bmovlfile)
       args += ['-osdlevel','0','-vf','bmovl=1:0:'+bmovlfile] #'-vc', '-ffodivx,-ffodivxvdpau,', 
     if os.path.isfile(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'):
@@ -973,9 +975,6 @@ class movieplayer():
     self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=1)
     if self.mplayer.poll() != None:
       raise Exception(mplayer.stdout.read())
-#    if osd:
-#      print 'opening bmovl'
-#      self.bmovl = os.open(bmovlfile, os.O_WRONLY)
     self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
     self.mplayer.stdin.write('pausing_keep_force get_property volume\n')
     thread = threading.Thread(target=self.procoutput, name='stdout')
@@ -985,7 +984,9 @@ class movieplayer():
     self.threads.update({thread.name: thread})
     thread.start()
 #    while self.paused == None: pass
-    threading.Thread(target=self.showosd, args=[5, 'time', True], name='showosd').start()
+    thread = threading.Thread(target=self.showosd, args=[5, 'time', True], name='showosd')
+    self.threads.update({thread.name: thread})
+    thread.start()
     return self.mplayer
   def pause(self):
     # This will temporarily stop or restart movie playback.
@@ -1023,14 +1024,20 @@ class movieplayer():
     # Return the current playback time as a floating point value in seconds. This method currently seems broken and always returns 0.0.
     ### This is easy to implement so do so even though the pygame version fails.
     self.time_pos = None
-    self.mplayer.stdin.write('pausing_keep_force get_property time_pos\n')
+    try: self.mplayer.stdin.write('pausing_keep_force get_property time_pos\n')
+    except:
+      self.time_pos = 0
+      return 0
     while self.time_pos == None: 
       if not (self.threads.has_key('stdout') and self.threads['stdout'].isAlive()):
         self.time_pos = 0
     return self.time_pos
   def get_busy(self):
     self.paused = None
-    self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
+    try: self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
+    except:
+      self.paused = True
+      return True
     while self.paused == None:
       if not (self.threads.has_key('stdout') and self.threads['stdout'].isAlive()):
         self.paused = True
@@ -1072,13 +1079,13 @@ class movieplayer():
   def toggleosd(self):
     if "hideosd" in self.threads.keys():
       self.threads["hideosd"].cancel()
-    osdqueue.put("toggleosd")
+    self.osdqueue.put("toggleosd")
   def showosd(self, delay = 0, osdtype = None, wait = False):
     if not osdtype == None:
       self.osdtype = osdtype
     if "hideosd" in self.threads.keys():
       self.threads["hideosd"].cancel()
-    osdqueue.put("showosd")
+    self.osdqueue.put("showosd")
     if delay > 0:
       thread = threading.Timer(delay, self.hideosd)
       thread.name = 'hideosd'
@@ -1087,7 +1094,7 @@ class movieplayer():
   def hideosd(self, wait = False):
     if "hideosd" in self.threads.keys():
       self.threads["hideosd"].cancel()
-    osdqueue.put("hideosd")
+    self.osdqueue.put("hideosd")
   def manageosd(self):
     if self.bmovl == None:
       while self.bmovl == None: pass
@@ -1107,9 +1114,10 @@ class movieplayer():
       else:
         self.osd.blit(title, (0,0))
     while command != "cancel":
-      try: command = osdqueue.get_nowait()
+      try: command = self.osdqueue.get_nowait()
       except Queue.Empty:
         command = None
+      if not command == None:
       if command == "showosd":
         try: os.write(self.bmovl, 'SHOW\n')
         except OSError: pass
@@ -1123,7 +1131,7 @@ class movieplayer():
           try: os.write(self.bmovl, 'SHOW\n')
           except OSError: pass
           osdvisible = True
-          thread = threading.Timer(5, osdqueue.put, args=['hideosd'])
+          thread = threading.Timer(5, self.osdqueue.put, args=['hideosd'])
           thread.name = 'hideosd'
           self.threads.update({thread.name: thread})
           thread.start()
@@ -1189,7 +1197,7 @@ class movieplayer():
       self.stop()
     return status
   def stop(self):
-    osdqueue.put("cancel")
+    self.osdqueue.put("cancel")
     for thread in self.threads.values():
       if 'cancel' in dir(thread):
         thread.cancel()
