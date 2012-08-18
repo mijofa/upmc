@@ -5,8 +5,7 @@ class sys:
 import time
 class Queue:
   from Queue import Queue, Empty
-class getopt:
-  from getopt import getopt
+import getopt
 import pylirc
 class select:
   from select import select
