@@ -1449,13 +1449,13 @@ if len(sys.argv) > 1:
         windowed = False
       else:
         windowed = True
-    elif o = '--music-url' or o == '-m':
+    elif o == '--music-url' or o == '-m':
       music_url = a
 
 foundfile = False
 founddir = False
-if len(sys.argv) > 1:
-  for filename in sys.argv[1:]:
+if len(arguments) > 0:
+  for filename in arguments:
     if os.path.isfile(filename):
       foundfile = True
       player = movieplayer(filename)
