@@ -1443,7 +1443,7 @@ windowed = False
 music_url = None
 
 if len(sys.argv) > 1:
-  options, arguments = getopt.getopt(argv[1:], 'w:m:', ['windowed=', 'music-url='])
+  options, arguments = getopt.getopt(sys.argv[1:], 'w:m:', ['windowed=', 'music-url='])
   for o, a in options:
     if o == '--windowed' or o == '-w':
       resolution = a
@@ -1453,6 +1453,8 @@ if len(sys.argv) > 1:
         windowed = True
     elif o == '--music-url' or o == '-m':
       music_url = a
+else:
+  options, arguments = ([], [])
 
 foundfile = False
 founddir = False
