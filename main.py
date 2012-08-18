@@ -1117,7 +1117,6 @@ class movieplayer():
       try: command = self.osdqueue.get_nowait()
       except Queue.Empty:
         command = None
-      if not command == None:
       if command == "showosd":
         try: os.write(self.bmovl, 'SHOW\n')
         except OSError: pass
