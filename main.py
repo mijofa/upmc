@@ -1557,6 +1557,7 @@ def main():
     os.chdir('/sdcard/Movies')
   elif not founddir == False:
     os.chdir(founddir)
+  global rootdir
   rootdir = os.getcwd()
   
   ## These should avoid going through the loop unnecessarily (and wasting resources) when there is events that I'm not going to use anyway.
