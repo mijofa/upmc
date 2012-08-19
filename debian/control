@@ -10,6 +10,6 @@ Homepage: http://mike.fabre.id.au/
 
 Package: upmc
 Architecture: all
-Depends: ${misc:Depends}, python-pygame, mplayer, python-imdbpy
+Depends: ${misc:Depends}, python-pygame, mplayer, python-imdbpy, python-mpd
 Description: The Unnamed Python Media Center
   This is designed to run on dedicated media systems.
