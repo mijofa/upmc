@@ -2,6 +2,7 @@
 import os
 class sys:
   from sys import argv
+import mpd
 import time
 class Queue:
   from Queue import Queue, Empty
@@ -9,6 +10,8 @@ import getopt
 import pylirc
 class select:
   from select import select
+class urllib2:
+  from urllib2 import urlparse
 import socket
 class string:
   from string import digits
@@ -543,12 +546,6 @@ class filemenu():
       if event.type == pygame.QUIT:
         running = False
         pygame.quit()
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
-        self.scroll(0,len(self.pagerows))
-        self.select(self.items.index(self.selected[1])-(len(self.pagerows[0])*len(self.pagerows)))
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
-        self.scroll(1,len(self.pagerows))
-        self.select(self.items.index(self.selected[1])+(len(self.pagerows[0])*len(self.pagerows)))
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
         self.keyselect(0)
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
@@ -563,8 +560,10 @@ class filemenu():
         screen.blit(surf, (0,0))
         pygame.display.update()
         player = movieplayer(self.itemsinfo[self.selected[1]]['filename'])
+        music.pause()
         player.play()
         player.loop()
+        music.pause()
         screen.blit(screenbkup, (0,0))
         pygame.display.update()
       elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
@@ -600,6 +599,16 @@ class filemenu():
         self.scroll(event.button==5, 1)
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
         pygame.display.toggle_fullscreen()
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_9:
+        music.set_volume('-0.02')
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_0:
+        music.set_volume('+0.02')
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
+        music.pause()
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
+        musicserver.previous()
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
+        musicserver.next()
       else:
         if android:
           print 'event', event
@@ -831,6 +840,16 @@ class movieinfo():
         return
       elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
         self.action()
+      elif (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
+        music.set_volume('-0.02')
+      elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
+        music.set_volume('+0.02')
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
+        music.pause()
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
+        musicserver.previous()
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
+        musicserver.next()
   def action(self):
     if not os.path.isfile(str(self['filename'])):
       surf = render_textrect('This file does not seem to exist. Has it been deleted?\n'+str(self['filename']), pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
@@ -848,8 +867,10 @@ class movieinfo():
     render_textrect('Movie player is running.\n\nPress the back button to quit.', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), screen, 3)
     pygame.display.update()
     player = movieplayer(self['filename'])
+    music.pause()
     player.play()
     player.loop()
+    music.pause()
     self['watched'] = True
     screen.blit(screenbkup, (0,0))
     pygame.display.update()
@@ -1230,7 +1251,7 @@ class movieplayer():
           except: break
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
           self.stop()
-        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1):
+        elif (event.type == pygame.KEYDOWN and (event.key == pygame.K_SPACE or event.key == pygame.K_p)) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1):
           self.showosd(2, osdtype='time')
           self.pause()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
@@ -1284,60 +1305,75 @@ class movieplayer():
 
 class musicplayer():
   # This should be a drop-in replacement for pygame.mixer.music but this only needs to support a HTTP streamed audio stream via Mplayer.
+  url = None
+  mplayer = None
   def load(self, url):
     # This will load a music URL object and prepare it for playback. This does not start the music playing.
-    return None
+    self.url = url
   def play(self, loops=0, start=0.0):
     # This will play the loaded music stream. If the music is already playing it will be restarted.
     # This can't work for streaming audio: The loops argument controls the number of repeats a music will play. play(5) will cause the music to played once, then repeated five times, for a total of six. If the loops is -1 then the music will repeat indefinitely.
     # Neither can this: The starting position argument controls where in the music the song starts playing. The starting position is dependent on the format of music playing. MP3 and OGG use the position as time (in seconds). MOD music it is the pattern order number. Passing a startpos will raise a NotImplementedError if it cannot set the start position
-
-    # if mplayer.running:
-    #   unpause
-    # else:
-    #   subprocess.Popen(mplayer...)
-    return None
+    if not start == 0.0:
+      raise NotImplementedError("Can not set a start position on streaming media.")
+    if self.url == None:
+      raise Exception("You must load a URL before playing")
+    args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-slave','-volume','37']
+    self.mplayer = subprocess.Popen(['mplayer']+args+[self.url],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=1)
+    if self.mplayer.poll() != None:
+      raise Exception(mplayer.stdout.read())
   def rewind(self):
     # This could be done if there is decent buffering, don't care not worth it: Resets playback of the current music to the beginning.
     return None
   def stop(self):
     # Stops the music playback if it is currently playing.
-    
-    # if mplayer.running:
-    #   mplayer.stop # don't want to kill mplayer, just make the audio playback stop.
-    # else:
-    #   do nothing
-    return None
+    if not self.mplayer == None:
+      self.mplayer.stdin.write("stop\n")
   def pause(self):
     # Could also be possible if good buffering is in use, don't care not worth it: Temporarily stop playback of the music stream. It can be resumed with the pygame.mixer.music.unpause() function.
-    return self.stop()
+    self.mplayer.stdin.write("mute\n")
   def unpause(self):
     # Could also be possible if good buffering is in use, don't care not worth it: This will resume the playback of a music stream after it has been paused.
     return self.play()
   def fadeout(self, fadetime):
     # This will stop the music playback after it has been faded out over the specified time (measured in milliseconds).
-
+    ## I haven't set up any way to query for Mplayer's current volume, I'll deal with this some other time.
+    return self.stop()
     # orig_volume = mplayer.volume
     # for i in range(mplayer.volume,0,-(mplayer.volume/fadetime)):
     #   self.set_volume(i)
     # 
     # mplayer.stop()
     # self.set_volume(orig_volume)
-    return None
-  def set_volume(self, volume):
+  def set_volume(self, volume = None):
     # Set the volume of the music playback. The value argument is between 0.0 and 1.0. When new music is loaded the volume is reset.
-    return None
+    if type(volume) == str and volume.startswith('+'):
+      if volume.endswith('%'): volume = int(volume.lstrip('+').rstrip('%'))
+      else: volume = float(volume.lstrip('+'))*100
+      self.mplayer.stdin.write('step_property volume %d\n' % volume)
+    elif type(volume) == str and volume.startswith('-'):
+      if volume.endswith('%'): volume = int(volume.lstrip('-').rstrip('%'))
+      else: volume = float(volume.lstrip('-'))*100
+      self.mplayer.stdin.write('step_property volume -%d\n' % volume)
+    elif type(volume) == int or type(volume) == float:
+      volume = volume*100
+      self.mplayer.stdin.write('set_property volume %d\n' % volume)
+    elif type(volume) == str and volume.endswith('%'):
+      volume = int(volume.rstrip('%'))
+      self.mplayer.stdin.write('set_property volume %d\n' % volume)
+    else:
+      raise Exception("Proper volume argument required. Got %s" % volume)
+    self.mplayer.stdin.write('get_property volume\n')
   def get_volume(self):
     # Returns the current volume for the mixer. The value will be between 0.0 and 1.0.
     return 0
   def get_busy(self):
     # Returns True when the music stream is actively playing. When the music is idle this returns False.
 
-    # if mplayer.running and mplayer.playing:
-    #   return True
-    # else:
-    #   return False
-    return False
+    if self.mplayer.poll() == None:
+      return True
+    else:
+      return False
   def set_pos(self, pos):
     # Also not possible with a stream: This sets the position in the music file where playback will start. The meaning of "pos", a float (or a number that can be converted to a float), depends on the music format. Newer versions of SDL_mixer have better positioning support than earlier. An SDLError is raised if a particular format does not support positioning.
     return None
@@ -1419,121 +1455,155 @@ def LIRChandler():
             pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
   pylirc.exit()
 
-## The Pygame modules need to be initialised before they can be used.
-### The Pygame docs say to just initialise *everything* at once, I think this is wasteful and am only initialising the bits I'm using.
-#pygame.init()
-pygame.font.init()
-#pygame.image.init() # Doesn't have an '.init()' funtion.
-pygame.display.init()
-#pygame.transform.init() # Doesn't have an '.init()' funtion.
-#pygame.event.init() # Doesn't have an '.init()' funtion.
+def main():
+  ## The Pygame modules need to be initialised before they can be used.
+  ### The Pygame docs say to just initialise *everything* at once, I think this is wasteful and am only initialising the bits I'm using.
+  #pygame.init()
+  pygame.font.init()
+  #pygame.image.init() # Doesn't have an '.init()' funtion.
+  pygame.display.init()
+  #pygame.transform.init() # Doesn't have an '.init()' funtion.
+  #pygame.event.init() # Doesn't have an '.init()' funtion.
+  
+  netthread = threading.Thread(target=networkhandler, name='networkhandler')
+  netthread.setDaemon(True)
+  netthread.start()
+  lircthread = threading.Thread(target=LIRChandler, name='LIRChandler')
+  lircthread.setDaemon(True)
+  lircthread.start()
+  
+  ## Pygame on Android doesn't handle system fonts properly, and since I would rather use the system things whereever possible I have told this to treat Android differently.
+  ### This could be done better, possible pack a font with the program?
+  global fontname
+  if android:
+    fontname = '/system/fonts/DroidSans.ttf'
+  else:
+    fontname = pygame.font.match_font(u'trebuchetms') # Might want to use a non-MS font.
+  
+  global windowed
+  resolution = None
+  windowed = False
+  music_url = None
+  mpd_host = None
+  mpd_port = 6600
+  
+  if len(sys.argv) > 1:
+    options, arguments = getopt.getopt(sys.argv[1:], 'w:m:', ["windowed=", "music-url=", "mpd-host=", "mpd-port="])
+    for o, a in options:
+      if o == "--windowed" or o == '-w':
+        resolution = a
+        if resolution == '0x0':
+          windowed = False
+        else:
+          windowed = True
+      elif o == "--music-url" or o == '-m':
+        music_url = a
+      elif o == "--mpd-host":
+        mpd_host = a
+      elif o == "--mpd-port":
+        mpd_host = int(a)
+  else:
+    options, arguments = ([], [])
+  
+  if mpd_host == None and not music_url == None:
+    mpd_host = urllib2.urlparse.urlparse(music_url)[1].split(':')[0]
+  
+  foundfile = False
+  founddir = False
+  if len(arguments) > 0:
+    for filename in arguments:
+      if os.path.isfile(filename):
+        foundfile = True
+        player = movieplayer(filename)
+        mplayer = player.play()
+        player.loop()
+      elif os.path.isdir(filename):
+        founddir = filename
+    if foundfile == True:
+      quit()
+  
+  global music
+  music = musicplayer()
+  if not music_url == None:
+    music.load(music_url)
+    music.play()
+    pygame.register_quit(music.stop)
+    musicserver = mpd.MPDClient()
+    musicserver.connect(mpd_host, mpd_port)
+    pygame.register_quit(musicserver.disconnect)
+  
+  global screen
+  if windowed == False and resolution == None:
+    screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN) # Create a new window.
+  else:
+    screen = pygame.display.set_mode((int(resolution.split('x')[0]),int(resolution.split('x')[1]))) # Create a new window.
+  global background
+  try: background = pygame.transform.scale(pygame.image.load(os.path.dirname(sys.argv[0])+'/background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
+  except: # Failing that (no background image?) just create a completely blue background.
+    background = pygame.Surface(screen.get_size()).convert() 
+    background.fill((125,0,0))
+  pygame.mouse.set_visible(False)
+  screen.blit(background, (0,0)) # Put the background on the window.
+  pygame.display.update() # Update the display.
+  
+  def terminal():
+    term = subprocess.Popen(['x-terminal-emulator'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE)
+    return term.wait
+  
+  menuitems = [('Videos', filemenu), ('Terminal', terminal), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
+  menu = textmenu(menuitems)
+  
+  if android:
+    os.chdir('/sdcard/Movies')
+  elif not founddir == False:
+    os.chdir(founddir)
+  rootdir = os.getcwd()
+  
+  ## These should avoid going through the loop unnecessarily (and wasting resources) when there is events that I'm not going to use anyway.
+  pygame.event.set_allowed(None) # This says to not put *any* events into the event queue.
+  pygame.event.set_allowed([pygame.QUIT])
+  pygame.event.set_allowed([pygame.MOUSEMOTION,pygame.MOUSEBUTTONDOWN,pygame.MOUSEBUTTONUP,pygame.KEYDOWN]) # This says to put the events I want to see into the event queue, this needs to be updated anytime I want to monitor more events.
+  global running
+  while running == True:
+    try: events = pygame.event.get()
+    except KeyboardInterrupt: event = userquit()
+    for event in events:
+      if event.type == pygame.QUIT:
+        running = False
+        pygame.quit()
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+        userquit()
+      elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+        released = False
+        item = menu.mouseselect(event.pos)
+        if item:
+          while released != True:
+            event = pygame.event.wait()
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+              released = True
+              if menu.mouseselect(event.pos) == item:
+                menu.action()
+      elif event.type == pygame.MOUSEMOTION:
+        menu.mouseselect(event.pos)
+      elif event.type == pygame.KEYDOWN and (event.key == pygame.K_UP or event.key == pygame.K_DOWN):
+        menu.keyselect(event.key==pygame.K_DOWN) # This will call keyselect(False) if K_UP is pressed, and keyselect(True) if K_DOWN is pressed.
+      elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
+        menu.action()
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
+        pygame.display.toggle_fullscreen()
+      elif (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
+        music.set_volume('-0.02')
+      elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
+        music.set_volume('+0.02')
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
+        music.pause()
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
+        musicserver.previous()
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
+        musicserver.next()
 
-netthread = threading.Thread(target=networkhandler, name='networkhandler')
-netthread.setDaemon(True)
-netthread.start()
-lircthread = threading.Thread(target=LIRChandler, name='LIRChandler')
-lircthread.setDaemon(True)
-lircthread.start()
 
-## Pygame on Android doesn't handle system fonts properly, and since I would rather use the system things whereever possible I have told this to treat Android differently.
-### This could be done better, possible pack a font with the program?
-global fontname
-if android:
-  fontname = '/system/fonts/DroidSans.ttf'
-else:
-  fontname = pygame.font.match_font(u'trebuchetms') # Might want to use a non-MS font.
+if __name__ == "__main__":
+  try: main()
+  except: pygame.quit()
 
-global windowed
-resolution = None
-windowed = False
-music_url = None
-
-if len(sys.argv) > 1:
-  options, arguments = getopt.getopt(sys.argv[1:], 'w:m:', ['windowed=', 'music-url='])
-  for o, a in options:
-    if o == '--windowed' or o == '-w':
-      resolution = a
-      if resolution == '0x0':
-        windowed = False
-      else:
-        windowed = True
-    elif o == '--music-url' or o == '-m':
-      music_url = a
-else:
-  options, arguments = ([], [])
-
-foundfile = False
-founddir = False
-if len(arguments) > 0:
-  for filename in arguments:
-    if os.path.isfile(filename):
-      foundfile = True
-      player = movieplayer(filename)
-      mplayer = player.play()
-      player.loop()
-    elif os.path.isdir(filename):
-      founddir = filename
-  if foundfile == True:
-    quit()
-
-
-if windowed == False and resolution == None:
-  screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN) # Create a new window.
-else:
-  screen = pygame.display.set_mode((int(resolution.split('x')[0]),int(resolution.split('x')[1]))) # Create a new window.
-try: background = pygame.transform.scale(pygame.image.load(os.path.dirname(sys.argv[0])+'/background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
-except: # Failing that (no background image?) just create a completely blue background.
-  background = pygame.Surface(screen.get_size()).convert() 
-  background.fill((125,0,0))
-pygame.mouse.set_visible(False)
-screen.blit(background, (0,0)) # Put the background on the window.
-pygame.display.update() # Update the display.
-
-def terminal():
-  term = subprocess.Popen(['x-terminal-emulator'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE)
-  return term.wait
-
-menuitems = [('Videos', filemenu), ('Terminal', terminal), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
-menu = textmenu(menuitems)
-
-if android:
-  os.chdir('/sdcard/Movies')
-elif not founddir == False:
-  os.chdir(founddir)
-rootdir = os.getcwd()
-
-## These should avoid going through the loop unnecessarily (and wasting resources) when there is events that I'm not going to use anyway.
-pygame.event.set_allowed(None) # This says to not put *any* events into the event queue.
-pygame.event.set_allowed([pygame.QUIT])
-pygame.event.set_allowed([pygame.MOUSEMOTION,pygame.MOUSEBUTTONDOWN,pygame.MOUSEBUTTONUP,pygame.KEYDOWN]) # This says to put the events I want to see into the event queue, this needs to be updated anytime I want to monitor more events.
-while running == True:
-  try: events = pygame.event.get()
-  except KeyboardInterrupt: event = userquit()
-  for event in events:
-    if event.type == pygame.QUIT:
-      running = False
-      pygame.quit()
-    elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-      userquit()
-    elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-      released = False
-      item = menu.mouseselect(event.pos)
-      if item:
-        while released != True:
-          event = pygame.event.wait()
-          if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            released = True
-            if menu.mouseselect(event.pos) == item:
-              menu.action()
-    elif event.type == pygame.MOUSEMOTION:
-      menu.mouseselect(event.pos)
-    elif event.type == pygame.KEYDOWN and (event.key == pygame.K_UP or event.key == pygame.K_DOWN):
-      menu.keyselect(event.key==pygame.K_DOWN) # This will call keyselect(False) if K_UP is pressed, and keyselect(True) if K_DOWN is pressed.
-    elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
-      menu.action()
-    elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
-      pygame.display.toggle_fullscreen()
-    else:
-      pass
-
-print threading.enumerate()
