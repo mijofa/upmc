@@ -1318,7 +1318,7 @@ class musicplayer():
     if not start == 0.0:
       raise NotImplementedError("Can not set a start position on streaming media.")
     if self.url == None:
-      return "No URL loaded, ignoring."
+      return "musicplayer().play: No URL loaded, ignoring."
     elif "%02d" in self.url:
       url = self.url % self.cur_channel
     else:
