@@ -606,9 +606,9 @@ class filemenu():
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
         music.pause()
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
-        musicserver.previous()
+        music.set_channel("+1")
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
-        musicserver.next()
+        music.set_channel("-1")
       else:
         if android:
           print 'event', event
@@ -847,9 +847,9 @@ class movieinfo():
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
         music.pause()
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
-        musicserver.previous()
+        music.set_channel("+1")
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
-        musicserver.next()
+        music.set_channel("-1")
   def action(self):
     if not os.path.isfile(str(self['filename'])):
       surf = render_textrect('This file does not seem to exist. Has it been deleted?\n'+str(self['filename']), pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
@@ -993,7 +993,7 @@ class movieplayer():
           pass # Read-only, nothing I can do about it.
         else:
           raise OSError((Errno, Errmsg))
-    self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=1)
+    self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,bufsize=1)
     if self.mplayer.poll() != None:
       raise Exception(mplayer.stdout.read())
     self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
@@ -1307,6 +1307,7 @@ class musicplayer():
   # This should be a drop-in replacement for pygame.mixer.music but this only needs to support a HTTP streamed audio stream via Mplayer.
   url = None
   mplayer = None
+  cur_channel = 0
   def load(self, url):
     # This will load a music URL object and prepare it for playback. This does not start the music playing.
     self.url = url
@@ -1318,8 +1319,13 @@ class musicplayer():
       raise NotImplementedError("Can not set a start position on streaming media.")
     if self.url == None:
       raise Exception("You must load a URL before playing")
+    elif "%02d" in self.url:
+      url = self.url % self.cur_channel
+    else:
+      url = self.url
+    print "Starting playback of '%s' channel %02d: '%s'" % (self.url, self.cur_channel, url)
     args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-slave','-volume','37']
-    self.mplayer = subprocess.Popen(['mplayer']+args+[self.url],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=1)
+    self.mplayer = subprocess.Popen(['mplayer']+args+[url],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=1)
     if self.mplayer.poll() != None:
       raise Exception(mplayer.stdout.read())
   def rewind(self):
@@ -1329,6 +1335,7 @@ class musicplayer():
     # Stops the music playback if it is currently playing.
     if not self.mplayer == None:
       self.mplayer.stdin.write("stop\n")
+      self.mplayer.stdin.close()
   def pause(self):
     # Could also be possible if good buffering is in use, don't care not worth it: Temporarily stop playback of the music stream. It can be resumed with the pygame.mixer.music.unpause() function.
     self.mplayer.stdin.write("mute\n")
@@ -1391,6 +1398,24 @@ class musicplayer():
   def get_endevent(self):
     # Returns the event type to be sent every time the music finishes playback. If there is no endevent the function returns pygame.NOEVENT.
     return pygame.NOEVENT
+  def set_channel(self, ch = 0):
+    print "Stopping channel %02d" % self.cur_channel
+    if type(ch) == str and ch.startswith('+'):
+      self.cur_channel += int(ch.lstrip('+'))
+    elif type(ch) == str and ch.startswith('-'):
+      self.cur_channel -= int(ch.lstrip('-'))
+    elif type(ch) == int or type(ch) == float:
+      self.cur_channel = ch
+    elif not (type(ch) == int or type(ch) == float):
+      raise Exception("Proper channel argument required. Got %s" % volume)
+    self.stop()
+    if self.cur_channel > channels[-1]:
+      self.cur_channel = channels[0]
+    elif self.cur_channel < channels[0]:
+      self.cur_channel = channels[-1]
+    print "Starting channel %02d" % self.cur_channel
+    self.play()
+    print channels
 
 def networkhandler():
   remapped_keys = {'ESC': 'ESCAPE', 'ENTER': 'RETURN', 'ZERO': '0', 'ONE': '1', 'TWO': '2', 'THREE': '3', 'FOUR': '4', 'FIVE': '5', 'SIX': '6', 'SEVEN': '7', 'EIGHT': '8', 'NINE': '9'}
@@ -1485,10 +1510,12 @@ def main():
   windowed = False
   music_url = None
   mpd_host = None
+  global channels
+  channels = [0]
   mpd_port = 6600
-  
+
   if len(sys.argv) > 1:
-    options, arguments = getopt.getopt(sys.argv[1:], 'w:m:', ["windowed=", "music-url=", "mpd-host=", "mpd-port="])
+    options, arguments = getopt.getopt(sys.argv[1:], 'w:m:', ["windowed=", "music-url=", "channels=", "mpd-host=", "mpd-port="])
     for o, a in options:
       if o == "--windowed" or o == '-w':
         resolution = a
@@ -1502,6 +1529,9 @@ def main():
         mpd_host = a
       elif o == "--mpd-port":
         mpd_host = int(a)
+      elif o == "--channels":
+        print a
+        channels = range(0, int(a))
   else:
     options, arguments = ([], [])
   
@@ -1599,12 +1629,11 @@ def main():
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
         music.pause()
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
-        musicserver.previous()
+        music.set_channel("+1")
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
-        musicserver.next()
+        music.set_channel("-1")
 
 
 if __name__ == "__main__":
   try: main()
-  except: pygame.quit()
-
+  except KeyboardInterrupt: pygame.quit()
