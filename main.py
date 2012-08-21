@@ -609,6 +609,10 @@ class filemenu():
         music.set_channel("+1")
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
         music.set_channel("-1")
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
+        music.prev()
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
+        music.next()
       else:
         if android:
           print 'event', event
@@ -850,6 +854,10 @@ class movieinfo():
         music.set_channel("+1")
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
         music.set_channel("-1")
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
+        music.prev()
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
+        music.next()
   def action(self):
     if not os.path.isfile(str(self['filename'])):
       surf = render_textrect('This file does not seem to exist. Has it been deleted?\n'+str(self['filename']), pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
@@ -1308,6 +1316,7 @@ class musicplayer():
   url = None
   mplayer = None
   cur_channel = 0
+  mpd = mpd.MPDClient()
   def load(self, url):
     # This will load a music URL object and prepare it for playback. This does not start the music playing.
     self.url = url
@@ -1328,6 +1337,7 @@ class musicplayer():
     self.mplayer = subprocess.Popen(['mplayer']+args+[url],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,bufsize=1)
     if self.mplayer.poll() != None:
       raise Exception(mplayer.stdout.read())
+    self.mpd.connect(mpd_host, mpd_port+cur_channel)
   def rewind(self):
     # This could be done if there is decent buffering, don't care not worth it: Resets playback of the current music to the beginning.
     return None
@@ -1336,6 +1346,7 @@ class musicplayer():
     if not self.mplayer == None and not self.mplayer.stdin.closed:
       self.mplayer.stdin.write("stop\n")
       self.mplayer.stdin.close()
+      self.mpd.disconnect()
   def pause(self):
     # Could also be possible if good buffering is in use, don't care not worth it: Temporarily stop playback of the music stream. It can be resumed with the pygame.mixer.music.unpause() function.
     if not self.mplayer == None and not self.mplayer.stdin.closed:
@@ -1416,6 +1427,10 @@ class musicplayer():
     elif self.cur_channel < channels[0]:
       self.cur_channel = channels[-1]
     self.play()
+  def next(self):
+    self.mpd.next()
+  def prev(self):
+    self.mpd.prev()
 ##### End class musicplayer()
 
 def networkhandler():
@@ -1510,9 +1525,11 @@ def main():
   resolution = None
   windowed = False
   music_url = None
+  global mpd_host
   mpd_host = None
   global channels
   channels = [0]
+  global mpd_port
   mpd_port = 6600
 
   if len(sys.argv) > 1:
@@ -1559,9 +1576,6 @@ def main():
     music.load(music_url)
     music.play()
     pygame.register_quit(music.stop)
-    musicserver = mpd.MPDClient()
-    musicserver.connect(mpd_host, mpd_port)
-    pygame.register_quit(musicserver.disconnect)
   
   global screen
   if windowed == False and resolution == None:
@@ -1633,7 +1647,10 @@ def main():
         music.set_channel("+1")
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
         music.set_channel("-1")
-
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
+        music.prev()
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
+        music.next()
 
 if __name__ == "__main__":
   try: main()
