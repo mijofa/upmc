@@ -600,9 +600,9 @@ class filemenu():
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
         pygame.display.toggle_fullscreen()
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_9:
-        music.set_volume('-0.02')
+        music.set_volume('-0.12')
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_0:
-        music.set_volume('+0.02')
+        music.set_volume('+0.12')
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
         music.pause()
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
@@ -841,9 +841,9 @@ class movieinfo():
       elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
         self.action()
       elif (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-        music.set_volume('-0.02')
+        music.set_volume('-0.12')
       elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-        music.set_volume('+0.02')
+        music.set_volume('+0.12')
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
         music.pause()
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
@@ -1623,9 +1623,9 @@ def main():
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
         pygame.display.toggle_fullscreen()
       elif (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-        music.set_volume('-0.02')
+        music.set_volume('-0.12')
       elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-        music.set_volume('+0.02')
+        music.set_volume('+0.12')
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
         music.pause()
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
