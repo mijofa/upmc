@@ -1318,14 +1318,14 @@ class musicplayer():
     if not start == 0.0:
       raise NotImplementedError("Can not set a start position on streaming media.")
     if self.url == None:
-      raise Exception("You must load a URL before playing")
+      return "No URL loaded, ignoring."
     elif "%02d" in self.url:
       url = self.url % self.cur_channel
     else:
       url = self.url
-    print "Starting playback of '%s' channel %02d: '%s'" % (self.url, self.cur_channel, url)
+    print "Starting playback of '%s', channel %02d: '%s'" % (self.url, self.cur_channel, url)
     args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-slave','-volume','37']
-    self.mplayer = subprocess.Popen(['mplayer']+args+[url],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=1)
+    self.mplayer = subprocess.Popen(['mplayer']+args+[url],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,bufsize=1)
     if self.mplayer.poll() != None:
       raise Exception(mplayer.stdout.read())
   def rewind(self):
@@ -1333,18 +1333,20 @@ class musicplayer():
     return None
   def stop(self):
     # Stops the music playback if it is currently playing.
-    if not self.mplayer == None:
+    if not self.mplayer == None and not self.mplayer.stdin.closed():
       self.mplayer.stdin.write("stop\n")
       self.mplayer.stdin.close()
   def pause(self):
     # Could also be possible if good buffering is in use, don't care not worth it: Temporarily stop playback of the music stream. It can be resumed with the pygame.mixer.music.unpause() function.
-    self.mplayer.stdin.write("mute\n")
+    if not self.mplayer == None and not self.mplayer.stdin.closed():
+      self.mplayer.stdin.write("mute\n")
   def unpause(self):
     # Could also be possible if good buffering is in use, don't care not worth it: This will resume the playback of a music stream after it has been paused.
-    return self.play()
+    ## I have implemented pausing as a toggle and can't programatically tell whether it is paused or not.
+    return self.pause()
   def fadeout(self, fadetime):
     # This will stop the music playback after it has been faded out over the specified time (measured in milliseconds).
-    ## I haven't set up any way to query for Mplayer's current volume, I'll deal with this some other time.
+    ## I haven't set up any way to query for Mplayer's current volume, I'll deal with this some other time, tbis would be quite useful with the chanell changing.
     return self.stop()
     # orig_volume = mplayer.volume
     # for i in range(mplayer.volume,0,-(mplayer.volume/fadetime)):
@@ -1354,23 +1356,24 @@ class musicplayer():
     # self.set_volume(orig_volume)
   def set_volume(self, volume = None):
     # Set the volume of the music playback. The value argument is between 0.0 and 1.0. When new music is loaded the volume is reset.
-    if type(volume) == str and volume.startswith('+'):
-      if volume.endswith('%'): volume = int(volume.lstrip('+').rstrip('%'))
-      else: volume = float(volume.lstrip('+'))*100
-      self.mplayer.stdin.write('step_property volume %d\n' % volume)
-    elif type(volume) == str and volume.startswith('-'):
-      if volume.endswith('%'): volume = int(volume.lstrip('-').rstrip('%'))
-      else: volume = float(volume.lstrip('-'))*100
-      self.mplayer.stdin.write('step_property volume -%d\n' % volume)
-    elif type(volume) == int or type(volume) == float:
-      volume = volume*100
-      self.mplayer.stdin.write('set_property volume %d\n' % volume)
-    elif type(volume) == str and volume.endswith('%'):
-      volume = int(volume.rstrip('%'))
-      self.mplayer.stdin.write('set_property volume %d\n' % volume)
-    else:
-      raise Exception("Proper volume argument required. Got %s" % volume)
-    self.mplayer.stdin.write('get_property volume\n')
+    if not self.mplayer == None and not self.mplayer.stdin.closed():
+      if type(volume) == str and volume.startswith('+'):
+        if volume.endswith('%'): volume = int(volume.lstrip('+').rstrip('%'))
+        else: volume = float(volume.lstrip('+'))*100
+        self.mplayer.stdin.write('step_property volume %d\n' % volume)
+      elif type(volume) == str and volume.startswith('-'):
+        if volume.endswith('%'): volume = int(volume.lstrip('-').rstrip('%'))
+        else: volume = float(volume.lstrip('-'))*100
+        self.mplayer.stdin.write('step_property volume -%d\n' % volume)
+      elif type(volume) == int or type(volume) == float:
+        volume = volume*100
+        self.mplayer.stdin.write('set_property volume %d\n' % volume)
+      elif type(volume) == str and volume.endswith('%'):
+        volume = int(volume.rstrip('%'))
+        self.mplayer.stdin.write('set_property volume %d\n' % volume)
+      else:
+        raise Exception("Proper volume argument required. Got %s" % volume)
+      self.mplayer.stdin.write('get_property volume\n')
   def get_volume(self):
     # Returns the current volume for the mixer. The value will be between 0.0 and 1.0.
     return 0
@@ -1399,7 +1402,6 @@ class musicplayer():
     # Returns the event type to be sent every time the music finishes playback. If there is no endevent the function returns pygame.NOEVENT.
     return pygame.NOEVENT
   def set_channel(self, ch = 0):
-    print "Stopping channel %02d" % self.cur_channel
     if type(ch) == str and ch.startswith('+'):
       self.cur_channel += int(ch.lstrip('+'))
     elif type(ch) == str and ch.startswith('-'):
@@ -1413,9 +1415,8 @@ class musicplayer():
       self.cur_channel = channels[0]
     elif self.cur_channel < channels[0]:
       self.cur_channel = channels[-1]
-    print "Starting channel %02d" % self.cur_channel
     self.play()
-    print channels
+##### End class musicplayer()
 
 def networkhandler():
   remapped_keys = {'ESC': 'ESCAPE', 'ENTER': 'RETURN', 'ZERO': '0', 'ONE': '1', 'TWO': '2', 'THREE': '3', 'FOUR': '4', 'FIVE': '5', 'SIX': '6', 'SEVEN': '7', 'EIGHT': '8', 'NINE': '9'}
