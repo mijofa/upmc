@@ -1337,7 +1337,7 @@ class musicplayer():
     self.mplayer = subprocess.Popen(['mplayer']+args+[url],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,bufsize=1)
     if self.mplayer.poll() != None:
       raise Exception(mplayer.stdout.read())
-    self.mpd.connect(mpd_host, mpd_port+cur_channel)
+    self.mpd.connect(mpd_host, mpd_port+self.cur_channel)
   def rewind(self):
     # This could be done if there is decent buffering, don't care not worth it: Resets playback of the current music to the beginning.
     return None
@@ -1429,8 +1429,10 @@ class musicplayer():
     self.play()
   def next(self):
     self.mpd.next()
+  def previous(self):
+    self.mpd.previous()
   def prev(self):
-    self.mpd.prev()
+    return self.previous()
 ##### End class musicplayer()
 
 def networkhandler():
@@ -1647,9 +1649,9 @@ def main():
         music.set_channel("+1")
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
         music.set_channel("-1")
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
         music.prev()
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
+      elif event.type == pygame.KEYDOWN and event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
         music.next()
 
 if __name__ == "__main__":
