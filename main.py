@@ -1333,12 +1333,12 @@ class musicplayer():
     return None
   def stop(self):
     # Stops the music playback if it is currently playing.
-    if not self.mplayer == None and not self.mplayer.stdin.closed():
+    if not self.mplayer == None and not self.mplayer.stdin.closed:
       self.mplayer.stdin.write("stop\n")
       self.mplayer.stdin.close()
   def pause(self):
     # Could also be possible if good buffering is in use, don't care not worth it: Temporarily stop playback of the music stream. It can be resumed with the pygame.mixer.music.unpause() function.
-    if not self.mplayer == None and not self.mplayer.stdin.closed():
+    if not self.mplayer == None and not self.mplayer.stdin.closed:
       self.mplayer.stdin.write("mute\n")
   def unpause(self):
     # Could also be possible if good buffering is in use, don't care not worth it: This will resume the playback of a music stream after it has been paused.
@@ -1356,7 +1356,7 @@ class musicplayer():
     # self.set_volume(orig_volume)
   def set_volume(self, volume = None):
     # Set the volume of the music playback. The value argument is between 0.0 and 1.0. When new music is loaded the volume is reset.
-    if not self.mplayer == None and not self.mplayer.stdin.closed():
+    if not self.mplayer == None and not self.mplayer.stdin.closed:
       if type(volume) == str and volume.startswith('+'):
         if volume.endswith('%'): volume = int(volume.lstrip('+').rstrip('%'))
         else: volume = float(volume.lstrip('+'))*100
