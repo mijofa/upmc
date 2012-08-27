@@ -560,7 +560,7 @@ class filemenu():
         screen.blit(surf, (0,0))
         pygame.display.update()
         player = movieplayer(self.itemsinfo[self.selected[1]]['filename'])
-        if music.get_busy() == True:
+        if music.paused == False:
           music.pause()
           startmusic = True
         else:
@@ -880,10 +880,15 @@ class movieinfo():
     render_textrect('Movie player is running.\n\nPress the back button to quit.', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), screen, 3)
     pygame.display.update()
     player = movieplayer(self['filename'])
-    music.pause()
+    if music.paused == False:
+      music.pause()
+      startmusic = True
+    else:
+      startmusic = False
     player.play()
     player.loop()
-    music.pause()
+    if startmusic == True:
+      music.unpause()
     self['watched'] = True
     screen.blit(screenbkup, (0,0))
     pygame.display.update()
@@ -1322,6 +1327,7 @@ class musicplayer():
   mplayer = None
   cur_channel = 0
   mpd = mpd.MPDClient()
+  paused = True
   def load(self, url):
     # This will load a music URL object and prepare it for playback. This does not start the music playing.
     self.url = url
@@ -1343,6 +1349,7 @@ class musicplayer():
     if self.mplayer.poll() != None:
       raise Exception(mplayer.stdout.read())
     self.mpd.connect(mpd_host, mpd_port+self.cur_channel)
+    self.paused = False
   def rewind(self):
     # This could be done if there is decent buffering, don't care not worth it: Resets playback of the current music to the beginning.
     return None
@@ -1356,6 +1363,7 @@ class musicplayer():
     # Could also be possible if good buffering is in use, don't care not worth it: Temporarily stop playback of the music stream. It can be resumed with the pygame.mixer.music.unpause() function.
     if not self.mplayer == None and not self.mplayer.stdin.closed:
       self.mplayer.stdin.write("mute\n")
+    self.paused = self.paused == False
   def unpause(self):
     # Could also be possible if good buffering is in use, don't care not worth it: This will resume the playback of a music stream after it has been paused.
     ## I have implemented pausing as a toggle and can't programatically tell whether it is paused or not.
