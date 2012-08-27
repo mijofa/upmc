@@ -1011,7 +1011,7 @@ class movieplayer():
           pass # Read-only, nothing I can do about it.
         else:
           raise OSError((Errno, Errmsg))
-    self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,bufsize=1)
+    self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=1)
     if self.mplayer.poll() != None:
       raise Exception(mplayer.stdout.read())
     self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
