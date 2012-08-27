@@ -560,10 +560,15 @@ class filemenu():
         screen.blit(surf, (0,0))
         pygame.display.update()
         player = movieplayer(self.itemsinfo[self.selected[1]]['filename'])
-        music.pause()
+        if music.get_busy() == True:
+          music.pause()
+          startmusic = True
+        else:
+          startmusic = False
         player.play()
         player.loop()
-        music.pause()
+        if startmusic == True:
+          music.unpause()
         screen.blit(screenbkup, (0,0))
         pygame.display.update()
       elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
