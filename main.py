@@ -1001,7 +1001,7 @@ class movieplayer():
           pass # Read-only, nothing I can do about it.
         else:
           raise OSError((Errno, Errmsg))
-    self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,bufsize=1)
+    self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,bufsize=1)
     if self.mplayer.poll() != None:
       raise Exception(mplayer.stdout.read())
     self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
@@ -1334,7 +1334,7 @@ class musicplayer():
       url = self.url
     print "Starting playback of '%s', channel %02d: '%s'" % (self.url, self.cur_channel, url)
     args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-slave','-volume','37']
-    self.mplayer = subprocess.Popen(['mplayer']+args+[url],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,bufsize=1)
+    self.mplayer = subprocess.Popen(['mplayer']+args+[url],stdin=subprocess.PIPE,bufsize=1)
     if self.mplayer.poll() != None:
       raise Exception(mplayer.stdout.read())
     self.mpd.connect(mpd_host, mpd_port+self.cur_channel)
