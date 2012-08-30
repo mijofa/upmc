@@ -15,18 +15,12 @@ class urllib2:
 import socket
 class string:
   from string import digits
-import threading
+import mimetypes
+class threading:
+  from threading import Thread, Timer
 import subprocess
 import ConfigParser
 from math import pi
-try:
-  import magic_nonexistent # magic ended up being too slow, I have disabled it, for now atleast.
-  mime = magic.open(magic.MAGIC_MIME)
-  mime.load()
-except ImportError:
-  magic = None
-  import mimetypes
-  mime = False
 import pygame
 try: # I would like this to run on Android as well, this section is needed for that to work.
   import android
