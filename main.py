@@ -602,7 +602,7 @@ class filemenu():
         music.set_volume('-0.12')
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_0:
         music.set_volume('+0.12')
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
+      elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
         music.pause()
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
         music.set_channel("+1")
@@ -847,7 +847,7 @@ class movieinfo():
         music.set_volume('-0.12')
       elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
         music.set_volume('+0.12')
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
+      elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
         music.pause()
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
         music.set_channel("+1")
@@ -1357,7 +1357,7 @@ class musicplayer():
     # Could also be possible if good buffering is in use, don't care not worth it: Temporarily stop playback of the music stream. It can be resumed with the pygame.mixer.music.unpause() function.
     if not self.mplayer == None and not self.mplayer.stdin.closed:
       self.mplayer.stdin.write("mute\n")
-    self.paused = self.paused == False
+      self.paused = self.paused == False
   def unpause(self):
     # Could also be possible if good buffering is in use, don't care not worth it: This will resume the playback of a music stream after it has been paused.
     ## I have implemented pausing as a toggle and can't programatically tell whether it is paused or not.
@@ -1650,7 +1650,7 @@ def main():
         music.set_volume('-0.12')
       elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
         music.set_volume('+0.12')
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
+      elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
         music.pause()
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
         music.set_channel("+1")
