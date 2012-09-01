@@ -16,8 +16,7 @@ import socket
 class string:
   from string import digits
 import mimetypes
-class threading:
-  from threading import Thread, Timer
+import threading
 import subprocess
 import ConfigParser
 from math import pi
