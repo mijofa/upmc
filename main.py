@@ -3,7 +3,9 @@ import os
 class sys:
   from sys import argv
 import mpd
+import aosd
 import time
+import cairo
 class Queue:
   from Queue import Queue, Empty
 import getopt
@@ -39,6 +41,13 @@ running = True
 def userquit():
   pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
   return pygame.event.Event(pygame.QUIT, {})
+
+def aosd_render(context, data):
+    width = data['image'].get_width()
+    height = data['image'].get_height()
+    image = cairo.ImageSurface.create_for_data(pygame.surfarray.pixels2d(data['image']).data, cairo.FORMAT_RGB24, width, height)
+    context.set_source_surface(image)
+    context.paint_with_alpha(data['alpha'])
 
 def render_textrect(string, font, rect, text_color, background = (0,0,0,0), justification=0):
   """Returns a surface containing the passed text string, reformatted
@@ -907,7 +916,7 @@ class movieplayer():
   osdqueue = Queue.Queue()
   def __init__(self, filename):
     global fontname
-    self.font = pygame.font.Font(fontname, 18)
+    self.font = pygame.font.Font(fontname, 36)
     self.filename = filename
     self.osdqueue.queue.clear()
   def procoutput(self):
@@ -1136,7 +1145,7 @@ class movieplayer():
     width, height = self.video_resolution
     more = self.font.render('...', 1, (255,255,255,255))
     if not self.osd:
-      self.osd_rect = pygame.rect.Rect((280,22*3,width-280-15,15))
+      self.osd_rect = pygame.rect.Rect(((self.font.size('W')[0]*18),self.font.get_height()*3,width-(self.font.size('W')[0]*18)-15,15))
       self.osd = pygame.surface.Surface(self.osd_rect[0:2], pygame.SRCALPHA)
       self.osd.fill((25,25,25,157))
       title = self.font.render(os.path.basename(self.filename).rpartition('.')[0], 1, (255,255,255,255))
@@ -1145,35 +1154,47 @@ class movieplayer():
         self.osd.blit(more, (self.osd.get_width()-more.get_width(), title.get_height()-more.get_height()))
       else:
         self.osd.blit(title, (0,0))
+    self.aosd = aosd.Aosd()
+    self.aosd.set_transparency(aosd.TRANSPARENCY_COMPOSITE)
+    self.aosd.set_position(2, self.osd.get_width(), self.osd.get_height())
+    self.aosd.set_position_offset(-50, 50)
+    self.aosd.set_renderer(aosd_render, {'image': self.osd, 'alpha': 0.75})
+    self.aosd.set_hide_upon_mouse_event(True)
     while command != "cancel":
       try: command = self.osdqueue.get_nowait()
       except Queue.Empty:
         command = None
       if command == "showosd":
-        try: os.write(self.bmovl, 'SHOW\n')
-        except OSError: pass
+#        try: os.write(self.bmovl, 'SHOW\n')
+#        except OSError: pass
+        self.aosd.show()
         osdvisible = True
       elif command == "hideosd":
-        try: os.write(self.bmovl, 'HIDE\n')
-        except OSError: pass
+#        try: os.write(self.bmovl, 'HIDE\n')
+#        except OSError: pass
+        self.aosd.hide()
+        self.aosd.loop_once()
         osdvisible = False
       elif command == "toggleosd":
         if osdvisible == False:
-          try: os.write(self.bmovl, 'SHOW\n')
-          except OSError: pass
+#          try: os.write(self.bmovl, 'SHOW\n')
+#          except OSError: pass
+          self.aosd.show()
           osdvisible = True
           thread = threading.Timer(5, self.osdqueue.put, args=['hideosd'])
           thread.name = 'hideosd'
           self.threads.update({thread.name: thread})
           thread.start()
         elif osdvisible == True:
-          try: os.write(self.bmovl, 'HIDE\n')
-          except OSError: pass
+#          try: os.write(self.bmovl, 'HIDE\n')
+#          except OSError: pass
+          self.aosd.hide()
+          self.aosd.loop_once()
           osdvisible = False
       if osdvisible == True:
         if not osd_time == int(time.time()):
           curtime = self.font.render(time.strftime('%I:%M:%S %p '), 1, (255,255,255,255))
-          subosd = self.osd.subsurface([self.osd.get_width()-curtime.get_width(),22,curtime.get_width(),22])
+          subosd = self.osd.subsurface([self.osd.get_width()-curtime.get_width(),self.font.get_height(),curtime.get_width(),self.font.get_height()])
           subosd.fill((25,25,25,157))
           subosd.blit(curtime, (0,0))
           osd_time = int(time.time())
@@ -1194,10 +1215,10 @@ class movieplayer():
             curpos = '%02d:%02d:%02d' % (curhrs,curmins,cursecs)
             totallength = '%02d:%02d:%02d' % (totalhrs,totalmins,totalsecs)
           pos = self.font.render('%s of %s' % (curpos, totallength), 1, (255,255,255,255))
-          subosd = self.osd.subsurface([0,22,self.osd.get_width()-curtime.get_width(),22])
+          subosd = self.osd.subsurface([0,self.font.get_height(),self.osd.get_width()-curtime.get_width(),self.font.get_height()])
           subosd.fill((25,25,25,157))
           subosd.blit(pos, (0,0))
-          subosd = self.osd.subsurface([0,44,self.osd.get_width(),22])
+          subosd = self.osd.subsurface([0,self.font.get_height()*2,self.osd.get_width(),self.font.get_height()])
           subosd.fill((0,0,0,255))
           perc = subosd.subsurface([0,0,subosd.get_width()/100.0*self.percent_pos, subosd.get_height()])
           perc.fill((127,127,127,255))
@@ -1207,10 +1228,10 @@ class movieplayer():
           self.osd_time_pos = int(self.time_pos)
         elif self.osdtype == 'volume' and not int(self.volume) == self.osd_percentage:
           voltext = self.font.render('%s%% volume' % int(self.volume), 1, (255,255,255,255))
-          subosd = self.osd.subsurface([0,22,self.osd.get_width()-curtime.get_width(),22])
+          subosd = self.osd.subsurface([0,self.font.get_height(),self.osd.get_width()-curtime.get_width(),self.font.get_height()])
           subosd.fill((25,25,25,157))
           subosd.blit(voltext, (0,0))
-          subosd = self.osd.subsurface([0,44,self.osd.get_width(),22])
+          subosd = self.osd.subsurface([0,self.font.get_height()*2,self.osd.get_width(),self.font.get_height()])
           subosd.fill((0,0,0,255))
           perc = subosd.subsurface([0,0,subosd.get_width()/100.0*self.volume, subosd.get_height()])
           perc.fill((127,127,127,255))
@@ -1218,9 +1239,10 @@ class movieplayer():
           subosd.blit(percnum, ((subosd.get_width()/2)-(percnum.get_width()/2),0))
           self.osd_percentage = int(self.volume)
         try:
-          os.write(self.bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (self.osd_rect[0], self.osd_rect[1], self.osd_rect[2], self.osd_rect[3], 0, 0))
-          string_surf = pygame.image.tostring(self.osd, 'RGBA')
-          os.write(self.bmovl, string_surf)
+#          os.write(self.bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (self.osd_rect[0], self.osd_rect[1], self.osd_rect[2], self.osd_rect[3], 0, 0))
+#          string_surf = pygame.image.tostring(self.osd, 'RGBA')
+#          os.write(self.bmovl, string_surf)
+          self.aosd.render()
         except OSError: pass
   def poll(self):
     status = self.mplayer.poll()
