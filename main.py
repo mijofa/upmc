@@ -1174,6 +1174,7 @@ class movieplayer():
 #        except OSError: pass
         self.aosd.hide()
         self.aosd.loop_once()
+        self.osdtype = 'time'
         osdvisible = False
       elif command == "toggleosd":
         if osdvisible == False:
@@ -1244,6 +1245,8 @@ class movieplayer():
 #          os.write(self.bmovl, string_surf)
           self.aosd.render()
         except OSError: pass
+    self.aosd.hide()
+    self.aosd.loop_once()
   def poll(self):
     status = self.mplayer.poll()
     if status != None:
