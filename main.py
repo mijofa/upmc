@@ -154,7 +154,7 @@ class textmenu():
   realmenuitems = []
   selected = None
   def __init__(self, menuitems = None):
-    self.font = pygame.font.Font(fontname, 36)
+    self.font = pygame.font.Font(fontname, 54)
     return self.render(menuitems)
   def render(self, menuitems = None):
     global screenupdates
@@ -253,7 +253,7 @@ class filemenu():
   cwd = './'
   rowoffset = 0
   def __init__(self):
-    self.font = pygame.font.Font(fontname, 30)
+    self.font = pygame.font.Font(fontname, 36)
     self.builditems()
     self.render()
     self.loop()
@@ -879,7 +879,7 @@ class movieinfo():
     surf = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
     surf.fill((0,0,0,225))
     screen.blit(surf, (0,0))
-    render_textrect('Movie player is running.\n\nPress the back button to quit.', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), screen, 3)
+    render_textrect('Movie player is running.\n\nPress the back button to quit.', pygame.font.Font(fontname, 54), screen.get_rect(), (255,255,255), screen, 3)
     pygame.display.update()
     player = movieplayer(self['filename'])
     if music.paused == False:
@@ -1158,7 +1158,7 @@ class movieplayer():
     self.aosd.set_transparency(aosd.TRANSPARENCY_COMPOSITE)
     self.aosd.set_position(2, self.osd.get_width(), self.osd.get_height())
     self.aosd.set_position_offset(-50, 50)
-    self.aosd.set_renderer(aosd_render, {'image': self.osd, 'alpha': 0.75})
+    self.aosd.set_renderer(aosd_render, {'image': self.osd, 'alpha': 1.0})
     self.aosd.set_hide_upon_mouse_event(True)
     while command != "cancel":
       try: command = self.osdqueue.get_nowait()
