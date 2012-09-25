@@ -900,7 +900,6 @@ class movieplayer():
   # I've tried to make this fairly compatible with the pygame.movie module, but there's a lot of features in this that are not in the pygame.movie module.
   # Also, I haven't really tested this compatibility or even used pygame.movie ever before.
   osd = None
-  bmovl = None
   osd_visible = False
   paused = None
   time_pos = 0
@@ -964,12 +963,6 @@ class movieplayer():
         elif response.startswith('sub_visibility='):
           if response.split('=')[1].strip("'") == 'yes': self.mplayer.stdin.write('osd_show_text "Subtitles enabled"\n')
           else: self.mplayer.stdin.write('osd_show_text "Subtitles disabled"\n')
-      elif response.startswith('vf_bmovl: '):
-        response = response[len('vf_bmovl: '):]
-        if response.startswith('Opened fifo ') and self.bmovl == None:
-          response = response[len('Opened fifo '):]
-          os.remove(response[:response.rindex(' as FD ')])
-          self.bmovl = os.open('/proc/%s/fd/%s' % (self.mplayer.pid, response[response.rindex(' ')+1:]), os.O_WRONLY)
     return
   def play(self, loops=None, osd=True):
     # Starts playback of the movie. Sound and video will begin playing if they are not disabled. The optional loops argument controls how many times the movie will be repeated. A loop value of -1 means the movie will repeat forever.
@@ -985,10 +978,6 @@ class movieplayer():
       loops = 0
     if loops != None:
       args += ['-loop', str(loops)]
-    if osd:
-      bmovlfile = os.tempnam(None, 'UPMC-')
-      os.mkfifo(bmovlfile)
-      args += ['-osdlevel','0','-vf','bmovl=1:0:'+bmovlfile] #'-vc', '-ffodivx,-ffodivxvdpau,', 
     if os.path.isfile(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'):
       starttime = open(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'r').readline().strip('\n')
       if ';' in starttime:
@@ -1137,8 +1126,9 @@ class movieplayer():
       self.threads["hideosd"].cancel()
     self.osdqueue.put("hideosd")
   def manageosd(self):
-    if self.bmovl == None:
-      while self.bmovl == None: pass
+    while self.paused == None: pass
+    print "Starting OSD"
+    time.sleep(0.1)
     command = None
     osdvisible = False
     osd_time = -1
@@ -1158,37 +1148,31 @@ class movieplayer():
     self.aosd.set_transparency(aosd.TRANSPARENCY_COMPOSITE)
     self.aosd.set_position(2, self.osd.get_width(), self.osd.get_height())
     self.aosd.set_position_offset(-50, 50)
-    self.aosd.set_renderer(aosd_render, {'image': self.osd, 'alpha': 1.0})
+    self.aosd.set_renderer(aosd_render, {'image': self.osd, 'alpha': 0.5})
     self.aosd.set_hide_upon_mouse_event(True)
     while command != "cancel":
       try: command = self.osdqueue.get_nowait()
       except Queue.Empty:
         command = None
       if command == "showosd":
-#        try: os.write(self.bmovl, 'SHOW\n')
-#        except OSError: pass
         self.aosd.show()
+        self.aosd.loop_once()
         osdvisible = True
       elif command == "hideosd":
-#        try: os.write(self.bmovl, 'HIDE\n')
-#        except OSError: pass
         self.aosd.hide()
         self.aosd.loop_once()
         self.osdtype = 'time'
         osdvisible = False
       elif command == "toggleosd":
         if osdvisible == False:
-#          try: os.write(self.bmovl, 'SHOW\n')
-#          except OSError: pass
           self.aosd.show()
+          self.aosd.loop_once()
           osdvisible = True
           thread = threading.Timer(5, self.osdqueue.put, args=['hideosd'])
           thread.name = 'hideosd'
           self.threads.update({thread.name: thread})
           thread.start()
         elif osdvisible == True:
-#          try: os.write(self.bmovl, 'HIDE\n')
-#          except OSError: pass
           self.aosd.hide()
           self.aosd.loop_once()
           osdvisible = False
@@ -1239,12 +1223,8 @@ class movieplayer():
           percnum = self.font.render(str(int(self.volume))+'%', 1, (255,255,255,255))
           subosd.blit(percnum, ((subosd.get_width()/2)-(percnum.get_width()/2),0))
           self.osd_percentage = int(self.volume)
-        try:
-#          os.write(self.bmovl, 'RGBA32 %d %d %d %d %d %d\n' % (self.osd_rect[0], self.osd_rect[1], self.osd_rect[2], self.osd_rect[3], 0, 0))
-#          string_surf = pygame.image.tostring(self.osd, 'RGBA')
-#          os.write(self.bmovl, string_surf)
-          self.aosd.render()
-        except OSError: pass
+        self.aosd.render()
+        self.aosd.loop_once()
     self.aosd.hide()
     self.aosd.loop_once()
   def poll(self):
@@ -1260,10 +1240,6 @@ class movieplayer():
     try:
       self.mplayer.stdin.write('quit\n')
       self.mplayer.stdin.close()
-    except: pass
-    try:
-      os.close(self.bmovl)
-      os.unlink('/tmp/bmovl-%s-%s' % (os.geteuid(), os.getpid()))
     except: pass
     if self.mplayer.poll() != None:
       try:
