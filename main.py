@@ -45,9 +45,9 @@ def userquit():
 def aosd_render(context, data):
     width = data['image'].get_width()
     height = data['image'].get_height()
-    image = cairo.ImageSurface.create_for_data(pygame.surfarray.pixels2d(data['image']).data, cairo.FORMAT_RGB24, width, height)
+    image = cairo.ImageSurface.create_for_data(pygame.surfarray.pixels2d(data['image']).data, cairo.FORMAT_ARGB32, width, height)
     context.set_source_surface(image)
-    context.paint_with_alpha(data['alpha'])
+    context.paint()
 
 def render_textrect(string, font, rect, text_color, background = (0,0,0,0), justification=0):
   """Returns a surface containing the passed text string, reformatted
@@ -1137,7 +1137,7 @@ class movieplayer():
     if not self.osd:
       self.osd_rect = pygame.rect.Rect(((self.font.size('W')[0]*18),self.font.get_height()*3,width-(self.font.size('W')[0]*18)-15,15))
       self.osd = pygame.surface.Surface(self.osd_rect[0:2], pygame.SRCALPHA)
-      self.osd.fill((25,25,25,157))
+      self.osd.fill((25,25,25,150))
       title = self.font.render(os.path.basename(self.filename).rpartition('.')[0], 1, (255,255,255,255))
       if title.get_width() > self.osd.get_width():
         self.osd.blit(title.subsurface((0,0,self.osd.get_width()-more.get_width(),title.get_height())), (0,0))
@@ -1148,7 +1148,7 @@ class movieplayer():
     self.aosd.set_transparency(aosd.TRANSPARENCY_COMPOSITE)
     self.aosd.set_position(2, self.osd.get_width(), self.osd.get_height())
     self.aosd.set_position_offset(-50, 50)
-    self.aosd.set_renderer(aosd_render, {'image': self.osd, 'alpha': 0.5})
+    self.aosd.set_renderer(aosd_render, {'image': self.osd})
     self.aosd.set_hide_upon_mouse_event(True)
     while command != "cancel":
       try: command = self.osdqueue.get_nowait()
@@ -1180,7 +1180,7 @@ class movieplayer():
         if not osd_time == int(time.time()):
           curtime = self.font.render(time.strftime('%I:%M:%S %p '), 1, (255,255,255,255))
           subosd = self.osd.subsurface([self.osd.get_width()-curtime.get_width(),self.font.get_height(),curtime.get_width(),self.font.get_height()])
-          subosd.fill((25,25,25,157))
+          subosd.fill((25,25,25,150))
           subosd.blit(curtime, (0,0))
           osd_time = int(time.time())
         if self.osdtype == 'time' and (not self.osd_time_pos == int(self.get_time()) or not int(self.percent_pos) == self.osd_percentage):
@@ -1201,23 +1201,25 @@ class movieplayer():
             totallength = '%02d:%02d:%02d' % (totalhrs,totalmins,totalsecs)
           pos = self.font.render('%s of %s' % (curpos, totallength), 1, (255,255,255,255))
           subosd = self.osd.subsurface([0,self.font.get_height(),self.osd.get_width()-curtime.get_width(),self.font.get_height()])
-          subosd.fill((25,25,25,157))
+          subosd.fill((25,25,25,150))
           subosd.blit(pos, (0,0))
           subosd = self.osd.subsurface([0,self.font.get_height()*2,self.osd.get_width(),self.font.get_height()])
+          subosd.fill((0,0,0,0))
+          subosd = self.osd.subsurface([0,self.font.get_height()*2,self.osd.get_width(),self.font.get_height()/3])
           subosd.fill((0,0,0,255))
           perc = subosd.subsurface([0,0,subosd.get_width()/100.0*self.percent_pos, subosd.get_height()])
           perc.fill((127,127,127,255))
-          percnum = self.font.render(str(int(self.percent_pos))+'%', 1, (255,255,255,255))
-          subosd.blit(percnum, ((subosd.get_width()/2)-(percnum.get_width()/2),0)) #,pos.get_height()))
+#          percnum = self.font.render(str(int(self.percent_pos))+'%', 1, (255,255,255,255))
+#          subosd.blit(percnum, ((subosd.get_width()/2)-(percnum.get_width()/2),0)) #,pos.get_height()))
           self.osd_percentage = int(self.percent_pos)
           self.osd_time_pos = int(self.time_pos)
         elif self.osdtype == 'volume' and not int(self.volume) == self.osd_percentage:
           voltext = self.font.render('%s%% volume' % int(self.volume), 1, (255,255,255,255))
           subosd = self.osd.subsurface([0,self.font.get_height(),self.osd.get_width()-curtime.get_width(),self.font.get_height()])
-          subosd.fill((25,25,25,157))
+          subosd.fill((25,25,25,150))
           subosd.blit(voltext, (0,0))
           subosd = self.osd.subsurface([0,self.font.get_height()*2,self.osd.get_width(),self.font.get_height()])
-          subosd.fill((0,0,0,255))
+          subosd.fill((0,0,0,0))
           perc = subosd.subsurface([0,0,subosd.get_width()/100.0*self.volume, subosd.get_height()])
           perc.fill((127,127,127,255))
           percnum = self.font.render(str(int(self.volume))+'%', 1, (255,255,255,255))
