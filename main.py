@@ -42,11 +42,48 @@ def userquit():
   pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
   return pygame.event.Event(pygame.QUIT, {})
 
+def DrawRoundRect(surface, color = (255,255,255,255), rect = None, width = 1, xr = 5, yr = 5):
+    if rect == None:
+      rect = surface.get_rect(width=surface.get_width()-0,height=surface.get_height()-0)
+      rect = surface.get_rect()
+#    if width == None:
+#      width = 0
+    clip = surface.get_clip()
+    
+    # left and right
+    surface.set_clip(clip.clip(rect.inflate(0, -yr*2)))
+    pygame.draw.rect(surface, color, rect.inflate(1-width,0), width)
+
+    # top and bottom
+    surface.set_clip(clip.clip(rect.inflate(-xr*2, 0)))
+    pygame.draw.rect(surface, color, rect.inflate(0,1-width), width)
+
+    # top left corner
+    surface.set_clip(clip.clip(rect.left, rect.top, xr, yr))
+    pygame.draw.ellipse(surface, color, pygame.Rect(rect.left, rect.top, 2*xr, 2*yr), width)
+
+    # top right corner
+    surface.set_clip(clip.clip(rect.right-xr, rect.top, xr, yr))
+    pygame.draw.ellipse(surface, color, pygame.Rect(rect.right-2*xr, rect.top, 2*xr, 2*yr), width)
+
+    # bottom left
+    surface.set_clip(clip.clip(rect.left, rect.bottom-yr, xr, yr))
+    pygame.draw.ellipse(surface, color, pygame.Rect(rect.left, rect.bottom-2*yr, 2*xr, 2*yr), width)
+
+    # bottom right
+    surface.set_clip(clip.clip(rect.right-xr, rect.bottom-yr, xr, yr))
+    pygame.draw.ellipse(surface, color, pygame.Rect(rect.right-2*xr, rect.bottom-2*yr, 2*xr, 2*yr), width)
+
+    surface.set_clip(clip)
+    return surface
+
 def aosd_render(context, data):
-    width = data['image'].get_width()
-    height = data['image'].get_height()
-    image = cairo.ImageSurface.create_for_data(pygame.surfarray.pixels2d(data['image']).data, cairo.FORMAT_ARGB32, width, height)
-    context.set_source_surface(image)
+    pygsurf = DrawRoundRect(data['image'])
+    width = pygsurf.get_width()
+    height = pygsurf.get_height()
+    image = cairo.ImageSurface.create_for_data(pygame.surfarray.pixels2d(pygsurf).data, cairo.FORMAT_ARGB32, width, height)
+    
+    context.set_source_surface(image, 10, 10)
     context.paint()
 
 def render_textrect(string, font, rect, text_color, background = (0,0,0,0), justification=0):
@@ -1135,10 +1172,12 @@ class movieplayer():
     width, height = self.video_resolution
     more = self.font.render('...', 1, (255,255,255,255))
     if not self.osd:
-      self.osd_rect = pygame.rect.Rect(((self.font.size('W')[0]*18),self.font.get_height()*3,width-(self.font.size('W')[0]*18)-15,15))
+      self.osd_rect = pygame.rect.Rect(((self.font.size('W')[0]*18),(self.font.get_height()*2)+(self.font.get_height()/3),width-(self.font.size('W')[0]*18)-15,15))
       self.osd = pygame.surface.Surface(self.osd_rect[0:2], pygame.SRCALPHA)
       self.osd.fill((25,25,25,150))
+      self.osd.set_colorkey((255,0,0))
       title = self.font.render(os.path.basename(self.filename).rpartition('.')[0], 1, (255,255,255,255))
+#      help(self.font.render)
       if title.get_width() > self.osd.get_width():
         self.osd.blit(title.subsurface((0,0,self.osd.get_width()-more.get_width(),title.get_height())), (0,0))
         self.osd.blit(more, (self.osd.get_width()-more.get_width(), title.get_height()-more.get_height()))
@@ -1146,7 +1185,7 @@ class movieplayer():
         self.osd.blit(title, (0,0))
     self.aosd = aosd.Aosd()
     self.aosd.set_transparency(aosd.TRANSPARENCY_COMPOSITE)
-    self.aosd.set_position(2, self.osd.get_width(), self.osd.get_height())
+    self.aosd.set_position(2, self.osd.get_width()+20, self.osd.get_height()+20) #20 is an abitrary number that fixed something, don't ask me how or what. :/
     self.aosd.set_position_offset(-50, 50)
     self.aosd.set_renderer(aosd_render, {'image': self.osd})
     self.aosd.set_hide_upon_mouse_event(True)
@@ -1175,6 +1214,7 @@ class movieplayer():
         elif osdvisible == True:
           self.aosd.hide()
           self.aosd.loop_once()
+          self.osdtype = 'time'
           osdvisible = False
       if osdvisible == True:
         if not osd_time == int(time.time()):
@@ -1203,8 +1243,6 @@ class movieplayer():
           subosd = self.osd.subsurface([0,self.font.get_height(),self.osd.get_width()-curtime.get_width(),self.font.get_height()])
           subosd.fill((25,25,25,150))
           subosd.blit(pos, (0,0))
-          subosd = self.osd.subsurface([0,self.font.get_height()*2,self.osd.get_width(),self.font.get_height()])
-          subosd.fill((0,0,0,0))
           subosd = self.osd.subsurface([0,self.font.get_height()*2,self.osd.get_width(),self.font.get_height()/3])
           subosd.fill((0,0,0,255))
           perc = subosd.subsurface([0,0,subosd.get_width()/100.0*self.percent_pos, subosd.get_height()])
@@ -1218,12 +1256,12 @@ class movieplayer():
           subosd = self.osd.subsurface([0,self.font.get_height(),self.osd.get_width()-curtime.get_width(),self.font.get_height()])
           subosd.fill((25,25,25,150))
           subosd.blit(voltext, (0,0))
-          subosd = self.osd.subsurface([0,self.font.get_height()*2,self.osd.get_width(),self.font.get_height()])
-          subosd.fill((0,0,0,0))
+          subosd = self.osd.subsurface([0,self.font.get_height()*2,self.osd.get_width(),self.font.get_height()/3])
+          subosd.fill((0,0,0,255))
           perc = subosd.subsurface([0,0,subosd.get_width()/100.0*self.volume, subosd.get_height()])
           perc.fill((127,127,127,255))
-          percnum = self.font.render(str(int(self.volume))+'%', 1, (255,255,255,255))
-          subosd.blit(percnum, ((subosd.get_width()/2)-(percnum.get_width()/2),0))
+#          percnum = self.font.render(str(int(self.volume))+'%', 1, (255,255,255,255))
+#          subosd.blit(percnum, ((subosd.get_width()/2)-(percnum.get_width()/2),0))
           self.osd_percentage = int(self.volume)
         self.aosd.render()
         self.aosd.loop_once()
