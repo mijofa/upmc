@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import os
 class sys:
-  from sys import argv
+  from sys import argv, stdout
 import mpd
 import aosd
 import time
@@ -42,39 +42,43 @@ def userquit():
   pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
   return pygame.event.Event(pygame.QUIT, {})
 
-def DrawRoundRect(surface, color = (255,255,255,255), rect = None, width = 1, xr = 5, yr = 5):
+def DrawRoundRect(surface, colort = ((25,25,25,150),(255,255,255,255)), rect = None, widtht = (0,2), xr = 10, yr = 10):
+    oldsurface = None
     if rect == None:
-      rect = surface.get_rect(width=surface.get_width()-0,height=surface.get_height()-0)
+      oldsurface = surface
+      surface = pygame.surface.Surface((surface.get_width()+(xr*2),surface.get_height()+(yr*2)), pygame.SRCALPHA)
       rect = surface.get_rect()
-#    if width == None:
-#      width = 0
     clip = surface.get_clip()
     
-    # left and right
-    surface.set_clip(clip.clip(rect.inflate(0, -yr*2)))
-    pygame.draw.rect(surface, color, rect.inflate(1-width,0), width)
+    for width in widtht:
+        color = colort[widtht.index(width)]
+        # left and right
+        surface.set_clip(clip.clip(rect.inflate(0, -yr*2)))
+        pygame.draw.rect(surface, color, rect.inflate(1-width,0), width)
 
-    # top and bottom
-    surface.set_clip(clip.clip(rect.inflate(-xr*2, 0)))
-    pygame.draw.rect(surface, color, rect.inflate(0,1-width), width)
+        # top and bottom
+        surface.set_clip(clip.clip(rect.inflate(-xr*2, 0)))
+        pygame.draw.rect(surface, color, rect.inflate(0,1-width), width)
 
-    # top left corner
-    surface.set_clip(clip.clip(rect.left, rect.top, xr, yr))
-    pygame.draw.ellipse(surface, color, pygame.Rect(rect.left, rect.top, 2*xr, 2*yr), width)
+        # top left corner
+        surface.set_clip(clip.clip(rect.left, rect.top, xr, yr))
+        pygame.draw.ellipse(surface, color, pygame.Rect(rect.left, rect.top, 2*xr, 2*yr), width)
 
-    # top right corner
-    surface.set_clip(clip.clip(rect.right-xr, rect.top, xr, yr))
-    pygame.draw.ellipse(surface, color, pygame.Rect(rect.right-2*xr, rect.top, 2*xr, 2*yr), width)
+        # top right corner
+        surface.set_clip(clip.clip(rect.right-xr, rect.top, xr, yr))
+        pygame.draw.ellipse(surface, color, pygame.Rect(rect.right-2*xr, rect.top, 2*xr, 2*yr), width)
 
-    # bottom left
-    surface.set_clip(clip.clip(rect.left, rect.bottom-yr, xr, yr))
-    pygame.draw.ellipse(surface, color, pygame.Rect(rect.left, rect.bottom-2*yr, 2*xr, 2*yr), width)
+        # bottom left
+        surface.set_clip(clip.clip(rect.left, rect.bottom-yr, xr, yr))
+        pygame.draw.ellipse(surface, color, pygame.Rect(rect.left, rect.bottom-2*yr, 2*xr, 2*yr), width)
 
-    # bottom right
-    surface.set_clip(clip.clip(rect.right-xr, rect.bottom-yr, xr, yr))
-    pygame.draw.ellipse(surface, color, pygame.Rect(rect.right-2*xr, rect.bottom-2*yr, 2*xr, 2*yr), width)
+        # bottom right
+        surface.set_clip(clip.clip(rect.right-xr, rect.bottom-yr, xr, yr))
+        pygame.draw.ellipse(surface, color, pygame.Rect(rect.right-2*xr, rect.bottom-2*yr, 2*xr, 2*yr), width)
 
     surface.set_clip(clip)
+    if not oldsurface == None:
+      surface.blit(oldsurface, (xr-(widtht[-1]/2),yr-(widtht[-1]/2)))
     return surface
 
 def aosd_render(context, data):
@@ -1174,8 +1178,6 @@ class movieplayer():
     if not self.osd:
       self.osd_rect = pygame.rect.Rect(((self.font.size('W')[0]*18),(self.font.get_height()*2)+(self.font.get_height()/3),width-(self.font.size('W')[0]*18)-15,15))
       self.osd = pygame.surface.Surface(self.osd_rect[0:2], pygame.SRCALPHA)
-      self.osd.fill((25,25,25,150))
-      self.osd.set_colorkey((255,0,0))
       title = self.font.render(os.path.basename(self.filename).rpartition('.')[0], 1, (255,255,255,255))
 #      help(self.font.render)
       if title.get_width() > self.osd.get_width():
@@ -1185,7 +1187,7 @@ class movieplayer():
         self.osd.blit(title, (0,0))
     self.aosd = aosd.Aosd()
     self.aosd.set_transparency(aosd.TRANSPARENCY_COMPOSITE)
-    self.aosd.set_position(2, self.osd.get_width()+20, self.osd.get_height()+20) #20 is an abitrary number that fixed something, don't ask me how or what. :/
+    self.aosd.set_position(2, self.osd.get_width()+40, self.osd.get_height()+40) #20 is an abitrary number that fixed something, don't ask me how or what. :/
     self.aosd.set_position_offset(-50, 50)
     self.aosd.set_renderer(aosd_render, {'image': self.osd})
     self.aosd.set_hide_upon_mouse_event(True)
@@ -1220,7 +1222,7 @@ class movieplayer():
         if not osd_time == int(time.time()):
           curtime = self.font.render(time.strftime('%I:%M:%S %p '), 1, (255,255,255,255))
           subosd = self.osd.subsurface([self.osd.get_width()-curtime.get_width(),self.font.get_height(),curtime.get_width(),self.font.get_height()])
-          subosd.fill((25,25,25,150))
+          subosd.fill((25,25,25,0))
           subosd.blit(curtime, (0,0))
           osd_time = int(time.time())
         if self.osdtype == 'time' and (not self.osd_time_pos == int(self.get_time()) or not int(self.percent_pos) == self.osd_percentage):
@@ -1241,7 +1243,7 @@ class movieplayer():
             totallength = '%02d:%02d:%02d' % (totalhrs,totalmins,totalsecs)
           pos = self.font.render('%s of %s' % (curpos, totallength), 1, (255,255,255,255))
           subosd = self.osd.subsurface([0,self.font.get_height(),self.osd.get_width()-curtime.get_width(),self.font.get_height()])
-          subosd.fill((25,25,25,150))
+          subosd.fill((25,25,25,0))
           subosd.blit(pos, (0,0))
           subosd = self.osd.subsurface([0,self.font.get_height()*2,self.osd.get_width(),self.font.get_height()/3])
           subosd.fill((0,0,0,255))
@@ -1254,7 +1256,7 @@ class movieplayer():
         elif self.osdtype == 'volume' and not int(self.volume) == self.osd_percentage:
           voltext = self.font.render('%s%% volume' % int(self.volume), 1, (255,255,255,255))
           subosd = self.osd.subsurface([0,self.font.get_height(),self.osd.get_width()-curtime.get_width(),self.font.get_height()])
-          subosd.fill((25,25,25,150))
+          subosd.fill((25,25,25,0))
           subosd.blit(voltext, (0,0))
           subosd = self.osd.subsurface([0,self.font.get_height()*2,self.osd.get_width(),self.font.get_height()/3])
           subosd.fill((0,0,0,255))
@@ -1361,10 +1363,23 @@ class musicplayer():
   mplayer = None
   cur_channel = 0
   mpd = mpd.MPDClient()
-  paused = True
+  paused = None
+  trackinfo = {}
   def load(self, url):
     # This will load a music URL object and prepare it for playback. This does not start the music playing.
     self.url = url
+  def procoutput(self):
+    response = None
+    while not response == '' and not self.mplayer.stdout.closed:
+      response = self.mplayer.stdout.read(1)+self.mplayer.stdout.readline().strip('\r\n')
+      if response.startswith("ICY Info: ") or response.startswith("\nICY Info: "):
+        self.trackinfo = {}
+        for key_value in ' '.join(response.split(' ')[2:]).split(';'):
+          key = key_value.split('=')[0]
+          value = '='.join(key_value.split('=')[1:]).strip("\"'")
+          self.trackinfo[key] = value
+        print "Starting new track: %s" % self.trackinfo["StreamTitle"]
+      sys.stdout.flush()
   def play(self, loops=0, start=0.0):
     # This will play the loaded music stream. If the music is already playing it will be restarted.
     # This can't work for streaming audio: The loops argument controls the number of repeats a music will play. play(5) will cause the music to played once, then repeated five times, for a total of six. If the loops is -1 then the music will repeat indefinitely.
@@ -1378,10 +1393,15 @@ class musicplayer():
     else:
       url = self.url
     print "Starting playback of '%s', channel %02d: '%s'" % (self.url, self.cur_channel, url)
-    args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-slave','-volume','37']
-    self.mplayer = subprocess.Popen(['mplayer']+args+[url],stdin=subprocess.PIPE,bufsize=1)
+    args = ['-input','conf=/dev/null:nodefault-bindings','-slave','-volume','37','-msglevel','demuxer=4:vfilter=5:identify=5:global=4:input=5:cplayer=0:statusline=0','-identify']
+    self.mplayer = subprocess.Popen(['mplayer']+args+[url],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=1)
     if self.mplayer.poll() != None:
       raise Exception(mplayer.stdout.read())
+    self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
+    self.mplayer.stdin.write('pausing_keep_force get_property volume\n')
+    thread = threading.Thread(target=self.procoutput, name='stdout')
+#    self.threads.update({thread.name: thread})
+    thread.start()
     self.mpd.connect(mpd_host, mpd_port+self.cur_channel)
     self.paused = False
   def rewind(self):
