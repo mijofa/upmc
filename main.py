@@ -1364,6 +1364,7 @@ class musicplayer():
   cur_channel = 0
   mpd = mpd.MPDClient()
   paused = None
+  volume = None
   trackinfo = {}
   def load(self, url):
     # This will load a music URL object and prepare it for playback. This does not start the music playing.
@@ -1379,7 +1380,31 @@ class musicplayer():
           value = '='.join(key_value.split('=')[1:]).strip("\"'")
           self.trackinfo[key] = value
         print "Starting new track: %s" % self.trackinfo["StreamTitle"]
-      sys.stdout.flush()
+        sys.stdout.flush()
+      elif response.startswith("No bind found for key '"):
+        key = response.strip(' ')[len("No bind found for key '"):].rstrip('.').rstrip("'")
+        if key in self.remapped_keys.keys(): key = self.remapped_keys[key]
+        if 'K_'+key in dir(pygame):
+          pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
+          pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
+        elif key.startswith('MOUSE_BTN'):
+          try:
+            pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, {'button': int(key.replace('MOUSE_BTN', ''))+1, 'pos': (0,0)}))
+            pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONUP, {'button': int(key.replace('MOUSE_BTN', ''))+1, 'pos': (0,0)}))
+          except:
+            print 'This try except block is temporary, I will put a proper fix in place.'
+        elif key == 'CLOSE_WIN':
+          pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
+      elif response.startswith('ANS_') or response.startswith('ID_'):
+        response = '_'.join(response.split('_')[1:]).lower()
+        if response.startswith('exit'):
+          break
+        elif response == 'paused':
+          self.paused = True
+        elif response.startswith('pause='):
+          self.paused = response.split('=')[-1] == 'yes'
+        elif response.startswith('volume='):
+          self.volume = float(response.split('=')[1])
   def play(self, loops=0, start=0.0):
     # This will play the loaded music stream. If the music is already playing it will be restarted.
     # This can't work for streaming audio: The loops argument controls the number of repeats a music will play. play(5) will cause the music to played once, then repeated five times, for a total of six. If the loops is -1 then the music will repeat indefinitely.
@@ -1403,7 +1428,6 @@ class musicplayer():
 #    self.threads.update({thread.name: thread})
     thread.start()
     self.mpd.connect(mpd_host, mpd_port+self.cur_channel)
-    self.paused = False
   def rewind(self):
     # This could be done if there is decent buffering, don't care not worth it: Resets playback of the current music to the beginning.
     return None
@@ -1417,7 +1441,6 @@ class musicplayer():
     # Could also be possible if good buffering is in use, don't care not worth it: Temporarily stop playback of the music stream. It can be resumed with the pygame.mixer.music.unpause() function.
     if not self.mplayer == None and not self.mplayer.stdin.closed:
       self.mplayer.stdin.write("mute\n")
-      self.paused = self.paused == False
   def unpause(self):
     # Could also be possible if good buffering is in use, don't care not worth it: This will resume the playback of a music stream after it has been paused.
     ## I have implemented pausing as a toggle and can't programatically tell whether it is paused or not.
@@ -1457,11 +1480,12 @@ class musicplayer():
     return 0
   def get_busy(self):
     # Returns True when the music stream is actively playing. When the music is idle this returns False.
-
     if self.mplayer.poll() == None:
       return True
     else:
       return False
+
+    return not self.volume == 0
   def set_pos(self, pos):
     # Also not possible with a stream: This sets the position in the music file where playback will start. The meaning of "pos", a float (or a number that can be converted to a float), depends on the music format. Newer versions of SDL_mixer have better positioning support than earlier. An SDLError is raised if a particular format does not support positioning.
     return None
