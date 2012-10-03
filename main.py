@@ -603,7 +603,7 @@ class filemenu():
         screen.blit(surf, (0,0))
         pygame.display.update()
         player = movieplayer(self.itemsinfo[self.selected[1]]['filename'])
-        if music.get_busy() == False:
+        if music.get_busy() == True:
           music.pause()
           startmusic = True
         else:
@@ -923,7 +923,7 @@ class movieinfo():
     render_textrect('Movie player is running.\n\nPress the back button to quit.', pygame.font.Font(fontname, 54), screen.get_rect(), (255,255,255), screen, 3)
     pygame.display.update()
     player = movieplayer(self['filename'])
-    if music.get_busy() == False:
+    if music.get_busy() == True:
       music.pause()
       startmusic = True
     else:
