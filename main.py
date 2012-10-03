@@ -923,6 +923,7 @@ class movieinfo():
     render_textrect('Movie player is running.\n\nPress the back button to quit.', pygame.font.Font(fontname, 54), screen.get_rect(), (255,255,255), screen, 3)
     pygame.display.update()
     player = movieplayer(self['filename'])
+    print music.get_volume(), music.get_busy()
     if music.get_busy() == True:
       music.pause()
       startmusic = True
@@ -1360,12 +1361,13 @@ class movieplayer():
 class musicplayer():
   # This should be a drop-in replacement for pygame.mixer.music but this only needs to support a HTTP streamed audio stream via Mplayer.
   url = None
-  mplayer = None
-  cur_channel = 0
   mpd = mpd.MPDClient()
+  muted = False
   paused = None
   volume = None
+  mplayer = None
   trackinfo = {}
+  cur_channel = 0
   def load(self, url):
     # This will load a music URL object and prepare it for playback. This does not start the music playing.
     self.url = url
@@ -1373,6 +1375,7 @@ class musicplayer():
     response = None
     while not response == '' and not self.mplayer.stdout.closed:
       response = self.mplayer.stdout.read(1)+self.mplayer.stdout.readline().strip('\r\n')
+      print response
       if response.startswith("ICY Info: ") or response.startswith("\nICY Info: "):
         self.trackinfo = {}
         for key_value in ' '.join(response.split(' ')[2:]).split(';'):
@@ -1405,6 +1408,8 @@ class musicplayer():
           self.paused = response.split('=')[-1] == 'yes'
         elif response.startswith('volume='):
           self.volume = float(response.split('=')[1])
+        elif response.startswith('mute='):
+          self.muted = bool(response.split('=')[1].lower == 'yes')
   def play(self, loops=0, start=0.0):
     # This will play the loaded music stream. If the music is already playing it will be restarted.
     # This can't work for streaming audio: The loops argument controls the number of repeats a music will play. play(5) will cause the music to played once, then repeated five times, for a total of six. If the loops is -1 then the music will repeat indefinitely.
@@ -1477,15 +1482,21 @@ class musicplayer():
       self.mplayer.stdin.write('get_property volume\n')
   def get_volume(self):
     # Returns the current volume for the mixer. The value will be between 0.0 and 1.0.
-    return 0
+    self.volume = None
+    self.muted = None
+    self.mplayer.stdin.write('pausing_keep_force get_property volume\n')
+    self.mplayer.stdin.write('pausing_keep_force get_property mute\n')
+    while self.volume == None or self.muted == None: pass
+    if self.muted == True:
+      return 0
+    else:
+      return self.volume/100.0
   def get_busy(self):
     # Returns True when the music stream is actively playing. When the music is idle this returns False.
-    if self.mplayer.poll() == None:
-      return True
-    else:
+    if not self.mplayer.poll() == None:
       return False
 
-    return not self.volume == 0
+    return not self.get_volume() == 0.0
   def set_pos(self, pos):
     # Also not possible with a stream: This sets the position in the music file where playback will start. The meaning of "pos", a float (or a number that can be converted to a float), depends on the music format. Newer versions of SDL_mixer have better positioning support than earlier. An SDLError is raised if a particular format does not support positioning.
     return None
