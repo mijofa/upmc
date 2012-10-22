@@ -90,6 +90,20 @@ def aosd_render(context, data):
     context.set_source_surface(image, 10, 10)
     context.paint()
 
+def render_textscroll(string, font, surface, text_color = (255,255,255), background = (0,0,0,0))
+  text = font.render(string, 1, text_color)
+  x_pos = 0
+  x_increment = -1
+  background = surface.copy()
+  while running == True:
+    surface.blit(background, (0,0))
+    surface.blit(text, (x_pos,0))
+    pygame.display.update()
+    x_pos += x_increment
+    if x_pos <= -(text.get_width()-screen.get_width()) or x_pos >= 0:
+      x_increment = -x_increment
+    time.sleep(0.01)
+
 def render_textrect(string, font, rect, text_color, background = (0,0,0,0), justification=0):
   """Returns a surface containing the passed text string, reformatted
   to fit within the given rect, word-wrapping as necessary. The text
@@ -1361,12 +1375,13 @@ class movieplayer():
 class musicplayer():
   # This should be a drop-in replacement for pygame.mixer.music but this only needs to support a HTTP streamed audio stream via Mplayer.
   url = None
-  mpd = mpd.MPDClient()
+  mpc = mpd.MPDClient()
   muted = False
   paused = None
   volume = None
   mplayer = None
   trackinfo = {}
+  streaminfo = {}
   cur_channel = 0
   def load(self, url):
     # This will load a music URL object and prepare it for playback. This does not start the music playing.
@@ -1377,12 +1392,15 @@ class musicplayer():
       response = self.mplayer.stdout.read(1)+self.mplayer.stdout.readline().strip('\r\n')
       print response
       if response.startswith("ICY Info: ") or response.startswith("\nICY Info: "):
-        self.trackinfo = {}
+        self.streaminfo = {}
         for key_value in ' '.join(response.split(' ')[2:]).split(';'):
           key = key_value.split('=')[0]
           value = '='.join(key_value.split('=')[1:]).strip("\"'")
-          self.trackinfo[key] = value
-        print "Starting new track: %s" % self.trackinfo["StreamTitle"]
+          self.streaminfo[key] = value
+        print "StreamTitle changed: %s" % self.streaminfo["StreamTitle"]
+        self.trackinfo = {}
+        self.trackinfo = self.mpc.currentsong()
+        print "Assuming a new track started: %s - %s/%s" (self.trackinfo["artist"], self.trackinfo["album"], self.trackinfo["title"])
         sys.stdout.flush()
       elif response.startswith("No bind found for key '"):
         key = response.strip(' ')[len("No bind found for key '"):].rstrip('.').rstrip("'")
@@ -1432,7 +1450,7 @@ class musicplayer():
     thread = threading.Thread(target=self.procoutput, name='stdout')
 #    self.threads.update({thread.name: thread})
     thread.start()
-    self.mpd.connect(mpd_host, mpd_port+self.cur_channel)
+    self.mpc.connect(mpd_host, mpd_port+self.cur_channel)
   def rewind(self):
     # This could be done if there is decent buffering, don't care not worth it: Resets playback of the current music to the beginning.
     return None
@@ -1441,7 +1459,7 @@ class musicplayer():
     if not self.mplayer == None and not self.mplayer.stdin.closed:
       self.mplayer.stdin.write("stop\n")
       self.mplayer.stdin.close()
-      self.mpd.disconnect()
+      self.mpc.disconnect()
   def pause(self):
     # Could also be possible if good buffering is in use, don't care not worth it: Temporarily stop playback of the music stream. It can be resumed with the pygame.mixer.music.unpause() function.
     if not self.mplayer == None and not self.mplayer.stdin.closed:
@@ -1530,9 +1548,9 @@ class musicplayer():
       self.cur_channel = channels[-1]
     self.play()
   def next(self):
-    self.mpd.next()
+    self.mpc.next()
   def previous(self):
-    self.mpd.previous()
+    self.mpc.previous()
   def prev(self):
     return self.previous()
 ##### End class musicplayer()
@@ -1694,7 +1712,7 @@ def main():
   pygame.mouse.set_visible(False)
   screen.blit(background, (0,0)) # Put the background on the window.
   pygame.display.update() # Update the display.
-  
+
   def terminal():
     term = subprocess.Popen(['x-terminal-emulator'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE)
     return term.wait
