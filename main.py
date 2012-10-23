@@ -90,7 +90,7 @@ def aosd_render(context, data):
     context.set_source_surface(image, 10, 10)
     context.paint()
 
-def render_textscroll(string, font, surface, text_color = (255,255,255), background = (0,0,0,0)):
+def render_textscroll(string, font, surface, text_color = (255,255,255), background = (0,0,0,0), update = False):
   text = font.render(string, 1, text_color)
   x_pos = 0
   x_increment = -1
@@ -98,7 +98,8 @@ def render_textscroll(string, font, surface, text_color = (255,255,255), backgro
   while running == True:
     surface.blit(background, (0,0))
     surface.blit(text, (x_pos,0))
-    pygame.display.update()
+    if update == True:
+      pygame.display.update()
     x_pos += x_increment
     if x_pos <= -(text.get_width()-screen.get_width()) or x_pos >= 0:
       x_increment = -x_increment
