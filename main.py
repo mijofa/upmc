@@ -42,7 +42,7 @@ def userquit():
   pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
   return pygame.event.Event(pygame.QUIT, {})
 
-def DrawRoundRect(surface, colort = ((25,25,25,150),(255,255,255,255)), rect = None, widtht = (0,2), xr = 10, yr = 10):
+def DrawRoundRect(surface, colort = ((25,25,25,150),(53.75,53.75,53.75,163.125),(82.5,82.5,82.5,176.25),(111.25,111.25,111.25,189.375),(140,140,140,202.5),(168.75,168.75,168.75,215.625),(197.5,197.5,197.5,228.75),(226.25,226.25,226.25,241.875),(255,255,255,255)), rect = None, widtht = (0,9,8,7,6,5,4,3,2), xr = 10, yr = 10):
     oldsurface = None
     if rect == None:
       oldsurface = surface
