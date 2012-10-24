@@ -618,7 +618,7 @@ class filemenu():
         screen.blit(surf, (0,0))
         pygame.display.update()
         player = movieplayer(self.itemsinfo[self.selected[1]]['filename'])
-        if music.get_busy() == True:
+        if not music == None and music.get_busy() == True:
           music.pause()
           startmusic = True
         else:
@@ -662,20 +662,21 @@ class filemenu():
         self.scroll(event.button==5, 1)
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
         pygame.display.toggle_fullscreen()
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_9:
-        music.set_volume('-0.12')
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_0:
-        music.set_volume('+0.12')
-      elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
-        music.pause()
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
-        music.set_channel("+1")
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
-        music.set_channel("-1")
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
-        music.prev()
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
-        music.next()
+      elif not music == None:
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_9:
+          music.set_volume('-0.12')
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_0:
+          music.set_volume('+0.12')
+        elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
+          music.pause()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
+          music.set_channel("+1")
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
+          music.set_channel("-1")
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
+          music.prev()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
+          music.next()
       else:
         if android:
           print 'event', event
@@ -907,20 +908,21 @@ class movieinfo():
         return
       elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
         self.action()
-      elif (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-        music.set_volume('-0.12')
-      elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-        music.set_volume('+0.12')
-      elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
-        music.pause()
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
-        music.set_channel("+1")
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
-        music.set_channel("-1")
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
-        music.prev()
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
-        music.next()
+      elif not music == None:
+        if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
+          music.set_volume('-0.12')
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
+          music.set_volume('+0.12')
+        elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
+          music.pause()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
+          music.set_channel("+1")
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
+          music.set_channel("-1")
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
+          music.prev()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
+          music.next()
   def action(self):
     if not os.path.isfile(str(self['filename'])):
       surf = render_textrect('This file does not seem to exist. Has it been deleted?\n'+str(self['filename']), pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
@@ -938,8 +940,7 @@ class movieinfo():
     render_textrect('Movie player is running.\n\nPress the back button to quit.', pygame.font.Font(fontname, 54), screen.get_rect(), (255,255,255), screen, 3)
     pygame.display.update()
     player = movieplayer(self['filename'])
-    print music.get_volume(), music.get_busy()
-    if music.get_busy() == True:
+    if not music == None and music.get_busy() == True:
       music.pause()
       startmusic = True
     else:
@@ -1829,8 +1830,9 @@ def main():
       quit()
   
   global music
-  music = musicplayer()
+  music = None
   if not music_url == None:
+    music = musicplayer()
     music.load(music_url)
     music.play()
     pygame.register_quit(music.stop)
@@ -1895,20 +1897,21 @@ def main():
         menu.action()
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
         pygame.display.toggle_fullscreen()
-      elif (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-        music.set_volume('-0.12')
-      elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-        music.set_volume('+0.12')
-      elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
-        music.pause()
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
-        music.set_channel("+1")
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
-        music.set_channel("-1")
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
-        music.prev()
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
-        music.next()
+      if not music == None:
+        if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
+          music.set_volume('-0.12')
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
+          music.set_volume('+0.12')
+        elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
+          music.pause()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
+          music.set_channel("+1")
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
+          music.set_channel("-1")
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
+          music.prev()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
+          music.next()
 
 if __name__ == "__main__":
   try: main()
