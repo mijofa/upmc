@@ -78,7 +78,7 @@ def DrawRoundRect(surface, colort = ((25,25,25,150),(53.75,53.75,53.75,163.125),
 
     surface.set_clip(clip)
     if not oldsurface == None:
-      surface.blit(oldsurface, (xr-(widtht[-1]/2),yr-(widtht[-1]/2)))
+      surface.blit(oldsurface, (xr,yr))
     return surface
 
 def aosd_render(context, data):
