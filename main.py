@@ -1410,8 +1410,11 @@ class musicplayer():
         print "StreamTitle changed: %s" % self.streaminfo["StreamTitle"]
         self.trackinfo = {}
         self.trackinfo = self.mpc.currentsong()
-        print "Assuming a new track started: %s - %s/%s" % (self.trackinfo["artist"], self.trackinfo["album"], self.trackinfo["title"])
-        self.showosd(5)
+        if 'artist' in self.trackinfo.keys() and 'album' in self.trackinfo.keys() and 'title' in self.trackinfo.keys():
+          print "Assuming a new track started: %s - %s/%s" % (self.trackinfo["artist"], self.trackinfo["album"], self.trackinfo["title"])
+        else:
+          print "Assuming a new track started: at least one of artist, album, or title is missing."
+#        self.showosd(5)
         sys.stdout.flush()
       elif response.startswith("No bind found for key '"):
         key = response.strip(' ')[len("No bind found for key '"):].rstrip('.').rstrip("'")
