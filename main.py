@@ -1196,11 +1196,14 @@ class movieplayer():
       self.osd_rect = pygame.rect.Rect(((self.font.size('W')[0]*18),(self.font.get_height()*2)+(self.font.get_height()/3),width-(self.font.size('W')[0]*18)-15,15))
       self.osd = pygame.surface.Surface(self.osd_rect[0:2], pygame.SRCALPHA)
       title = self.font.render(os.path.basename(self.filename).rpartition('.')[0], 1, (255,255,255,255))
-#      help(self.font.render)
       if title.get_width() > self.osd.get_width():
-        self.osd.blit(title.subsurface((0,0,self.osd.get_width()-more.get_width(),title.get_height())), (0,0))
-        self.osd.blit(more, (self.osd.get_width()-more.get_width(), title.get_height()-more.get_height()))
+        scrolltitle = True
+        x_pos = 0
+        x_increment = -7
+#        self.osd.blit(title.subsurface((0,0,self.osd.get_width()-more.get_width(),title.get_height())), (0,0))
+#        self.osd.blit(more, (self.osd.get_width()-more.get_width(), title.get_height()-more.get_height()))
       else:
+        scrolltitle = False
         self.osd.blit(title, (0,0))
     self.aosd = aosd.Aosd()
     self.aosd.set_transparency(aosd.TRANSPARENCY_COMPOSITE)
@@ -1236,6 +1239,13 @@ class movieplayer():
           self.osdtype = 'time'
           osdvisible = False
       if osdvisible == True:
+        if scrolltitle == True:
+          subosd = self.osd.subsurface([0,0,self.osd.get_width(),self.font.get_height()])
+          subosd.fill((25,25,25,0))
+          subosd.blit(title, (x_pos,0))
+          x_pos += x_increment
+          if x_pos <= -(title.get_width()-subosd.get_width()) or x_pos >= 0:
+            x_increment = -x_increment
         if not osd_time == int(time.time()):
           curtime = self.font.render(time.strftime('%I:%M:%S %p '), 1, (255,255,255,255))
           subosd = self.osd.subsurface([self.osd.get_width()-curtime.get_width(),self.font.get_height(),curtime.get_width(),self.font.get_height()])
