@@ -1400,6 +1400,7 @@ class musicplayer():
   streaminfo = {}
   cur_channel = 0
   osd_percentage = 0
+  osd_title = "Unknown"
   def load(self, url):
     # This will load a music URL object and prepare it for playback. This does not start the music playing.
     global fontname
@@ -1410,7 +1411,6 @@ class musicplayer():
     response = None
     while not response == '' and not self.mplayer.stdout.closed:
       response = self.mplayer.stdout.read(1)+self.mplayer.stdout.readline().strip('\r\n')
-      print response
       if response.startswith("ICY Info: ") or response.startswith("\nICY Info: "):
         self.streaminfo = {}
         for key_value in ' '.join(response.split(' ')[2:]).split(';'):
@@ -1420,11 +1420,22 @@ class musicplayer():
         print "StreamTitle changed: %s" % self.streaminfo["StreamTitle"]
         self.trackinfo = {}
         self.trackinfo = self.mpc.currentsong()
+        title_text = []
+        for i in ['artist', 'album', 'title']:
+          if i in self.trackinfo.keys():
+            title_text += [str(self.trackinfo[i])]
+        if title_text == []:
+          if "StreamTitle" in self.streaminfo.keys() and not self.streaminfo["StreamTitle"] == '':
+            self.osd_title = self.streaminfo["StreamTitle"]
+          else:
+            self.osd_title = "Unknown"
+        elif type(title_text) == list:
+          self.osd_title = ' - '.join(title_text)
         if 'artist' in self.trackinfo.keys() and 'album' in self.trackinfo.keys() and 'title' in self.trackinfo.keys():
           print "Assuming a new track started: %s - %s/%s" % (self.trackinfo["artist"], self.trackinfo["album"], self.trackinfo["title"])
         else:
           print "Assuming a new track started: at least one of artist, album, or title is missing."
-#        self.showosd(5)
+        self.showosd(4)
         sys.stdout.flush()
       elif response.startswith("No bind found for key '"):
         key = response.strip(' ')[len("No bind found for key '"):].rstrip('.').rstrip("'")
@@ -1567,6 +1578,17 @@ class musicplayer():
     if not self.osd:
       self.osd_rect = pygame.rect.Rect(((self.font.size('W')[0]*18),(self.font.get_height()*2)+(self.font.get_height()/3),width-(self.font.size('W')[0]*18)-15,15))
       self.osd = pygame.surface.Surface(self.osd_rect[0:2], pygame.SRCALPHA)
+      title = self.font.render(self.osd_title, 1, (255,255,255,255))
+      if title.get_width() > self.osd.get_width():
+        scrolltitle = True
+        x_pos = 0
+        x_increment = -7
+#        self.osd.blit(title.subsurface((0,0,self.osd.get_width()-more.get_width(),title.get_height())), (0,0))
+#        self.osd.blit(more, (self.osd.get_width()-more.get_width(), title.get_height()-more.get_height()))
+      else:
+        scrolltitle = False
+        self.osd.blit(title, (0,0))
+    cur_title = self.osd_title
     self.aosd = aosd.Aosd()
     self.aosd.set_transparency(aosd.TRANSPARENCY_COMPOSITE)
     self.aosd.set_position(2, self.osd.get_width()+40, self.osd.get_height()+40) #20 is an abitrary number that fixed something, don't ask me how or what. :/
@@ -1599,16 +1621,21 @@ class musicplayer():
           self.aosd.loop_once()
           osdvisible = False
       if osdvisible == True:
-        if "StreamTitle" in self.streaminfo.keys():
-          title = self.font.render(self.streaminfo["StreamTitle"], 1, (255,255,255,255))
-        else:
-          title = self.font.render("Unknown", 1, (255,255,255,255))
-        self.osd.fill((25,25,25,0))
-        if title.get_width() > self.osd.get_width():
-          self.osd.blit(title.subsurface((0,0,self.osd.get_width()-more.get_width(),title.get_height())), (0,0))
-          self.osd.blit(more, (self.osd.get_width()-more.get_width(), title.get_height()-more.get_height()))
-        else:
-          self.osd.blit(title, (0,0))
+        if not self.osd_title == cur_title:
+          title = self.font.render(self.osd_title, 1, (255,255,255,255))
+          cur_title = self.osd_title
+          if title.get_width() > self.osd.get_width():
+            scrolltitle = True
+          else:
+            scrolltitle = False
+            self.osd.blit(title, (0,0))
+        if scrolltitle == True:
+          subosd = self.osd.subsurface([0,0,self.osd.get_width(),self.font.get_height()])
+          subosd.fill((25,25,25,0))
+          subosd.blit(title, (x_pos,0))
+          x_pos += x_increment
+          if x_pos+(subosd.get_width()/2) <= -(title.get_width()-subosd.get_width()) or x_pos >= subosd.get_width()/10:
+            x_increment = -x_increment
         if not osd_time == int(time.time()):
           curtime = self.font.render(time.strftime('%I:%M:%S %p '), 1, (255,255,255,255))
           subosd = self.osd.subsurface([self.osd.get_width()-curtime.get_width(),self.font.get_height(),curtime.get_width(),self.font.get_height()])
@@ -1912,8 +1939,10 @@ def main():
         pygame.display.toggle_fullscreen()
       if not music == None:
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
+          music.showosd(2)
           music.set_volume('-0.12')
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
+          music.showosd(2)
           music.set_volume('+0.12')
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
           music.pause()
@@ -1925,6 +1954,8 @@ def main():
           music.prev()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
           music.next()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
+          music.toggleosd()
 
 if __name__ == "__main__":
   try: main()
