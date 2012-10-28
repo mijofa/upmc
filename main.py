@@ -1029,6 +1029,8 @@ class movieplayer():
 #    screen.blit(surf, (0,0))
 #    pygame.display.update()
     args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','vfilter=5:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify','-stop-xscreensaver','-volume','75','-idx']
+    if movie_args:
+      args += movie_args
     if windowed == False: args += ['-fs']
     if loops == 0:
       loops = None
@@ -1477,6 +1479,8 @@ class musicplayer():
       url = self.url
     print "Starting playback of '%s', channel %02d: '%s'" % (self.url, self.cur_channel, url)
     args = ['-input','conf=/dev/null:nodefault-bindings','-slave','-volume','37','-msglevel','demuxer=4:vfilter=5:identify=5:global=4:input=5:cplayer=0:statusline=0','-identify']
+    if music_args:
+      args += music_args
     self.mplayer = subprocess.Popen(['mplayer']+args+[url],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=1)
     if self.mplayer.poll() != None:
       raise Exception(mplayer.stdout.read())
@@ -1830,9 +1834,13 @@ def main():
   channels = [0]
   global mpd_port
   mpd_port = 6600
+  global movie_args
+  movie_args = None
+  global music_args
+  music_args = None
 
   if len(sys.argv) > 1:
-    options, arguments = getopt.getopt(sys.argv[1:], 'w:m:', ["windowed=", "music-url=", "channels=", "mpd-host=", "mpd-port="])
+    options, arguments = getopt.getopt(sys.argv[1:], 'w:m:', ["windowed=", "music-url=", "channels=", "mpd-host=", "mpd-port=", "movie-args=", "music-args="])
     for o, a in options:
       if o == "--windowed" or o == '-w':
         resolution = a
@@ -1842,13 +1850,17 @@ def main():
           windowed = True
       elif o == "--music-url" or o == '-m':
         music_url = a
+      elif o == "--channels":
+        print a
+        channels = range(0, int(a))
       elif o == "--mpd-host":
         mpd_host = a
       elif o == "--mpd-port":
         mpd_host = int(a)
-      elif o == "--channels":
-        print a
-        channels = range(0, int(a))
+      elif o == "--movie-args":
+        movie_args = str(a).split(' ')
+      elif o == "music-args":
+        music_args = str(a).split(' ')
   else:
     options, arguments = ([], [])
   
