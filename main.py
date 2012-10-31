@@ -40,6 +40,7 @@ running = True
 
 def userquit():
   pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
+  pygame.quit()
   return pygame.event.Event(pygame.QUIT, {})
 
 def DrawRoundRect(surface, colort = ((25,25,25,150),(53.75,53.75,53.75,163.125),(82.5,82.5,82.5,176.25),(111.25,111.25,111.25,189.375),(140,140,140,202.5),(168.75,168.75,168.75,215.625),(197.5,197.5,197.5,228.75),(226.25,226.25,226.25,241.875),(255,255,255,255)), rect = None, widtht = (0,9,8,7,6,5,4,3,2), xr = 10, yr = 10):
@@ -72,7 +73,6 @@ def DrawRoundRect(surface, colort = ((25,25,25,150),(53.75,53.75,53.75,163.125),
         surface.set_clip(clip.clip(rect.left, rect.bottom-yr, xr, yr))
         pygame.draw.ellipse(surface, color, pygame.Rect(rect.left, rect.bottom-2*yr, 2*xr, 2*yr), width)
 
-        # bottom right
         surface.set_clip(clip.clip(rect.right-xr, rect.bottom-yr, xr, yr))
         pygame.draw.ellipse(surface, color, pygame.Rect(rect.right-2*xr, rect.bottom-2*yr, 2*xr, 2*yr), width)
 
@@ -204,6 +204,181 @@ def render_textrect(string, font, rect, text_color, background = (0,0,0,0), just
         raise TextRectException, "Invalid justification argument: " + str(justification)
       accumulated_height += font.size(line)[1]
   return surface
+
+class osd_thread():
+  threads = {}
+  display_data = ['', '', 0.0]
+  osdvisible = False
+  temp_hook = None
+  hook = None
+  def __init__(self):
+    global fontname
+    self.font = pygame.font.Font(fontname, 36)
+    self.queue = Queue.Queue()
+    self.queue.queue.clear()
+    thread = threading.Thread(target=self.manageosd, name='manageosd')
+    self.threads.update({thread.name: thread})
+    thread.start()
+  def update(self, line_one = None, line_two = None, percentage = None):
+    if not line_one == None:
+      self.display_data[0] = line_one
+    if not line_two == None:
+      self.display_data[1] = line_two
+    if not percentage == None:
+      self.display_data[2] = percentage
+  def get_hook(self):
+    if not self.hook == None:
+      return self.hook
+    elif not self.temp_hook == None:
+      return self.temp_hook
+    else:
+      return None
+  def update_hook(self, func):
+    self.hook = func
+  def toggle(self):
+    if "hide" in self.threads.keys():
+      self.threads["hide"].cancel()
+    self.queue.put("toggle")
+  def show(self, delay = 0):
+    if "hide" in self.threads.keys():
+      self.threads["hide"].cancel()
+    self.queue.put("show")
+    if delay > 0:
+      thread = threading.Timer(delay, self.hide)
+      thread.name = 'hide'
+      self.threads.update({thread.name: thread})
+      thread.start()
+  def hide(self):
+    if "hide" in self.threads.keys():
+      self.threads["hide"].cancel()
+    self.queue.put("hide")
+  def stop(self):
+    self.queue.put("cancel")
+  def quit(self):
+    self.queue.put("cancel")
+  def cancel(self):
+    self.queue.put("cancel")
+  def visible(self):
+    return self.aosd.is_shown()
+  def manageosd(self):
+    print "Starting OSD"
+    time.sleep(0.1)
+    command = None
+    osd_time = -1
+    more = self.font.render('...', 1, (255,255,255,255))
+    self.osd_rect = pygame.rect.Rect(((self.font.size('W')[0]*18),(self.font.get_height()*2)+(self.font.get_height()/3),0,0)) # The position is set by OSD and is useless in the pygame rect
+    self.osd = pygame.surface.Surface(self.osd_rect[0:2], pygame.SRCALPHA)
+    line_one = self.osd.subsurface([0,0,self.osd.get_width(),self.font.get_height()])
+    title = self.font.render(self.display_data[0], 1, (255,255,255,255))
+    if title.get_width() > self.osd.get_width():
+      scrolltitle = True
+      x_pos = 0
+      x_increment = -7
+      line_one.blit(title, (x_pos,0))
+    else:
+      scrolltitle = False
+      line_one.blit(title, (0,0))
+    cur_title = self.display_data[0]
+    curtime = self.font.render(time.strftime('%I:%M:%S %p '), 1, (255,255,255,255))
+    time_surf = self.osd.subsurface([self.osd.get_width()-curtime.get_width(),self.font.get_height(),curtime.get_width(),self.font.get_height()])
+    time_surf.fill((25,25,25,0))
+    time_surf.blit(curtime, (0,0))
+    line_two = self.osd.subsurface([0,self.font.get_height(),self.osd.get_width()-curtime.get_width(),self.font.get_height()])
+    line_two.fill((25,25,25,0))
+    line_two.blit(self.font.render(self.display_data[1], 1, (255,255,255,255)), (0,0))
+    percentage_surf = self.osd.subsurface([0,self.font.get_height()*2,self.osd.get_width(),self.font.get_height()/3])
+    percentage_surf.fill((0,0,0,255))
+    self.aosd = aosd.Aosd()
+    self.aosd.set_transparency(aosd.TRANSPARENCY_COMPOSITE)
+    self.aosd.set_position(2, self.osd.get_width()+40, self.osd.get_height()+40) #20 is an abitrary number that fixed something, don't ask me how or what. :/
+    self.aosd.set_position_offset(-50, 50)
+    self.aosd.set_renderer(aosd_render, {'image': self.osd})
+    self.aosd.set_hide_upon_mouse_event(True)
+    while command != "cancel":
+      try: command = self.queue.get_nowait()
+      except Queue.Empty:
+        command = None
+      if command == "show":
+        if not self.hook == None:
+          hook_data = self.hook('show')
+        self.aosd.show()
+        self.aosd.loop_once()
+        self.osdvisible = True
+      elif command == "hide":
+        if not self.hook == None:
+          hook_data = self.hook('hide')
+        self.aosd.hide()
+        self.aosd.loop_once()
+        self.osdvisible = False
+      elif command == "toggle":
+        if not self.hook == None:
+          hook_data = self.hook('toggle')
+        if self.osdvisible == False:
+          self.aosd.show()
+          self.aosd.loop_once()
+          self.osdvisible = True
+          thread = threading.Timer(5, self.queue.put, args=['hide'])
+          thread.name = 'hide'
+          self.threads.update({thread.name: thread})
+          thread.start()
+        elif self.osdvisible == True:
+          self.aosd.hide()
+          self.aosd.loop_once()
+          self.osdvisible = False
+      if not command == None:
+        self.queue.task_done()
+      if self.osdvisible == True:
+        line_one_str = self.display_data[0]
+        line_two_str = self.display_data[1]
+        percentage_float = self.display_data[2]
+        if not self.hook == None:
+          hook_data = self.hook('updating')
+          if not hook_data[0] == None:
+            line_one_str = hook_data[0]
+          if not hook_data[1] == None:
+            line_two_str = hook_data[1]
+          if not hook_data[2] == None:
+            percentage_float = hook_data[2]
+        if not line_one_str == cur_title:
+          title = self.font.render(line_one_str, 1, (255,255,255,255))
+          cur_title = line_one_str
+          if title.get_width() > line_one.get_width():
+            scrolltitle = True
+          else:
+            scrolltitle = False
+            line_one.blit(title, (0,0))
+        if scrolltitle == True:
+          line_one.fill((25,25,25,0))
+          line_one.blit(title, (x_pos,0))
+          x_pos += x_increment
+          if x_pos+(line_one.get_width()/2) <= -(title.get_width()-line_one.get_width()) or x_pos >= line_one.get_width()/10:
+            x_increment = -x_increment
+        if not osd_time == int(time.time()):
+          curtime = self.font.render(time.strftime('%I:%M:%S %p '), 1, (255,255,255,255))
+          time_surf.fill((25,25,25,0))
+          time_surf.blit(curtime, (0,0))
+          osd_time = int(time.time())
+        line_two.fill((25,25,25,0))
+        line_two_surf = self.font.render(line_two_str, 1, (255,255,255,255))
+        if line_two_surf.get_width() > line_two.get_width():
+          scrollline_two = True
+        else:
+          scrollline_two = False
+          line_two.blit(line_two_surf, (0,0))
+        if scrolltitle == True:
+          line_two.fill((25,25,25,0))
+          line_two.blit(line_two_surf, (x_pos,0))
+          x_pos += x_increment
+          if x_pos+(line_two.get_width()/2) <= -(line_two_surf.get_width()-line_two.get_width()) or x_pos >= line_two.get_width()/10:
+            x_increment = -x_increment
+        percentage_surf.fill((0,0,0,255))
+        percentage_surf.subsurface([0,0,percentage_surf.get_width()/100.0*percentage_float, percentage_surf.get_height()]).fill((127,127,127,255))
+        self.aosd.render()
+        self.aosd.loop_once()
+    if not self.hook == None:
+      hook_data = self.hook('cancel')
+    self.aosd.hide()
+    self.aosd.loop_once()
 
 class textmenu():
   clickables = {}
@@ -957,12 +1132,11 @@ class movieinfo():
 class movieplayer():
   # I've tried to make this fairly compatible with the pygame.movie module, but there's a lot of features in this that are not in the pygame.movie module.
   # Also, I haven't really tested this compatibility or even used pygame.movie ever before.
-  osd = None
-  osd_visible = False
   paused = None
   time_pos = 0
   percent_pos = 0
   time_length = 0
+  str_length = '0'
   osd_percentage = -1
   osd_time_pos = -1
   remapped_keys = {'ESC': 'ESCAPE', 'MOUSE_BTN2_DBL': 'ESCAPE', 'ENTER': 'RETURN'}
@@ -970,12 +1144,10 @@ class movieplayer():
   volume = 0
   threads = {}
   osdtype = 'time'
-  osdqueue = Queue.Queue()
   def __init__(self, filename):
     global fontname
     self.font = pygame.font.Font(fontname, 36)
     self.filename = filename
-    self.osdqueue.queue.clear()
   def procoutput(self):
     statusline = None
     response = None
@@ -1005,6 +1177,15 @@ class movieplayer():
           self.paused = response.split('=')[-1] == 'yes'
         elif response.startswith('length='):
           self.time_length = float(response.split('=')[1])
+          totalhrs = int(self.time_length/60.0/60.0)
+          totalmins = int((self.time_length-(totalhrs*60*60))/60)
+          totalsecs = int(self.time_length-((totalhrs*60*60)+(totalmins*60)))
+          if totalhrs == 0 and totalmins == 0:
+            self.str_length = '%02d' % (totalsecs)
+          elif totalhrs == 0:
+            self.str_length = '%02d:%02d' % (totalmins,totalsecs)
+          else:
+            self.str_length = '%02d:%02d:%02d' % (totalhrs,totalmins,totalsecs)
         elif response.startswith('time_pos='):
           self.time_pos = float(response.split('=')[1])
           if not self.time_pos == 0 and not self.time_length == 0:
@@ -1020,9 +1201,8 @@ class movieplayer():
           self.video_resolution = (int(rawvidres.split(' x ')[0]), int(rawvidres.split(' x ')[1]))
         elif response.startswith('sub_visibility='):
           if response.split('=')[1].strip("'") == 'yes': self.mplayer.stdin.write('osd_show_text "Subtitles enabled"\n')
-          else: self.mplayer.stdin.write('osd_show_text "Subtitles disabled"\n')
     return
-  def play(self, loops=None, osd=True):
+  def play(self, loops=None):
     # Starts playback of the movie. Sound and video will begin playing if they are not disabled. The optional loops argument controls how many times the movie will be repeated. A loop value of -1 means the movie will repeat forever.
 #    surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
 #    self.screenbkup = screen.copy()
@@ -1065,18 +1245,14 @@ class movieplayer():
     self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=1)
     if self.mplayer.poll() != None:
       raise Exception(mplayer.stdout.read())
-    self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
     self.mplayer.stdin.write('pausing_keep_force get_property volume\n')
+    self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
     thread = threading.Thread(target=self.procoutput, name='stdout')
     self.threads.update({thread.name: thread})
     thread.start()
-    thread = threading.Thread(target=self.manageosd, name='manageosd')
-    self.threads.update({thread.name: thread})
-    thread.start()
-#    while self.paused == None: pass
-    thread = threading.Thread(target=self.showosd, args=[5, 'time', True], name='showosd')
-    self.threads.update({thread.name: thread})
-    thread.start()
+    osd.update(line_one=os.path.basename(self.filename).rpartition('.')[0], percentage=0)
+    osd.update_hook(self.osd_hook)
+    osd.show(5)
     return self.mplayer
   def pause(self):
     # This will temporarily stop or restart movie playback.
@@ -1085,7 +1261,8 @@ class movieplayer():
   def skip(self, seconds):
     # Advance the movie playback time in seconds. This can be called before the movie is played to set the starting playback time. This can only skip the movie forward, not backwards. The argument is a floating point number.
     ### I've added being able to go backwards.
-    self.showosd(2, osdtype='time')
+    self.osdtype = 'time'
+    osd.show(2)
     if type(seconds) == float or type(seconds) == int:
       if seconds < 0:
         self.mplayer.stdin.write('seek %s\n' % seconds)
@@ -1122,6 +1299,32 @@ class movieplayer():
       if not (self.threads.has_key('stdout') and self.threads['stdout'].isAlive()):
         self.time_pos = 0
     return self.time_pos
+  def osd_hook(self, arg):
+    # Return the current playback time as a floating point value in seconds. This method currently seems broken and always returns 0.0.
+    ### This is easy to implement so do so even though the pygame version fails.
+    if arg == 'updating' and self.osdtype == 'time':
+      self.get_time()
+      curhrs = int(self.time_pos/60.0/60.0)
+      curmins = int((self.time_pos-(curhrs*60*60))/60)
+      cursecs = int(self.time_pos-((curhrs*60*60)+(curmins*60)))
+      if len(self.str_length.split(':')) == 1:
+        curpos = '%02d' % (cursecs)
+      elif len(self.str_length.split(':')) == 2:
+        curpos = '%02d:%02d' % (curmins,cursecs)
+      else:
+        curpos = '%02d:%02d:%02d' % (curhrs,curmins,cursecs)
+      if not self.str_length == '0':
+        return [None, "%s of %s" % (curpos, self.str_length), self.percent_pos]
+      else:
+        return [None, "%s" % curpos, self.percent_pos]
+    elif arg == 'updating' and self.osdtype == "volume":
+      return [None, "%s%% volume" % int(self.volume), self.volume]
+    elif arg == 'updating' and not self.osdtype == 'time':
+      return osd.display_data
+    elif arg == 'toggle' and not self.osdtype == 'time':
+      self.osdtype = 'time'
+      return None
+    return None
   def get_busy(self):
     self.paused = None
     try: self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
@@ -1166,145 +1369,12 @@ class movieplayer():
   def set_display(self,surface=None,rect=None):
     print "Setting a display surface is not supported by MPlayer"
     return None
-  def toggleosd(self):
-    if "hideosd" in self.threads.keys():
-      self.threads["hideosd"].cancel()
-    self.osdqueue.put("toggleosd")
-  def showosd(self, delay = 0, osdtype = None, wait = False):
-    if not osdtype == None:
-      self.osdtype = osdtype
-    if "hideosd" in self.threads.keys():
-      self.threads["hideosd"].cancel()
-    self.osdqueue.put("showosd")
-    if delay > 0:
-      thread = threading.Timer(delay, self.hideosd)
-      thread.name = 'hideosd'
-      self.threads.update({thread.name: thread})
-      thread.start()
-  def hideosd(self, wait = False):
-    if "hideosd" in self.threads.keys():
-      self.threads["hideosd"].cancel()
-    self.osdqueue.put("hideosd")
-  def manageosd(self):
-    while self.paused == None: pass
-    print "Starting OSD"
-    time.sleep(0.1)
-    command = None
-    osdvisible = False
-    osd_time = -1
-    width, height = self.video_resolution
-    more = self.font.render('...', 1, (255,255,255,255))
-    if not self.osd:
-      self.osd_rect = pygame.rect.Rect(((self.font.size('W')[0]*18),(self.font.get_height()*2)+(self.font.get_height()/3),width-(self.font.size('W')[0]*18)-15,15))
-      self.osd = pygame.surface.Surface(self.osd_rect[0:2], pygame.SRCALPHA)
-      title = self.font.render(os.path.basename(self.filename).rpartition('.')[0], 1, (255,255,255,255))
-      if title.get_width() > self.osd.get_width():
-        scrolltitle = True
-        x_pos = 0
-        x_increment = -7
-#        self.osd.blit(title.subsurface((0,0,self.osd.get_width()-more.get_width(),title.get_height())), (0,0))
-#        self.osd.blit(more, (self.osd.get_width()-more.get_width(), title.get_height()-more.get_height()))
-      else:
-        scrolltitle = False
-        self.osd.blit(title, (0,0))
-    self.aosd = aosd.Aosd()
-    self.aosd.set_transparency(aosd.TRANSPARENCY_COMPOSITE)
-    self.aosd.set_position(2, self.osd.get_width()+40, self.osd.get_height()+40) #20 is an abitrary number that fixed something, don't ask me how or what. :/
-    self.aosd.set_position_offset(-50, 50)
-    self.aosd.set_renderer(aosd_render, {'image': self.osd})
-    self.aosd.set_hide_upon_mouse_event(True)
-    while command != "cancel":
-      try: command = self.osdqueue.get_nowait()
-      except Queue.Empty:
-        command = None
-      if command == "showosd":
-        self.aosd.show()
-        self.aosd.loop_once()
-        osdvisible = True
-      elif command == "hideosd":
-        self.aosd.hide()
-        self.aosd.loop_once()
-        self.osdtype = 'time'
-        osdvisible = False
-      elif command == "toggleosd":
-        if osdvisible == False:
-          self.aosd.show()
-          self.aosd.loop_once()
-          osdvisible = True
-          thread = threading.Timer(5, self.osdqueue.put, args=['hideosd'])
-          thread.name = 'hideosd'
-          self.threads.update({thread.name: thread})
-          thread.start()
-        elif osdvisible == True:
-          self.aosd.hide()
-          self.aosd.loop_once()
-          self.osdtype = 'time'
-          osdvisible = False
-      if osdvisible == True:
-        if scrolltitle == True:
-          subosd = self.osd.subsurface([0,0,self.osd.get_width(),self.font.get_height()])
-          subosd.fill((25,25,25,0))
-          subosd.blit(title, (x_pos,0))
-          x_pos += x_increment
-          if x_pos <= -(title.get_width()-subosd.get_width()) or x_pos >= 0:
-            x_increment = -x_increment
-        if not osd_time == int(time.time()):
-          curtime = self.font.render(time.strftime('%I:%M:%S %p '), 1, (255,255,255,255))
-          subosd = self.osd.subsurface([self.osd.get_width()-curtime.get_width(),self.font.get_height(),curtime.get_width(),self.font.get_height()])
-          subosd.fill((25,25,25,0))
-          subosd.blit(curtime, (0,0))
-          osd_time = int(time.time())
-        if self.osdtype == 'time' and (not self.osd_time_pos == int(self.get_time()) or not int(self.percent_pos) == self.osd_percentage):
-          curhrs = int(self.time_pos/60.0/60.0)
-          curmins = int((self.time_pos-(curhrs*60*60))/60)
-          cursecs = int(self.time_pos-((curhrs*60*60)+(curmins*60)))
-          totalhrs = int(self.time_length/60.0/60.0)
-          totalmins = int((self.time_length-(totalhrs*60*60))/60)
-          totalsecs = int(self.time_length-((totalhrs*60*60)+(totalmins*60)))
-          if totalhrs == 0 and curhrs == 0 and totalmins == 0 and curmins == 0:
-            curpos = '%02d' % (cursecs)
-            totallength = '%02d' % (totalsecs)
-          elif totalhrs == 0 and curhrs == 0:
-            curpos = '%02d:%02d' % (curmins,cursecs)
-            totallength = '%02d:%02d' % (totalmins,totalsecs)
-          else:
-            curpos = '%02d:%02d:%02d' % (curhrs,curmins,cursecs)
-            totallength = '%02d:%02d:%02d' % (totalhrs,totalmins,totalsecs)
-          pos = self.font.render('%s of %s' % (curpos, totallength), 1, (255,255,255,255))
-          subosd = self.osd.subsurface([0,self.font.get_height(),self.osd.get_width()-curtime.get_width(),self.font.get_height()])
-          subosd.fill((25,25,25,0))
-          subosd.blit(pos, (0,0))
-          subosd = self.osd.subsurface([0,self.font.get_height()*2,self.osd.get_width(),self.font.get_height()/3])
-          subosd.fill((0,0,0,255))
-          perc = subosd.subsurface([0,0,subosd.get_width()/100.0*self.percent_pos, subosd.get_height()])
-          perc.fill((127,127,127,255))
-#          percnum = self.font.render(str(int(self.percent_pos))+'%', 1, (255,255,255,255))
-#          subosd.blit(percnum, ((subosd.get_width()/2)-(percnum.get_width()/2),0)) #,pos.get_height()))
-          self.osd_percentage = int(self.percent_pos)
-          self.osd_time_pos = int(self.time_pos)
-        elif self.osdtype == 'volume' and not int(self.volume) == self.osd_percentage:
-          voltext = self.font.render('%s%% volume' % int(self.volume), 1, (255,255,255,255))
-          subosd = self.osd.subsurface([0,self.font.get_height(),self.osd.get_width()-curtime.get_width(),self.font.get_height()])
-          subosd.fill((25,25,25,0))
-          subosd.blit(voltext, (0,0))
-          subosd = self.osd.subsurface([0,self.font.get_height()*2,self.osd.get_width(),self.font.get_height()/3])
-          subosd.fill((0,0,0,255))
-          perc = subosd.subsurface([0,0,subosd.get_width()/100.0*self.volume, subosd.get_height()])
-          perc.fill((127,127,127,255))
-#          percnum = self.font.render(str(int(self.volume))+'%', 1, (255,255,255,255))
-#          subosd.blit(percnum, ((subosd.get_width()/2)-(percnum.get_width()/2),0))
-          self.osd_percentage = int(self.volume)
-        self.aosd.render()
-        self.aosd.loop_once()
-    self.aosd.hide()
-    self.aosd.loop_once()
   def poll(self):
     status = self.mplayer.poll()
     if status != None:
       self.stop()
     return status
   def stop(self):
-    self.osdqueue.put("cancel")
     for thread in self.threads.values():
       if 'cancel' in dir(thread):
         thread.cancel()
@@ -1335,7 +1405,8 @@ class movieplayer():
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
           self.stop()
         elif (event.type == pygame.KEYDOWN and (event.key == pygame.K_SPACE or event.key == pygame.K_p)) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1):
-          self.showosd(2, osdtype='time')
+          self.osdtype = 'time'
+          osd.show(2)
           self.pause()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
           self.skip(60)
@@ -1346,10 +1417,11 @@ class movieplayer():
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
           self.skip(30)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
-          self.showosd(2, osdtype='time')
+          self.osdtype = 'time'
+          osd.show(2)
           self.mplayer.stdin.write('osd\n')
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
-          self.toggleosd()
+          osd.toggle()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
           self.mplayer.stdin.write('step_property fullscreen\n')
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
@@ -1374,10 +1446,14 @@ class movieplayer():
           else:
             self.mplayer.stdin.write('osd_show_text "Saved position: %02d:%02d:%02d"\n' % (save_hrs, save_mins, save_secs))
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-          self.showosd(2, osdtype='volume')
+          ### FIXME ### Need to display volume in the OSD
+          self.osdtype = 'volume'
+          osd.show(2)
           self.set_volume('-0.02')
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-          self.showosd(2, osdtype='volume')
+          ### FIXME ### Need to display volume in the OSD
+          self.osdtype = 'volume'
+          osd.show(2)
           self.set_volume('+0.02')
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
           if self.get_busy():
@@ -1388,7 +1464,6 @@ class movieplayer():
 
 class musicplayer():
   # This should be a drop-in replacement for pygame.mixer.music but this only needs to support a HTTP streamed audio stream via Mplayer.
-  osd = None
   url = None
   mpc = mpd.MPDClient()
   muted = False
@@ -1551,145 +1626,6 @@ class musicplayer():
       return 0
     else:
       return self.volume/100.0
-  def toggleosd(self):
-    if "hideosd" in self.threads.keys():
-      self.threads["hideosd"].cancel()
-    self.osdqueue.put("toggleosd")
-  def showosd(self, delay = 0, osdtype = None, wait = False):
-    if not osdtype == None:
-      self.osdtype = osdtype
-    if "hideosd" in self.threads.keys():
-      self.threads["hideosd"].cancel()
-    self.osdqueue.put("showosd")
-    if delay > 0:
-      thread = threading.Timer(delay, self.hideosd)
-      thread.name = 'hideosd'
-      self.threads.update({thread.name: thread})
-      thread.start()
-  def hideosd(self, wait = False):
-    if "hideosd" in self.threads.keys():
-      self.threads["hideosd"].cancel()
-    self.osdqueue.put("hideosd")
-  def manageosd(self):
-    while self.paused == None: pass
-    print "Starting OSD"
-    time.sleep(0.1)
-    command = None
-    osd_time = -1
-    osdvisible = False
-    width, height = (screen.get_width(), screen.get_height())
-    more = self.font.render('...', 1, (255,255,255,255))
-    if not self.osd:
-      self.osd_rect = pygame.rect.Rect(((self.font.size('W')[0]*18),(self.font.get_height()*2)+(self.font.get_height()/3),width-(self.font.size('W')[0]*18)-15,15))
-      self.osd = pygame.surface.Surface(self.osd_rect[0:2], pygame.SRCALPHA)
-      title = self.font.render(self.osd_title, 1, (255,255,255,255))
-      if title.get_width() > self.osd.get_width():
-        scrolltitle = True
-        x_pos = 0
-        x_increment = -7
-#        self.osd.blit(title.subsurface((0,0,self.osd.get_width()-more.get_width(),title.get_height())), (0,0))
-#        self.osd.blit(more, (self.osd.get_width()-more.get_width(), title.get_height()-more.get_height()))
-      else:
-        scrolltitle = False
-        self.osd.blit(title, (0,0))
-    cur_title = self.osd_title
-    self.aosd = aosd.Aosd()
-    self.aosd.set_transparency(aosd.TRANSPARENCY_COMPOSITE)
-    self.aosd.set_position(2, self.osd.get_width()+40, self.osd.get_height()+40) #20 is an abitrary number that fixed something, don't ask me how or what. :/
-    self.aosd.set_position_offset(-50, 50)
-    self.aosd.set_renderer(aosd_render, {'image': self.osd})
-    self.aosd.set_hide_upon_mouse_event(True)
-    while command != "cancel":
-      try: command = self.osdqueue.get_nowait()
-      except Queue.Empty:
-        command = None
-      if command == "showosd":
-        self.aosd.show()
-        self.aosd.loop_once()
-        osdvisible = True
-      elif command == "hideosd":
-        self.aosd.hide()
-        self.aosd.loop_once()
-        osdvisible = False
-      elif command == "toggleosd":
-        if osdvisible == False:
-          self.aosd.show()
-          self.aosd.loop_once()
-          osdvisible = True
-          thread = threading.Timer(5, self.osdqueue.put, args=['hideosd'])
-          thread.name = 'hideosd'
-          self.threads.update({thread.name: thread})
-          thread.start()
-        elif osdvisible == True:
-          self.aosd.hide()
-          self.aosd.loop_once()
-          osdvisible = False
-      if osdvisible == True:
-        if not self.osd_title == cur_title:
-          title = self.font.render(self.osd_title, 1, (255,255,255,255))
-          cur_title = self.osd_title
-          if title.get_width() > self.osd.get_width():
-            scrolltitle = True
-          else:
-            scrolltitle = False
-            self.osd.blit(title, (0,0))
-        if scrolltitle == True:
-          subosd = self.osd.subsurface([0,0,self.osd.get_width(),self.font.get_height()])
-          subosd.fill((25,25,25,0))
-          subosd.blit(title, (x_pos,0))
-          x_pos += x_increment
-          if x_pos+(subosd.get_width()/2) <= -(title.get_width()-subosd.get_width()) or x_pos >= subosd.get_width()/10:
-            x_increment = -x_increment
-        if not osd_time == int(time.time()):
-          curtime = self.font.render(time.strftime('%I:%M:%S %p '), 1, (255,255,255,255))
-          subosd = self.osd.subsurface([self.osd.get_width()-curtime.get_width(),self.font.get_height(),curtime.get_width(),self.font.get_height()])
-          subosd.fill((25,25,25,0))
-          subosd.blit(curtime, (0,0))
-          osd_time = int(time.time())
-#        if self.osdtype == 'time' and (not self.osd_time_pos == int(self.get_time()) or not int(self.percent_pos) == self.osd_percentage):
-#          curhrs = int(self.time_pos/60.0/60.0)
-#          curmins = int((self.time_pos-(curhrs*60*60))/60)
-#          cursecs = int(self.time_pos-((curhrs*60*60)+(curmins*60)))
-#          totalhrs = int(self.time_length/60.0/60.0)
-#          totalmins = int((self.time_length-(totalhrs*60*60))/60)
-#          totalsecs = int(self.time_length-((totalhrs*60*60)+(totalmins*60)))
-#          if totalhrs == 0 and curhrs == 0 and totalmins == 0 and curmins == 0:
-#            curpos = '%02d' % (cursecs)
-#            totallength = '%02d' % (totalsecs)
-#          elif totalhrs == 0 and curhrs == 0:
-#            curpos = '%02d:%02d' % (curmins,cursecs)
-#            totallength = '%02d:%02d' % (totalmins,totalsecs)
-#          else:
-#            curpos = '%02d:%02d:%02d' % (curhrs,curmins,cursecs)
-#            totallength = '%02d:%02d:%02d' % (totalhrs,totalmins,totalsecs)
-#          pos = self.font.render('%s of %s' % (curpos, totallength), 1, (255,255,255,255))
-#          subosd = self.osd.subsurface([0,self.font.get_height(),self.osd.get_width()-curtime.get_width(),self.font.get_height()])
-#          subosd.fill((25,25,25,0))
-#          subosd.blit(pos, (0,0))
-#          subosd = self.osd.subsurface([0,self.font.get_height()*2,self.osd.get_width(),self.font.get_height()/3])
-#          subosd.fill((0,0,0,255))
-#          perc = subosd.subsurface([0,0,subosd.get_width()/100.0*self.percent_pos, subosd.get_height()])
-#          perc.fill((127,127,127,255))
-##          percnum = self.font.render(str(int(self.percent_pos))+'%', 1, (255,255,255,255))
-##          subosd.blit(percnum, ((subosd.get_width()/2)-(percnum.get_width()/2),0)) #,pos.get_height()))
-#          self.osd_percentage = int(self.percent_pos)
-#          self.osd_time_pos = int(self.time_pos)
-        if self.osdtype == 'volume' and not int(self.volume) == self.osd_percentage:
-          voltext = self.font.render('%s%% volume' % int(self.volume), 1, (255,255,255,255))
-          subosd = self.osd.subsurface([0,self.font.get_height(),self.osd.get_width()-curtime.get_width(),self.font.get_height()])
-          subosd.fill((25,25,25,0))
-          subosd.blit(voltext, (0,0))
-          subosd = self.osd.subsurface([0,self.font.get_height()*2,self.osd.get_width(),self.font.get_height()/3])
-          subosd.fill((0,0,0,255))
-          perc = subosd.subsurface([0,0,subosd.get_width()/100.0*self.volume, subosd.get_height()])
-          perc.fill((127,127,127,255))
-#          percnum = self.font.render(str(int(self.volume))+'%', 1, (255,255,255,255))
-#          subosd.blit(percnum, ((subosd.get_width()/2)-(percnum.get_width()/2),0))
-          self.osd_percentage = int(self.volume)
-        self.aosd.render()
-        self.aosd.loop_once()
-    self.aosd.hide()
-    self.aosd.loop_once()
   def get_busy(self):
     # Returns True when the music stream is actively playing. When the music is idle this returns False.
     if not self.mplayer.poll() == None:
@@ -1866,6 +1802,11 @@ def main():
   
   if mpd_host == None and not music_url == None:
     mpd_host = urllib2.urlparse.urlparse(music_url)[1].split(':')[0]
+
+  global osd
+  osd = osd_thread()
+  pygame.register_quit(osd.stop)
+  print osd
   
   foundfile = False
   founddir = False
@@ -1879,6 +1820,7 @@ def main():
       elif os.path.isdir(filename):
         founddir = filename
     if foundfile == True:
+      osd.stop()
       quit()
   
   global music
