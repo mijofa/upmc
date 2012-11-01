@@ -379,7 +379,8 @@ class osd_thread():
           if line_two_x_pos+(line_two.get_width()/8) <= -(line_two_surf.get_width()-line_two.get_width()) or line_two_x_pos >= line_two.get_width()/8:
             line_two_x_increment = -line_two_x_increment
         percentage_surf.fill((0,0,0,255))
-        percentage_surf.subsurface([0,0,percentage_surf.get_width()/100.0*percentage_float, percentage_surf.get_height()]).fill((127,127,127,255))
+        try: percentage_surf.subsurface([0,0,percentage_surf.get_width()*(percentage_float/100), percentage_surf.get_height()]).fill((127,127,127,255))
+        except: pass
         self.aosd.render()
         self.aosd.loop_once()
     if not self.hook == None:
@@ -801,6 +802,7 @@ class filemenu():
         pygame.display.update()
         player = movieplayer(self.itemsinfo[self.selected[1]]['filename'])
         if not music == None and music.get_busy() == True:
+          old_osd_hook = osd.get_hook()
           music.pause()
           startmusic = True
         else:
@@ -808,6 +810,7 @@ class filemenu():
         player.play()
         player.loop()
         if startmusic == True:
+          osd.update_hook(old_osd_hook)
           music.unpause()
         screen.blit(screenbkup, (0,0))
         pygame.display.update()
@@ -846,8 +849,10 @@ class filemenu():
         pygame.display.toggle_fullscreen()
       elif not music == None:
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
+          osd.showosd(2)
           music.set_volume('-0.12')
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
+          osd.showosd(2)
           music.set_volume('+0.12')
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
           music.pause()
@@ -1094,8 +1099,10 @@ class movieinfo():
         self.action()
       elif not music == None:
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
+          osd.showosd(2)
           music.set_volume('-0.12')
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
+          osd.showosd(2)
           music.set_volume('+0.12')
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
           music.pause()
@@ -1127,6 +1134,7 @@ class movieinfo():
     pygame.display.update()
     player = movieplayer(self['filename'])
     if not music == None and music.get_busy() == True:
+      old_osd_hook = osd.get_hook()
       music.pause()
       startmusic = True
     else:
@@ -1134,6 +1142,7 @@ class movieinfo():
     player.play()
     player.loop()
     if startmusic == True:
+      osd.update_hook(old_osd_hook)
       music.unpause()
     self['watched'] = True
     screen.blit(screenbkup, (0,0))
@@ -1155,6 +1164,7 @@ class movieplayer():
   volume = 0
   threads = {}
   osdtype = 'time'
+  old_osd_hook = None
   def __init__(self, filename):
     global fontname
     self.font = pygame.font.Font(fontname, 36)
