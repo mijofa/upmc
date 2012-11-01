@@ -272,20 +272,20 @@ class osd_thread():
     title = self.font.render(self.display_data[0], 1, (255,255,255,255))
     if title.get_width() > self.osd.get_width():
       scrolltitle = True
-      x_pos = 0
-      x_increment = -7
-      line_one.blit(title, (x_pos,0))
+      line_one_x_pos = 0
+      line_one_x_increment = -7
+      line_one.blit(title, (line_one_x_pos,0))
     else:
       scrolltitle = False
       line_one.blit(title, (0,0))
-    cur_title = self.display_data[0]
+    cur_title = ''
+    cur_line_two = ''
     curtime = self.font.render(time.strftime('%I:%M:%S %p '), 1, (255,255,255,255))
     time_surf = self.osd.subsurface([self.osd.get_width()-curtime.get_width(),self.font.get_height(),curtime.get_width(),self.font.get_height()])
     time_surf.fill((25,25,25,0))
     time_surf.blit(curtime, (0,0))
     line_two = self.osd.subsurface([0,self.font.get_height(),self.osd.get_width()-curtime.get_width(),self.font.get_height()])
     line_two.fill((25,25,25,0))
-    line_two.blit(self.font.render(self.display_data[1], 1, (255,255,255,255)), (0,0))
     percentage_surf = self.osd.subsurface([0,self.font.get_height()*2,self.osd.get_width(),self.font.get_height()/3])
     percentage_surf.fill((0,0,0,255))
     self.aosd = aosd.Aosd()
@@ -344,33 +344,40 @@ class osd_thread():
           cur_title = line_one_str
           if title.get_width() > line_one.get_width():
             scrolltitle = True
+            line_one_x_increment = -7
+            line_one_x_pos = 0
           else:
             scrolltitle = False
+            line_one.fill((25,25,25,0))
             line_one.blit(title, (0,0))
         if scrolltitle == True:
           line_one.fill((25,25,25,0))
-          line_one.blit(title, (x_pos,0))
-          x_pos += x_increment
-          if x_pos+(line_one.get_width()/2) <= -(title.get_width()-line_one.get_width()) or x_pos >= line_one.get_width()/10:
-            x_increment = -x_increment
+          line_one.blit(title, (line_one_x_pos,0))
+          line_one_x_pos += line_one_x_increment
+          if line_one_x_pos+(line_one.get_width()/5) <= -(title.get_width()-line_one.get_width()) or line_one_x_pos >= line_one.get_width()/5:
+            line_one_x_increment = -line_one_x_increment
         if not osd_time == int(time.time()):
           curtime = self.font.render(time.strftime('%I:%M:%S %p '), 1, (255,255,255,255))
           time_surf.fill((25,25,25,0))
           time_surf.blit(curtime, (0,0))
           osd_time = int(time.time())
-        line_two.fill((25,25,25,0))
-        line_two_surf = self.font.render(line_two_str, 1, (255,255,255,255))
-        if line_two_surf.get_width() > line_two.get_width():
-          scrollline_two = True
-        else:
-          scrollline_two = False
-          line_two.blit(line_two_surf, (0,0))
-        if scrolltitle == True:
+        if not line_two_str == cur_line_two:
+          line_two_surf = self.font.render(line_two_str, 1, (255,255,255,255))
+          cur_line_two = line_two_str
+          if line_two_surf.get_width() > line_two.get_width():
+            scrollline_two = True
+            line_two_x_increment = -7
+            line_two_x_pos = 0
+          else:
+            scrollline_two = False
+            line_two.fill((25,25,25,0))
+            line_two.blit(line_two_surf, (0,0))
+        if scrollline_two == True:
           line_two.fill((25,25,25,0))
-          line_two.blit(line_two_surf, (x_pos,0))
-          x_pos += x_increment
-          if x_pos+(line_two.get_width()/2) <= -(line_two_surf.get_width()-line_two.get_width()) or x_pos >= line_two.get_width()/10:
-            x_increment = -x_increment
+          line_two.blit(line_two_surf, (line_two_x_pos,0))
+          line_two_x_pos += line_two_x_increment
+          if line_two_x_pos+(line_two.get_width()/8) <= -(line_two_surf.get_width()-line_two.get_width()) or line_two_x_pos >= line_two.get_width()/8:
+            line_two_x_increment = -line_two_x_increment
         percentage_surf.fill((0,0,0,255))
         percentage_surf.subsurface([0,0,percentage_surf.get_width()/100.0*percentage_float, percentage_surf.get_height()]).fill((127,127,127,255))
         self.aosd.render()
@@ -838,9 +845,9 @@ class filemenu():
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
         pygame.display.toggle_fullscreen()
       elif not music == None:
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_9:
+        if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
           music.set_volume('-0.12')
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_0:
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
           music.set_volume('+0.12')
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
           music.pause()
@@ -848,10 +855,12 @@ class filemenu():
           music.set_channel("+1")
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
           music.set_channel("-1")
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
           music.prev()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
           music.next()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
+          osd.toggle()
       else:
         if android:
           print 'event', event
@@ -1094,10 +1103,12 @@ class movieinfo():
           music.set_channel("+1")
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
           music.set_channel("-1")
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
           music.prev()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT):
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
           music.next()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
+          osd.toggle()
   def action(self):
     if not os.path.isfile(str(self['filename'])):
       surf = render_textrect('This file does not seem to exist. Has it been deleted?\n'+str(self['filename']), pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
@@ -1471,19 +1482,14 @@ class musicplayer():
   volume = None
   mplayer = None
   threads = {}
-  osdtype = 'volume'
-  osdqueue = Queue.Queue()
   trackinfo = {}
   streaminfo = {}
   cur_channel = 0
-  osd_percentage = 0
-  osd_title = "Unknown"
   def load(self, url):
     # This will load a music URL object and prepare it for playback. This does not start the music playing.
     global fontname
     self.font = pygame.font.Font(fontname, 36)
     self.url = url
-    self.osdqueue.queue.clear() 
   def procoutput(self):
     response = None
     while not response == '' and not self.mplayer.stdout.closed:
@@ -1497,22 +1503,11 @@ class musicplayer():
         print "StreamTitle changed: %s" % self.streaminfo["StreamTitle"]
         self.trackinfo = {}
         self.trackinfo = self.mpc.currentsong()
-        title_text = []
-        for i in ['artist', 'album', 'title']:
-          if i in self.trackinfo.keys():
-            title_text += [str(self.trackinfo[i])]
-        if title_text == []:
-          if "StreamTitle" in self.streaminfo.keys() and not self.streaminfo["StreamTitle"] == '':
-            self.osd_title = self.streaminfo["StreamTitle"]
-          else:
-            self.osd_title = "Unknown"
-        elif type(title_text) == list:
-          self.osd_title = ' - '.join(title_text)
         if 'artist' in self.trackinfo.keys() and 'album' in self.trackinfo.keys() and 'title' in self.trackinfo.keys():
           print "Assuming a new track started: %s - %s/%s" % (self.trackinfo["artist"], self.trackinfo["album"], self.trackinfo["title"])
         else:
           print "Assuming a new track started: at least one of artist, album, or title is missing."
-        self.showosd(4)
+        osd.show(4)
         sys.stdout.flush()
       elif response.startswith("No bind found for key '"):
         key = response.strip(' ')[len("No bind found for key '"):].rstrip('.').rstrip("'")
@@ -1540,6 +1535,19 @@ class musicplayer():
           self.volume = float(response.split('=')[1])
         elif response.startswith('mute='):
           self.muted = bool(response.split('=')[1].lower == 'yes')
+  def osd_hook(self, arg):
+    if 'title' in self.trackinfo.keys():
+      line_one = osd.update(line_one=self.trackinfo['title'])
+    else:
+      line_one = "Unkown"
+    if 'artist' in self.trackinfo.keys():
+      line_two = osd.update(line_two=self.trackinfo['artist'])
+    else:
+      line_two = "Unknown"
+    if self.volume == None:
+      try: self.mplayer.stdin.write('pausing_keep_force get_property volume\n')
+      except: pass
+    return line_one, line_two, self.volume
   def play(self, loops=0, start=0.0):
     # This will play the loaded music stream. If the music is already playing it will be restarted.
     # This can't work for streaming audio: The loops argument controls the number of repeats a music will play. play(5) will cause the music to played once, then repeated five times, for a total of six. If the loops is -1 then the music will repeat indefinitely.
@@ -1553,7 +1561,7 @@ class musicplayer():
     else:
       url = self.url
     print "Starting playback of '%s', channel %02d: '%s'" % (self.url, self.cur_channel, url)
-    args = ['-input','conf=/dev/null:nodefault-bindings','-slave','-volume','37','-msglevel','demuxer=4:vfilter=5:identify=5:global=4:input=5:cplayer=0:statusline=0','-identify']
+    args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','demuxer=4:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify','-volume','37']
     if music_args:
       args += music_args
     self.mplayer = subprocess.Popen(['mplayer']+args+[url],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=1)
@@ -1564,17 +1572,15 @@ class musicplayer():
     thread = threading.Thread(target=self.procoutput, name='stdout')
     self.threads.update({thread.name: thread})
     thread.start()
-    thread = threading.Thread(target=self.manageosd, name='manageosd')
-    self.threads.update({thread.name: thread})
-    thread.start()
     self.mpc.connect(mpd_host, mpd_port+self.cur_channel)
   def rewind(self):
     # This could be done if there is decent buffering, don't care not worth it: Resets playback of the current music to the beginning.
     return None
   def stop(self):
     # Stops the music playback if it is currently playing.
+    osd.hide()
     if not self.mplayer == None and not self.mplayer.stdin.closed:
-      self.mplayer.stdin.write("stop\n")
+      self.mplayer.stdin.write("quit\n")
       self.mplayer.stdin.close()
       self.mpc.disconnect()
   def pause(self):
@@ -1595,26 +1601,25 @@ class musicplayer():
     # 
     # mplayer.stop()
     # self.set_volume(orig_volume)
-  def set_volume(self, volume = None):
-    # Set the volume of the music playback. The value argument is between 0.0 and 1.0. When new music is loaded the volume is reset.
-    if not self.mplayer == None and not self.mplayer.stdin.closed:
-      if type(volume) == str and volume.startswith('+'):
-        if volume.endswith('%'): volume = int(volume.lstrip('+').rstrip('%'))
-        else: volume = float(volume.lstrip('+'))*100
-        self.mplayer.stdin.write('step_property volume %d\n' % volume)
-      elif type(volume) == str and volume.startswith('-'):
-        if volume.endswith('%'): volume = int(volume.lstrip('-').rstrip('%'))
-        else: volume = float(volume.lstrip('-'))*100
-        self.mplayer.stdin.write('step_property volume -%d\n' % volume)
-      elif type(volume) == int or type(volume) == float:
-        volume = volume*100
-        self.mplayer.stdin.write('set_property volume %d\n' % volume)
-      elif type(volume) == str and volume.endswith('%'):
-        volume = int(volume.rstrip('%'))
-        self.mplayer.stdin.write('set_property volume %d\n' % volume)
-      else:
-        raise Exception("Proper volume argument required. Got %s" % volume)
-      self.mplayer.stdin.write('get_property volume\n')
+  def set_volume(self,volume=None):
+    # Set the playback volume for this movie. The argument is a value between 0.0 and 1.0. If the volume is set to 0 the movie audio will not be decoded.
+    if type(volume) == str and volume.startswith('+'):
+      if volume.endswith('%'): volume = int(volume.lstrip('+').rstrip('%'))
+      else: volume = float(volume.lstrip('+'))*100
+      self.mplayer.stdin.write('step_property volume %d\n' % volume)
+    elif type(volume) == str and volume.startswith('-'):
+      if volume.endswith('%'): volume = int(volume.lstrip('-').rstrip('%'))
+      else: volume = float(volume.lstrip('-'))*100
+      self.mplayer.stdin.write('step_property volume -%d\n' % volume)
+    elif type(volume) == int or type(volume) == float:
+      volume = volume*100
+      self.mplayer.stdin.write('set_property volume %d\n' % volume)
+    elif type(volume) == str and volume.endswith('%'):
+      volume = int(volume.rstrip('%'))
+      self.mplayer.stdin.write('set_property volume %d\n' % volume)
+    else:
+      raise Exception("Proper volume argument required. Got %s" % volume)
+    self.mplayer.stdin.write('get_property volume\n')
   def get_volume(self):
     # Returns the current volume for the mixer. The value will be between 0.0 and 1.0.
     self.volume = None
@@ -1830,6 +1835,7 @@ def main():
     music.load(music_url)
     music.play()
     pygame.register_quit(music.stop)
+    osd.update_hook(music.osd_hook)
   
   global screen
   if windowed == False and resolution == None:
@@ -1893,10 +1899,10 @@ def main():
         pygame.display.toggle_fullscreen()
       if not music == None:
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-          music.showosd(2)
+          osd.show(2)
           music.set_volume('-0.12')
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-          music.showosd(2)
+          osd.show(2)
           music.set_volume('+0.12')
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
           music.pause()
@@ -1909,8 +1915,8 @@ def main():
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
           music.next()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
-          music.toggleosd()
+          osd.toggle()
 
 if __name__ == "__main__":
   try: main()
-  except KeyboardInterrupt: pygame.quit()
+  except: pygame.quit()
