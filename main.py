@@ -1517,7 +1517,8 @@ class musicplayer():
           print "Assuming a new track started: %s - %s/%s" % (self.trackinfo["artist"], self.trackinfo["album"], self.trackinfo["title"])
         else:
           print "Assuming a new track started: at least one of artist, album, or title is missing."
-        osd.show(4)
+        if not self.volume == 0.0:
+          osd.show(4)
         sys.stdout.flush()
       elif response.startswith("No bind found for key '"):
         key = response.strip(' ')[len("No bind found for key '"):].rstrip('.').rstrip("'")
@@ -1547,11 +1548,11 @@ class musicplayer():
           self.muted = bool(response.split('=')[1].lower == 'yes')
   def osd_hook(self, arg):
     if 'title' in self.trackinfo.keys():
-      line_one = osd.update(line_one=self.trackinfo['title'])
+      line_one = self.trackinfo['title']
     else:
       line_one = "Unkown"
     if 'artist' in self.trackinfo.keys():
-      line_two = osd.update(line_two=self.trackinfo['artist'])
+      line_two = self.trackinfo['artist']
     else:
       line_two = "Unknown"
     if self.volume == None:
