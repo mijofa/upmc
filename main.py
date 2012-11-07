@@ -1517,7 +1517,7 @@ class musicplayer():
           print "Assuming a new track started: %s - %s/%s" % (self.trackinfo["artist"], self.trackinfo["album"], self.trackinfo["title"])
         else:
           print "Assuming a new track started: at least one of artist, album, or title is missing."
-        if not self.volume == 0.0:
+        if not self.volume == 0.0 and self.muted == False:
           osd.show(4)
         sys.stdout.flush()
       elif response.startswith("No bind found for key '"):
@@ -1545,7 +1545,7 @@ class musicplayer():
         elif response.startswith('volume='):
           self.volume = float(response.split('=')[1])
         elif response.startswith('mute='):
-          self.muted = bool(response.split('=')[1].lower == 'yes')
+          self.muted = bool(response.split('=')[1].lower() == 'yes')
   def osd_hook(self, arg):
     if 'title' in self.trackinfo.keys():
       line_one = self.trackinfo['title']
@@ -1598,6 +1598,7 @@ class musicplayer():
     # Could also be possible if good buffering is in use, don't care not worth it: Temporarily stop playback of the music stream. It can be resumed with the pygame.mixer.music.unpause() function.
     if not self.mplayer == None and not self.mplayer.stdin.closed:
       self.mplayer.stdin.write("mute\n")
+      self.mplayer.stdin.write('pausing_keep_force get_property mute\n')
   def unpause(self):
     # Could also be possible if good buffering is in use, don't care not worth it: This will resume the playback of a music stream after it has been paused.
     ## I have implemented pausing as a toggle and can't programatically tell whether it is paused or not.
