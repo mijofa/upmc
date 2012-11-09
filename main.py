@@ -1101,10 +1101,10 @@ class movieinfo():
         self.action()
       elif not music == None:
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-          osd.showosd(2)
+          osd.show(2)
           music.set_volume('-0.12')
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-          osd.showosd(2)
+          osd.show(2)
           music.set_volume('+0.12')
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
           music.pause()
