@@ -579,8 +579,10 @@ class filemenu():
     horizborder = 75
     screenwidth = screen.get_width()-horizborder
     screenheight = screen.get_height()-titleoffset-vertborder
-    itemwidth = 190 #6 on 1280 #280 # 5 on 1050 vertical resolution
-    itemheight = 110 #5 on 720 #210 # 6 on 1680 horizontal resolution
+#    itemwidth = 190 #6 on 1280 #280 # 5 on 1050 vertical resolution
+    itemwidth = 280
+#    itemheight = 110 #5 on 720 #210 # 6 on 1680 horizontal resolution
+    itemheight = 180
     numcols = screenwidth/itemwidth
     numrows = screenheight/itemheight
     self.pagerows = []
@@ -849,10 +851,10 @@ class filemenu():
         pygame.display.toggle_fullscreen()
       elif not music == None:
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-          osd.showosd(2)
+          osd.show(2)
           music.set_volume('-0.12')
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-          osd.showosd(2)
+          osd.show(2)
           music.set_volume('+0.12')
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
           music.pause()
@@ -1909,7 +1911,7 @@ def main():
         menu.action()
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
         pygame.display.toggle_fullscreen()
-      if not music == None:
+      elif not music == None:
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
           osd.show(2)
           music.set_volume('-0.12')
