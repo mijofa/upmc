@@ -213,7 +213,7 @@ class osd_thread():
   hook = None
   def __init__(self):
     global fontname
-    self.font = pygame.font.Font(fontname, 36)
+    self.font = pygame.font.Font(fontname, 45)
     self.queue = Queue.Queue()
     self.queue.queue.clear()
     thread = threading.Thread(target=self.manageosd, name='manageosd')
@@ -265,7 +265,6 @@ class osd_thread():
     time.sleep(0.1)
     command = None
     osd_time = -1
-    more = self.font.render('...', 1, (255,255,255,255))
     self.osd_rect = pygame.rect.Rect(((self.font.size('W')[0]*18),(self.font.get_height()*2)+(self.font.get_height()/3),0,0)) # The position is set by OSD and is useless in the pygame rect
     self.osd = pygame.surface.Surface(self.osd_rect[0:2], pygame.SRCALPHA)
     line_one = self.osd.subsurface([0,0,self.osd.get_width(),self.font.get_height()])
@@ -393,7 +392,7 @@ class textmenu():
   realmenuitems = []
   selected = None
   def __init__(self, menuitems = None):
-    self.font = pygame.font.Font(fontname, 54)
+    self.font = pygame.font.Font(fontname, 63)
     return self.render(menuitems)
   def render(self, menuitems = None):
     global screenupdates
@@ -492,7 +491,7 @@ class filemenu():
   cwd = './'
   rowoffset = 0
   def __init__(self):
-    self.font = pygame.font.Font(fontname, 36)
+    self.font = pygame.font.Font(fontname, 45)
     self.builditems()
     self.render()
     self.loop()
@@ -798,7 +797,7 @@ class filemenu():
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
         self.keyselect(3)
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_KP_ENTER:
-        surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
+        surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 45), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
         screenbkup = screen.copy()
         screen.blit(surf, (0,0))
         pygame.display.update()
@@ -999,7 +998,7 @@ class movieinfo():
       return False
   def __init__(self, iteminfo):
     global fontname
-    self.font = pygame.font.Font(fontname, 30)
+    self.font = pygame.font.Font(fontname, 36)
     self.iteminfo = iteminfo
     self.config = ConfigParser.ConfigParser()
     if self.iteminfo.has_key('info'):
@@ -1120,7 +1119,7 @@ class movieinfo():
           osd.toggle()
   def action(self):
     if not os.path.isfile(str(self['filename'])):
-      surf = render_textrect('This file does not seem to exist. Has it been deleted?\n'+str(self['filename']), pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
+      surf = render_textrect('This file does not seem to exist. Has it been deleted?\n'+str(self['filename']), pygame.font.Font(fontname, 45), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
       screenbkup = screen.copy()
       screen.blit(surf, (0,0))
       pygame.display.update()
@@ -1132,7 +1131,7 @@ class movieinfo():
     surf = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
     surf.fill((0,0,0,225))
     screen.blit(surf, (0,0))
-    render_textrect('Movie player is running.\n\nPress the back button to quit.', pygame.font.Font(fontname, 54), screen.get_rect(), (255,255,255), screen, 3)
+    render_textrect('Movie player is running.\n\nPress the back button to quit.', pygame.font.Font(fontname, 63), screen.get_rect(), (255,255,255), screen, 3)
     pygame.display.update()
     player = movieplayer(self['filename'])
     if not music == None and music.get_busy() == True:
@@ -1169,7 +1168,7 @@ class movieplayer():
   old_osd_hook = None
   def __init__(self, filename):
     global fontname
-    self.font = pygame.font.Font(fontname, 36)
+    self.font = pygame.font.Font(fontname, 45)
     self.filename = filename
   def procoutput(self):
     statusline = None
@@ -1501,8 +1500,12 @@ class musicplayer():
   def load(self, url):
     # This will load a music URL object and prepare it for playback. This does not start the music playing.
     global fontname
-    self.font = pygame.font.Font(fontname, 36)
+    self.font = pygame.font.Font(fontname, 45)
     self.url = url
+  def mpcReconnect(self):
+    try: self.mpc.disconnect()
+    except mpd.ConnectionError: pass #Probably not connected yet, ignore.
+    finally: self.mpc.connect(mpd_host, mpd_port+self.cur_channel)
   def procoutput(self):
     response = None
     while not response == '' and not self.mplayer.stdout.closed:
@@ -1515,7 +1518,10 @@ class musicplayer():
           self.streaminfo[key] = value
         print "StreamTitle changed: %s" % self.streaminfo["StreamTitle"]
         self.trackinfo = {}
-        self.trackinfo = self.mpc.currentsong()
+        try: self.trackinfo = self.mpc.currentsong()
+        except mpd.ConnectionError: 
+          self.mpcReconnect()
+          self.trackinfo = self.mpc.currentsong()
         if 'artist' in self.trackinfo.keys() and 'album' in self.trackinfo.keys() and 'title' in self.trackinfo.keys():
           print "Assuming a new track started: %s - %s/%s" % (self.trackinfo["artist"], self.trackinfo["album"], self.trackinfo["title"])
         else:
@@ -1584,9 +1590,9 @@ class musicplayer():
     self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
     self.mplayer.stdin.write('pausing_keep_force get_property volume\n')
     thread = threading.Thread(target=self.procoutput, name='stdout')
+    self.mpcReconnect()
     self.threads.update({thread.name: thread})
     thread.start()
-    self.mpc.connect(mpd_host, mpd_port+self.cur_channel)
   def rewind(self):
     # This could be done if there is decent buffering, don't care not worth it: Resets playback of the current music to the beginning.
     return None
@@ -1685,9 +1691,15 @@ class musicplayer():
       self.cur_channel = channels[-1]
     self.play()
   def next(self):
-    self.mpc.next()
+    try: self.mpc.next()
+    except mpd.ConnectionError:
+      self.mpcReconnect()
+      self.mpc.next()
   def previous(self):
-    self.mpc.previous()
+    try: self.mpc.previous()
+    except mpd.ConnectionError:
+      self.mpcReconnect()
+      self.mpc.previous()
   def prev(self):
     return self.previous()
 ##### End class musicplayer()
