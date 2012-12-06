@@ -1191,8 +1191,6 @@ class movieplayer():
           pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
       elif response.startswith('ANS_') or response.startswith('ID_'):
         response = '_'.join(response.split('_')[1:]).lower()
-        if not self.paused == None and response.startswith('video_aspect'):
-          threading.Timer(1, osd.show, [5]).start()
         if response.startswith('exit'):
           break
         elif response == 'paused':
