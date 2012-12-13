@@ -98,8 +98,8 @@ def render_textscroll(string, font, surface, text_color = (255,255,255), backgro
   while running == True:
     surface.blit(background, (0,0))
     surface.blit(text, (x_pos,0))
-    if update == True:
-      pygame.display.update()
+#    if update == True:
+#      pygame.display.update()
     x_pos += x_increment
     if x_pos <= -(text.get_width()-screen.get_width()) or x_pos >= 0:
       x_increment = -x_increment
@@ -1226,14 +1226,11 @@ class movieplayer():
     return
   def play(self, loops=None):
     # Starts playback of the movie. Sound and video will begin playing if they are not disabled. The optional loops argument controls how many times the movie will be repeated. A loop value of -1 means the movie will repeat forever.
-#    surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
-#    self.screenbkup = screen.copy()
-#    screen.blit(surf, (0,0))
-#    pygame.display.update()
     args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','vfilter=5:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify','-stop-xscreensaver','-volume','75','-idx']
+    args += ['-wid',str(pygame.display.get_wm_info()['window']),'-vf','expand=:::::'+str(screen.get_width())+'/'+str(screen.get_height())]
     if movie_args:
       args += movie_args
-    if windowed == False: args += ['-fs']
+#    if windowed == False: args += ['-fs']
     if loops == 0:
       loops = None
     elif loops == -1:
@@ -1411,8 +1408,6 @@ class movieplayer():
       response = self.mplayer.wait()
     else:
       response = self.mplayer.poll()
-#    screen.blit(self.screenbkup, (0,0))
-#    pygame.display.update()
     return response
   def loop(self):
     while self.poll() == None:
