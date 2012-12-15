@@ -1438,8 +1438,8 @@ class movieplayer():
           self.mplayer.stdin.write('osd\n')
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
           osd.toggle()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
-          self.mplayer.stdin.write('step_property fullscreen\n')
+#        elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
+#          self.mplayer.stdin.write('step_property fullscreen\n')
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
           self.mplayer.stdin.write('step_property sub_visibility\n')
           self.mplayer.stdin.write('get_property sub_visibility\n')
@@ -1540,6 +1540,8 @@ class musicplayer():
         response = '_'.join(response.split('_')[1:]).lower()
         if response.startswith('exit'):
           break
+	elif not self.paused == None and response.startswith('video_aspect'):
+          threading.Timer(1, osd.show, [5]).start()
         elif response == 'paused':
           self.paused = True
         elif response.startswith('pause='):
