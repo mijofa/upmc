@@ -38,6 +38,15 @@ screenupdates = []
 global running
 running = True
 
+def userfullname():
+  passwd = open('/etc/passwd', 'r')
+  for line in passwd.readlines():
+    if line.startswith(os.getlogin() + ':') and int(line.split(':')[2]) == os.getuid():
+      fullname = line.split(':')[4]
+  passwd.flush()
+  passwd.close()
+  return fullname
+
 def userquit():
   pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
   pygame.quit()
@@ -1226,8 +1235,12 @@ class movieplayer():
     return
   def play(self, loops=None):
     # Starts playback of the movie. Sound and video will begin playing if they are not disabled. The optional loops argument controls how many times the movie will be repeated. A loop value of -1 means the movie will repeat forever.
-    args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','vfilter=5:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify','-stop-xscreensaver','-volume','75','-idx']
+    args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','vfilter=5:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify','-stop-xscreensaver','-idx']
     args += ['-wid',str(pygame.display.get_wm_info()['window']),'-vf','expand=:::::'+str(screen.get_width())+'/'+str(screen.get_height())]
+    if "ExtAmp" in userfullname():
+      args += ['-volume','98']
+    else:
+      args += ['-volume','75']
     if movie_args:
       args += movie_args
 #    if windowed == False: args += ['-fs']
@@ -1576,7 +1589,11 @@ class musicplayer():
     else:
       url = self.url
     print "Starting playback of '%s', channel %02d: '%s'" % (self.url, self.cur_channel, url)
-    args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','demuxer=4:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify','-volume','37']
+    args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','demuxer=4:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify']
+    if "ExtAmp" in userfullname():
+      args += ['-volume','49']
+    else:
+      args += ['-volume','37']
     if music_args:
       args += music_args
     self.mplayer = subprocess.Popen(['mplayer']+args+[url],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=1)
@@ -1678,7 +1695,7 @@ class musicplayer():
     elif type(ch) == int or type(ch) == float:
       self.cur_channel = ch
     elif not (type(ch) == int or type(ch) == float):
-      raise Exception("Proper channel argument required. Got %s" % volume)
+      raise Exception("Proper channel argument required. Got %s" % ch)
     self.stop()
     if self.cur_channel > channels[-1]:
       self.cur_channel = channels[0]
