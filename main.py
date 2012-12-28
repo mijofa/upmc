@@ -41,7 +41,7 @@ running = True
 def userfullname():
   passwd = open('/etc/passwd', 'r')
   for line in passwd.readlines():
-    if line.startswith(os.getlogin() + ':') and int(line.split(':')[2]) == os.getuid():
+    if int(line.split(':')[2]) == os.getuid():
       fullname = line.split(':')[4]
   passwd.flush()
   passwd.close()
