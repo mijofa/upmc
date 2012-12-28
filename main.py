@@ -43,6 +43,7 @@ def userfullname():
   for line in passwd.readlines():
     if int(line.split(':')[2]) == os.getuid():
       fullname = line.split(':')[4]
+      break
   passwd.flush()
   passwd.close()
   return fullname
