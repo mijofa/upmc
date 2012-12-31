@@ -1422,6 +1422,7 @@ class movieplayer():
       response = self.mplayer.wait()
     else:
       response = self.mplayer.poll()
+    pygame.mouse.set_visible(pygame.mouse.set_visible(True))
     return response
   def loop(self):
     while self.poll() == None:
