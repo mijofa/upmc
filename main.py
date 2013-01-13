@@ -1440,9 +1440,9 @@ class movieplayer():
           osd.show(2)
           self.pause()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
-          self.skip(60)
+          self.skip(300)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
-          self.skip(-50)
+          self.skip(-290)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
           self.skip(-20)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
@@ -1566,14 +1566,21 @@ class musicplayer():
         elif response.startswith('mute='):
           self.muted = bool(response.split('=')[1].lower() == 'yes')
   def osd_hook(self, arg):
-    if 'title' in self.trackinfo.keys():
-      line_one = self.trackinfo['title']
-    else:
-      line_one = "Unkown"
+#    if 'title' in self.trackinfo.keys():
+#      line_one = self.trackinfo['title']
+#    else:
+#      line_one = "Unkown"
+    line_one = ''
     if 'artist' in self.trackinfo.keys():
-      line_two = self.trackinfo['artist']
+      line_one += self.trackinfo['artist']
+      line_one += ' - '
+    if 'title' in self.trackinfo.keys():
+      line_one += self.trackinfo['title']
     else:
-      line_two = "Unknown"
+      line_one += "Unknown"
+    if line_one == '':
+      line_one = "Unknown"
+    line_two= "Channel %02d" % self.cur_channel
     if self.volume == None:
       try: self.mplayer.stdin.write('pausing_keep_force get_property volume\n')
       except: pass
@@ -1750,14 +1757,14 @@ def networkhandler():
          elif len(data[4:-1]) > 1:
            key = data[4:-1].upper()
          if key.isdigit():
-           pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': int(key)}))
-           pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': int(key)}))
+           pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'mod': 0, 'key': int(key)}))
+           pygame.event.post(pygame.event.Event(pygame.KEYUP, {'mod': 0, 'key': int(key)}))
          elif key in remapped_keys.keys() and 'K_'+remapped_keys[key] in dir(pygame):
-           pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+remapped_keys[key])}))
-           pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+remapped_keys[key])}))
+           pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'mod': 0, 'key': eval('pygame.K_'+remapped_keys[key]), 'unicode': key}))
+           pygame.event.post(pygame.event.Event(pygame.KEYUP, {'mod': 0, 'key': eval('pygame.K_'+remapped_keys[key]), 'unicode': key}))
          elif 'K_'+key in dir(pygame):
-           pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
-           pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
+            pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'mod': 0, 'key': eval('pygame.K_'+key), 'unicode': key}))
+            pygame.event.post(pygame.event.Event(pygame.KEYUP, {'mod': 0, 'key': eval('pygame.K_'+key), 'unicode': key}))
          else:
            client.send("Unrecognised key '"+key+"'.\n")
     if quit:
@@ -1777,8 +1784,8 @@ def LIRChandler():
           else:
             key = code
           if 'K_'+key in dir(pygame):
-            pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
-            pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
+            pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'mod': 0, 'key': eval('pygame.K_'+key), 'unicode': key}))
+            pygame.event.post(pygame.event.Event(pygame.KEYUP, {'mod': 0, 'key': eval('pygame.K_'+key), 'unicode': key}))
   pylirc.exit()
 
 def main():
@@ -1913,7 +1920,7 @@ def main():
   global running
   while running == True:
     try: events = pygame.event.get()
-    except KeyboardInterrupt: event = userquit()
+    except KeyboardInterrupt: events = [userquit()]
     for event in events:
       if event.type == pygame.QUIT:
         running = False
