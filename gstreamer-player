@@ -1,0 +1,22 @@
+import pygst
+pygst.require("0.10")
+import gst
+import pygtk
+import gtk
+class Main:
+    def __init__(self):
+        self.pipeline = gst.Pipeline("mypipeline")
+        self.videosrc = gst.element_factory_make("filesrc", "videosrc")
+        self.videosrc.set_property('location', "/home/mike/Videos/DrHorrible.avi")
+        self.pipeline.add(self.videosrc)
+#        self.videotestsrc = gst.element_factory_make("videotestsrc", "video")
+#        self.pipeline.add(self.videotestsrc)
+        self.sink = gst.element_factory_make("xvimagesink", "sink")
+        self.pipeline.add(self.sink)
+        self.sink.set_xwindow_id(69206029)
+#        self.videotestsrc.link(self.sink)
+#        self.videosrc.link(self.sink)
+
+a = Main()
+a.pipeline.set_state(gst.STATE_PLAYING)
+
