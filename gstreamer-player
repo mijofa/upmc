@@ -1,21 +1,46 @@
+filename = "/home/mike/Videos/DrHorrible.avi"
+
 import pygst
 pygst.require("0.10")
 import gst
 import pygtk
 import gtk
 class Main:
-    def __init__(self):
-        self.pipeline = gst.Pipeline("mypipeline")
-        self.videosrc = gst.element_factory_make("filesrc", "videosrc")
-        self.videosrc.set_property('location', "/home/mike/Videos/DrHorrible.avi")
-        self.pipeline.add(self.videosrc)
-#        self.videotestsrc = gst.element_factory_make("videotestsrc", "video")
-#        self.pipeline.add(self.videotestsrc)
-        self.sink = gst.element_factory_make("xvimagesink", "sink")
-        self.pipeline.add(self.sink)
-        self.sink.set_xwindow_id(69206029)
-#        self.videotestsrc.link(self.sink)
-#        self.videosrc.link(self.sink)
+  def __init__(self):
+    bin = gst.Bin("player")
+    sink = gst.element_factory_make("xvimagesink")
+    bin.add(sink)
+    videoscale = gst.element_factory_make("videoscale")
+    bin.add(videoscale)
+    timeoverlay = gst.element_factory_make("timeoverlay")
+    bin.add(timeoverlay)
+    textoverlay = gst.element_factory_make("textoverlay")
+    textoverlay.set_property("text", filename)
+    bin.add(textoverlay)
+    colorspace = gst.element_factory_make("ffmpegcolorspace")
+    bin.add(colorspace)
+    decodebin = gst.element_factory_make("decodebin")
+    bin.add(decodebin)
+    filesrc = gst.element_factory_make("filesrc")
+    filesrc.set_property("location", filename)
+    bin.add(filesrc)
+    bin.set_state(gst.STATE_PLAYING)
+    gst.element_link_many(filesrc, decodebin, colorspace, textoverlay, timeoverlay, sink)
+#    gst.element_link_many(filesrc, decodebin, colorspace, sink)
+
+#        self.pipeline = gst.Pipeline("mypipeline")
+#        self.videosrc = gst.element_factory_make("filesrc", "videosrc")
+#        self.videosrc.set_property('location', "/home/mike/Videos/DrHorrible.avi")
+#        self.pipeline.add(self.videosrc)
+##        self.videotestsrc = gst.element_factory_make("videotestsrc", "video")
+##        self.pipeline.add(self.videotestsrc)
+#        self.decode = gst.element_factory_make("decodebin")
+#        self.pipeline.add(self.decode)
+#        self.sink = gst.element_factory_make("xvimagesink", "sink")
+#        self.pipeline.add(self.sink)
+#        self.sink.set_xwindow_id(35651597)
+##        self.videotestsrc.link(self.sink)
+##        self.videosrc.link(self.sink)
 
 a = Main()
 a.pipeline.set_state(gst.STATE_PLAYING)

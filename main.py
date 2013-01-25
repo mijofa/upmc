@@ -38,16 +38,6 @@ screenupdates = []
 global running
 running = True
 
-def userfullname():
-  passwd = open('/etc/passwd', 'r')
-  for line in passwd.readlines():
-    if int(line.split(':')[2]) == os.getuid():
-      fullname = line.split(':')[4]
-      break
-  passwd.flush()
-  passwd.close()
-  return fullname
-
 def userquit():
   pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
   pygame.quit()
@@ -1238,7 +1228,7 @@ class movieplayer():
     # Starts playback of the movie. Sound and video will begin playing if they are not disabled. The optional loops argument controls how many times the movie will be repeated. A loop value of -1 means the movie will repeat forever.
     args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','vfilter=5:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify','-stop-xscreensaver','-idx']
     args += ['-wid',str(pygame.display.get_wm_info()['window']),'-vf','expand=:::::'+str(screen.get_width())+'/'+str(screen.get_height())]
-    if "ExtAmp" in userfullname():
+    if "ExtAmp" in unusual_options.split(','):
       args += ['-volume','98']
     else:
       args += ['-volume','75']
@@ -1599,7 +1589,7 @@ class musicplayer():
       url = self.url
     print "Starting playback of '%s', channel %02d: '%s'" % (self.url, self.cur_channel, url)
     args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','demuxer=4:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify']
-    if "ExtAmp" in userfullname():
+    if "ExtAmp" in unusual_options.split(','):
       args += ['-volume','49']
     else:
       args += ['-volume','37']
@@ -1827,29 +1817,32 @@ def main():
   movie_args = None
   global music_args
   music_args = None
+  global unusual_options
+  unusual_options = ''
 
   if len(sys.argv) > 1:
-    options, arguments = getopt.getopt(sys.argv[1:], 'w:m:', ["windowed=", "music-url=", "channels=", "mpd-host=", "mpd-port=", "movie-args=", "music-args="])
+    options, arguments = getopt.getopt(sys.argv[1:], 'w:m:o:', ["windowed=", "music-url=", "options=", "channels=", "mpd-host=", "mpd-port=", "movie-args=", "music-args="])
     for o, a in options:
       if o == "--windowed" or o == '-w':
-        resolution = a
+        resolution = str(a)
         if resolution == '0x0':
           windowed = False
         else:
           windowed = True
       elif o == "--music-url" or o == '-m':
-        music_url = a
+        music_url = str(a)
       elif o == "--channels":
-        print a
         channels = range(0, int(a))
       elif o == "--mpd-host":
-        mpd_host = a
+        mpd_host = str(a)
       elif o == "--mpd-port":
         mpd_host = int(a)
       elif o == "--movie-args":
         movie_args = str(a).split(' ')
       elif o == "music-args":
         music_args = str(a).split(' ')
+      elif o == "-o" or o == "--options":
+        unusual_options = str(a)
   else:
     options, arguments = ([], [])
   
