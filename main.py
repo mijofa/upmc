@@ -1227,11 +1227,9 @@ class movieplayer():
   def play(self, loops=None):
     # Starts playback of the movie. Sound and video will begin playing if they are not disabled. The optional loops argument controls how many times the movie will be repeated. A loop value of -1 means the movie will repeat forever.
     args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','vfilter=5:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify','-stop-xscreensaver','-idx']
-    args += ['-wid',str(pygame.display.get_wm_info()['window']),'-vf','expand=:::::'+str(screen.get_width())+'/'+str(screen.get_height())]
-    if "ExtAmp" in unusual_options.split(','):
-      args += ['-volume','98']
-    else:
-      args += ['-volume','75']
+#    args += ['-wid',str(pygame.display.get_wm_info()['window']),'-vf','expand=:::::'+str(screen.get_width())+'/'+str(screen.get_height())]
+    args += ['-volume','75']
+    args += ['-fs']
     if movie_args:
       args += movie_args
 #    if windowed == False: args += ['-fs']
@@ -1589,10 +1587,7 @@ class musicplayer():
       url = self.url
     print "Starting playback of '%s', channel %02d: '%s'" % (self.url, self.cur_channel, url)
     args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','demuxer=4:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify']
-    if "ExtAmp" in unusual_options.split(','):
-      args += ['-volume','49']
-    else:
-      args += ['-volume','37']
+    args += ['-volume','37']
     if music_args:
       args += music_args
     self.mplayer = subprocess.Popen(['mplayer']+args+[url],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=1)
