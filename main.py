@@ -40,16 +40,6 @@ screenupdates = []
 global running
 running = True
 
-def userfullname():
-  passwd = open('/etc/passwd', 'r')
-  for line in passwd.readlines():
-    if int(line.split(':')[2]) == os.getuid():
-      fullname = line.split(':')[4]
-      break
-  passwd.flush()
-  passwd.close()
-  return fullname
-
 def userquit():
   pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
   pygame.quit()
@@ -1871,18 +1861,17 @@ def main():
     options, arguments = getopt.getopt(sys.argv[1:], 'w:m:o:', ["windowed=", "music-url=", "options=", "channels=", "mpd-host=", "mpd-port=", "movie-args=", "music-args="])
     for o, a in options:
       if o == "--windowed" or o == '-w':
-        resolution = a
+        resolution = str(a)
         if resolution == '0x0':
           windowed = False
         else:
           windowed = True
       elif o == "--music-url" or o == '-m':
-        music_url = a
+        music_url = str(a)
       elif o == "--channels":
-        print a
         channels = range(0, int(a))
       elif o == "--mpd-host":
-        mpd_host = a
+        mpd_host = str(a)
       elif o == "--mpd-port":
         mpd_host = int(a)
       elif o == "--movie-args":
