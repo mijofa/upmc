@@ -1,5 +1,7 @@
 #!/usr/bin/python
+print "hello"
 import os
+import ast
 class sys:
   from sys import argv, stdout
 import mpd
@@ -797,6 +799,7 @@ class filemenu():
       except KeyboardInterrupt: event = userquit()
       if event.type == pygame.QUIT:
         running = False
+        pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
         pygame.quit()
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
         self.keyselect(0)
@@ -860,10 +863,8 @@ class filemenu():
         pygame.display.toggle_fullscreen()
       elif not music == None:
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-          osd.show(2)
           music.set_volume('-0.12')
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-          osd.show(2)
           music.set_volume('+0.12')
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
           music.pause()
@@ -1101,6 +1102,7 @@ class movieinfo():
       except KeyboardInterrupt: event = userquit()
       if event.type == pygame.QUIT:
         running = False
+        pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
         pygame.quit()
       elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
         self.action()
@@ -1110,10 +1112,8 @@ class movieinfo():
         self.action()
       elif not music == None:
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-          osd.show(2)
           music.set_volume('-0.12')
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-          osd.show(2)
           music.set_volume('+0.12')
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
           music.pause()
@@ -1238,7 +1238,8 @@ class movieplayer():
     # Starts playback of the movie. Sound and video will begin playing if they are not disabled. The optional loops argument controls how many times the movie will be repeated. A loop value of -1 means the movie will repeat forever.
     args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','vfilter=5:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify','-stop-xscreensaver','-idx']
     args += ['-wid',str(pygame.display.get_wm_info()['window']),'-vf','expand=:::::'+str(screen.get_width())+'/'+str(screen.get_height())]
-    if "ExtAmp" in userfullname():
+    global rare_options
+    if "lirc_amp" in rare_options.keys():
       args += ['-volume','98']
     else:
       args += ['-volume','75']
@@ -1381,23 +1382,39 @@ class movieplayer():
     return True
   def set_volume(self,volume=None):
     # Set the playback volume for this movie. The argument is a value between 0.0 and 1.0. If the volume is set to 0 the movie audio will not be decoded.
-    if type(volume) == str and volume.startswith('+'):
-      if volume.endswith('%'): volume = int(volume.lstrip('+').rstrip('%'))
-      else: volume = float(volume.lstrip('+'))*100
-      self.mplayer.stdin.write('step_property volume %d\n' % volume)
-    elif type(volume) == str and volume.startswith('-'):
-      if volume.endswith('%'): volume = int(volume.lstrip('-').rstrip('%'))
-      else: volume = float(volume.lstrip('-'))*100
-      self.mplayer.stdin.write('step_property volume -%d\n' % volume)
-    elif type(volume) == int or type(volume) == float:
-      volume = volume*100
-      self.mplayer.stdin.write('set_property volume %d\n' % volume)
-    elif type(volume) == str and volume.endswith('%'):
-      volume = int(volume.rstrip('%'))
-      self.mplayer.stdin.write('set_property volume %d\n' % volume)
+    global rare_options
+    if not "lirc_amp" in rare_options.keys():
+      osd.show(2)
+      if type(volume) == str and volume.startswith('+'):
+        if volume.endswith('%'): volume = int(volume.lstrip('+').rstrip('%'))
+        else: volume = float(volume.lstrip('+'))*100
+        self.mplayer.stdin.write('step_property volume %d\n' % volume)
+      elif type(volume) == str and volume.startswith('-'):
+        if volume.endswith('%'): volume = int(volume.lstrip('-').rstrip('%'))
+        else: volume = float(volume.lstrip('-'))*100
+        self.mplayer.stdin.write('step_property volume -%d\n' % volume)
+      elif type(volume) == int or type(volume) == float:
+        volume = volume*100
+        self.mplayer.stdin.write('set_property volume %d\n' % volume)
+      elif type(volume) == str and volume.endswith('%'):
+        volume = int(volume.rstrip('%'))
+        self.mplayer.stdin.write('set_property volume %d\n' % volume)
+      else:
+        raise Exception("Proper volume argument required. Got %s" % volume)
+      self.mplayer.stdin.write('get_property volume\n')
     else:
-      raise Exception("Proper volume argument required. Got %s" % volume)
-    self.mplayer.stdin.write('get_property volume\n')
+      if type(volume) == str and volume.startswith('+'):
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+"])
+      elif type(volume) == str and volume.startswith('-'):
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-"])
+      elif type(volume) == int or type(volume) == float:
+        volume = volume*100
+        self.mplayer.stdin.write('set_property volume %d\n' % volume)
+      elif type(volume) == str and volume.endswith('%'):
+        volume = int(volume.rstrip('%'))
+        self.mplayer.stdin.write('set_property volume %d\n' % volume)
+      else:
+        raise Exception("Proper volume argument required. Got %s" % volume)
   def set_display(self,surface=None,rect=None):
     print "Setting a display surface is not supported by MPlayer"
     return None
@@ -1431,6 +1448,7 @@ class movieplayer():
       for event in events:
         if event.type == pygame.QUIT:
           running = False
+          pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
           try: self.stop()
           except: break
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
@@ -1479,12 +1497,10 @@ class movieplayer():
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
           ### FIXME ### Need to display volume in the OSD
           self.osdtype = 'volume'
-          osd.show(2)
           self.set_volume('-0.02')
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
           ### FIXME ### Need to display volume in the OSD
           self.osdtype = 'volume'
-          osd.show(2)
           self.set_volume('+0.02')
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
           if self.get_busy():
@@ -1599,10 +1615,11 @@ class musicplayer():
       url = self.url
     print "Starting playback of '%s', channel %02d: '%s'" % (self.url, self.cur_channel, url)
     args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','demuxer=4:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify']
-    if "ExtAmp" in userfullname():
-      args += ['-volume','49']
+    global rare_options
+    if "lirc_amp" in rare_options.keys():
+      args += ['-volume','35']
     else:
-      args += ['-volume','37']
+      args += ['-volume','25']
     if music_args:
       args += music_args
     self.mplayer = subprocess.Popen(['mplayer']+args+[url],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=1)
@@ -1645,23 +1662,38 @@ class musicplayer():
     # self.set_volume(orig_volume)
   def set_volume(self,volume=None):
     # Set the playback volume for this movie. The argument is a value between 0.0 and 1.0. If the volume is set to 0 the movie audio will not be decoded.
-    if type(volume) == str and volume.startswith('+'):
-      if volume.endswith('%'): volume = int(volume.lstrip('+').rstrip('%'))
-      else: volume = float(volume.lstrip('+'))*100
-      self.mplayer.stdin.write('step_property volume %d\n' % volume)
-    elif type(volume) == str and volume.startswith('-'):
-      if volume.endswith('%'): volume = int(volume.lstrip('-').rstrip('%'))
-      else: volume = float(volume.lstrip('-'))*100
-      self.mplayer.stdin.write('step_property volume -%d\n' % volume)
-    elif type(volume) == int or type(volume) == float:
-      volume = volume*100
-      self.mplayer.stdin.write('set_property volume %d\n' % volume)
-    elif type(volume) == str and volume.endswith('%'):
-      volume = int(volume.rstrip('%'))
-      self.mplayer.stdin.write('set_property volume %d\n' % volume)
+    if not "lirc_amp" in rare_options.keys():
+      osd.show(2)
+      if type(volume) == str and volume.startswith('+'):
+        if volume.endswith('%'): volume = int(volume.lstrip('+').rstrip('%'))
+        else: volume = float(volume.lstrip('+'))*100
+        self.mplayer.stdin.write('step_property volume %d\n' % volume)
+      elif type(volume) == str and volume.startswith('-'):
+        if volume.endswith('%'): volume = int(volume.lstrip('-').rstrip('%'))
+        else: volume = float(volume.lstrip('-'))*100
+        self.mplayer.stdin.write('step_property volume -%d\n' % volume)
+      elif type(volume) == int or type(volume) == float:
+        volume = volume*100
+        self.mplayer.stdin.write('set_property volume %d\n' % volume)
+      elif type(volume) == str and volume.endswith('%'):
+        volume = int(volume.rstrip('%'))
+        self.mplayer.stdin.write('set_property volume %d\n' % volume)
+      else:
+        raise Exception("Proper volume argument required. Got %s" % volume)
+      self.mplayer.stdin.write('get_property volume\n')
     else:
-      raise Exception("Proper volume argument required. Got %s" % volume)
-    self.mplayer.stdin.write('get_property volume\n')
+      if type(volume) == str and volume.startswith('+'):
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+"])
+      elif type(volume) == str and volume.startswith('-'):
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-"])
+      elif type(volume) == int or type(volume) == float:
+        volume = volume*100
+        self.mplayer.stdin.write('set_property volume %d\n' % volume)
+      elif type(volume) == str and volume.endswith('%'):
+        volume = int(volume.rstrip('%'))
+        self.mplayer.stdin.write('set_property volume %d\n' % volume)
+      else:
+        raise Exception("Proper volume argument required. Got %s" % volume)
   def get_volume(self):
     # Returns the current volume for the mixer. The value will be between 0.0 and 1.0.
     self.volume = None
@@ -1739,16 +1771,20 @@ def networkhandler():
     server.listen(1)
     (client, clientinfo) = server.accept()
     clientfile = client.makefile('r')
-    client.send("Unnamed Python Media Center network control interface\n")
-    client.send("Currently only supports sending keypresses, more will come eventually.\n")
-    client.send("----------------------------------------------------------------------\n")
+    try:
+      client.send("Unnamed Python Media Center network control interface\n")
+      client.send("Currently only supports sending keypresses, more will come eventually.\n")
+      client.send("----------------------------------------------------------------------\n")
+    except: pass
     while not clientfile.closed:
-      client.send('> ')
+      try: client.send('> ')
+      except: pass
       data = clientfile.readline()
       if data == '':
         clientfile.close()
       elif data[:-1] == 'quit '+os.uname()[1]:
         pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
+        global quit
         quit = True
         clientfile.close()
       elif data[:4] == 'key ':
@@ -1766,7 +1802,8 @@ def networkhandler():
             pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'mod': 0, 'key': eval('pygame.K_'+key), 'unicode': key}))
             pygame.event.post(pygame.event.Event(pygame.KEYUP, {'mod': 0, 'key': eval('pygame.K_'+key), 'unicode': key}))
          else:
-           client.send("Unrecognised key '"+key+"'.\n")
+           try: client.send("Unrecognised key '"+key+"'.\n")
+           except: pass
     if quit:
       break
   server.close()
@@ -1827,9 +1864,11 @@ def main():
   movie_args = None
   global music_args
   music_args = None
+  global rare_options
+  rare_options = {None: None}
 
   if len(sys.argv) > 1:
-    options, arguments = getopt.getopt(sys.argv[1:], 'w:m:', ["windowed=", "music-url=", "channels=", "mpd-host=", "mpd-port=", "movie-args=", "music-args="])
+    options, arguments = getopt.getopt(sys.argv[1:], 'w:m:o:', ["windowed=", "music-url=", "options=", "channels=", "mpd-host=", "mpd-port=", "movie-args=", "music-args="])
     for o, a in options:
       if o == "--windowed" or o == '-w':
         resolution = a
@@ -1850,6 +1889,8 @@ def main():
         movie_args = str(a).split(' ')
       elif o == "music-args":
         music_args = str(a).split(' ')
+      elif o == "--options" or o == "-o":
+        rare_options = ast.literal_eval(a)
   else:
     options, arguments = ([], [])
   
@@ -1924,6 +1965,7 @@ def main():
     for event in events:
       if event.type == pygame.QUIT:
         running = False
+        pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
         pygame.quit()
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
         userquit()
@@ -1947,10 +1989,8 @@ def main():
         pygame.display.toggle_fullscreen()
       elif not music == None:
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-          osd.show(2)
           music.set_volume('-0.12')
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-          osd.show(2)
           music.set_volume('+0.12')
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
           music.pause()
