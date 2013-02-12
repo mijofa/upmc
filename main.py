@@ -1,28 +1,26 @@
 #!/usr/bin/python
 import os
-class sys:
-  from sys import argv, stdout
+import sys
 import mpd
 import aosd
 import time
 import cairo
-class Queue:
-  from Queue import Queue, Empty
+import Queue
 import getopt
 import pylirc
-class select:
-  from select import select
-class urllib2:
-  from urllib2 import urlparse
+import select
+import urllib2
 import socket
-class string:
-  from string import digits
+import string
 import mimetypes
 import threading
 import subprocess
 import ConfigParser
-from math import pi
+
 import pygame
+
+import upmc_movie
+
 try: # I would like this to run on Android as well, this section is needed for that to work.
   import android
   android.init() # Usually this and the next line would be put into an if statement after this, I didn't see the point and put it here instead.
@@ -1140,8 +1138,11 @@ class movieinfo():
       startmusic = True
     else:
       startmusic = False
-    player.play()
-    player.loop()
+    osd.update_hook(player.osd_hook)
+    osd.update(self['title'])
+#    player.start()
+    player.start()
+#    player.loop()
     if startmusic == True:
       osd.update_hook(old_osd_hook)
       music.unpause()
@@ -1151,334 +1152,170 @@ class movieinfo():
 ##### End class movieinfo()
 
 class movieplayer():
-  # I've tried to make this fairly compatible with the pygame.movie module, but there's a lot of features in this that are not in the pygame.movie module.
-  # Also, I haven't really tested this compatibility or even used pygame.movie ever before.
   paused = None
-  time_pos = 0
-  percent_pos = 0
-  time_length = 0
-  str_length = '0'
-  osd_percentage = -1
-  osd_time_pos = -1
-  remapped_keys = {'ESC': 'ESCAPE', 'MOUSE_BTN2_DBL': 'ESCAPE', 'ENTER': 'RETURN'}
-  video_resolution = (0,0)
+  str_length = "0"
   volume = 0
-  threads = {}
   osdtype = 'time'
-  old_osd_hook = None
+  muted = False
+  def human_readable_seconds(self, seconds):
+    hrs = int(seconds/60.0/60.0)
+    mins = int((seconds-(hrs*60*60))/60)
+    secs = int(seconds-((hrs*60*60)+(mins*60)))
+    if not hrs == 0:
+      return "%02d:%02d:%02d" % (hrs,mins,secs)
+    elif not secs == 0:
+      return "%02d:%02d" % (mins,secs)
+    elif not secs == 0:
+      return "%02d" % (secs)
+    else:
+      return "00"
   def __init__(self, filename):
     global fontname
     self.font = pygame.font.Font(fontname, 45)
     self.filename = filename
-  def procoutput(self):
-    statusline = None
-    response = None
-    while not response == '' and not self.mplayer.stdout.closed:
-      response = self.mplayer.stdout.read(1)+self.mplayer.stdout.readline().strip('\r\n')
-      if response.startswith("No bind found for key '"):
-        key = response.strip(' ')[len("No bind found for key '"):].rstrip('.').rstrip("'")
-        if key in self.remapped_keys.keys(): key = self.remapped_keys[key]
-        if 'K_'+key in dir(pygame):
-          pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
-          pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
-        elif key.startswith('MOUSE_BTN'):
-          try:
-            pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, {'button': int(key.replace('MOUSE_BTN', ''))+1, 'pos': (0,0)}))
-            pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONUP, {'button': int(key.replace('MOUSE_BTN', ''))+1, 'pos': (0,0)}))
-          except:
-            print 'This try except block is temporary, I will put a proper fix in place.'
-        elif key == 'CLOSE_WIN':
-          pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
-      elif response.startswith('ANS_') or response.startswith('ID_'):
-        response = '_'.join(response.split('_')[1:]).lower()
-        if response.startswith('exit'):
-          break
-        elif response == 'paused':
-          self.paused = True
-        elif response.startswith('pause='):
-          self.paused = response.split('=')[-1] == 'yes'
-        elif response.startswith('length='):
-          self.time_length = float(response.split('=')[1])
-          totalhrs = int(self.time_length/60.0/60.0)
-          totalmins = int((self.time_length-(totalhrs*60*60))/60)
-          totalsecs = int(self.time_length-((totalhrs*60*60)+(totalmins*60)))
-          if totalhrs == 0 and totalmins == 0:
-            self.str_length = '%02d' % (totalsecs)
-          elif totalhrs == 0:
-            self.str_length = '%02d:%02d' % (totalmins,totalsecs)
-          else:
-            self.str_length = '%02d:%02d:%02d' % (totalhrs,totalmins,totalsecs)
-        elif response.startswith('time_pos='):
-          self.time_pos = float(response.split('=')[1])
-          if not self.time_pos == 0 and not self.time_length == 0:
-            self.percent_pos = self.time_pos/(self.time_length/100)
-        elif response.startswith('volume='):
-          self.volume = float(response.split('=')[1])
-        elif response.startswith('video_width='):
-          self.video_resolution = (int(response.split('=')[1]), self.video_resolution[1])
-        elif response.startswith('video_height='):
-          self.video_resolution = (self.video_resolution[0], int(response.split('=')[1]))
-        elif response.startswith('video_resolution='):
-          rawvidres = response.split('=')[1].strip("'")
-          self.video_resolution = (int(rawvidres.split(' x ')[0]), int(rawvidres.split(' x ')[1]))
-        elif response.startswith('sub_visibility='):
-          if response.split('=')[1].strip("'") == 'yes': self.mplayer.stdin.write('osd_show_text "Subtitles enabled"\n')
-    return
-  def play(self, loops=None):
-    # Starts playback of the movie. Sound and video will begin playing if they are not disabled. The optional loops argument controls how many times the movie will be repeated. A loop value of -1 means the movie will repeat forever.
-    args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','vfilter=5:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify','-stop-xscreensaver','-idx']
-#    args += ['-wid',str(pygame.display.get_wm_info()['window']),'-vf','expand=:::::'+str(screen.get_width())+'/'+str(screen.get_height())]
-    args += ['-volume','75']
-    args += ['-fs']
-    if movie_args:
-      args += movie_args
-#    if windowed == False: args += ['-fs']
-    if loops == 0:
-      loops = None
-    elif loops == -1:
-      loops = 0
-    if loops != None:
-      args += ['-loop', str(loops)]
+    self.player = upmc_movie.Movie(self.filename)
+    global screen
+    self.player.set_display(screen)
+  def start(self):
+    global screen
+    screenbkup = screen.copy()
+    screen.fill((0,0,0,255))
+    pygame.display.update()
+    self.paused = False
+    self.player.play()
+    while self.player.get_length() == 0L: pass
+    self.str_length = self.human_readable_seconds(self.player.get_length())
+    self.set_volume(0.75)
     if os.path.isfile(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'):
-      starttime = open(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'r').readline().strip('\n')
-      if ';' in starttime:
-        args += ['-volume', starttime.split(';')[1]]
-        starttime = starttime.split(';')[0]
-      args += ['-ss', starttime]
-      try: os.remove(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save')
-      except OSError, (Errno, Errmsg):
-        if Errno == 30:
-          pass # Read-only, nothing I can do about it.
-        else:
-          raise OSError((Errno, Errmsg))
+      savefile = os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'
     elif os.path.isfile(os.path.dirname(self.filename)+'/'+self.filename+'-'+os.uname()[1]+'.save'):
-      starttime = open(os.path.dirname(self.filename)+'/'+self.filename+'-'+os.uname()[1]+'.save', 'r').readline().strip('\n')
-      if ';' in starttime:
-        args += ['-volume', starttime.split(';')[1]]
-        starttime = starttime.split(';')[0]
-      args += ['-ss', starttime]
-      try: os.remove(os.path.dirname(self.filename)+'/'+self.filename+'-'+os.uname()[1]+'.save')
+      savefile = os.path.dirname(self.filename)+'/'+self.filename+'-'+os.uname()[1]+'.save'
+    else:
+      savefile = None
+    if not savefile == None:
+      start_time = open(savefile, 'r').readline().strip('\n')
+      if ';' in start_time:
+        self.set_volume(float(start_time.split(';')[1]))
+        start_time = start_time.split(';')[0]
+      print int(float(start_time))
+      self.player.skip(int(float(start_time)))
+      try: os.remove(savefile)
       except OSError, (Errno, Errmsg):
         if Errno == 30:
           pass # Read-only, nothing I can do about it.
         else:
           raise OSError((Errno, Errmsg))
-    self.mplayer = subprocess.Popen(['mplayer']+args+[self.filename],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=1)
-    if self.mplayer.poll() != None:
-      raise Exception(mplayer.stdout.read())
-    self.mplayer.stdin.write('pausing_keep_force get_property volume\n')
-    self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
-    thread = threading.Thread(target=self.procoutput, name='stdout')
-    self.threads.update({thread.name: thread})
-    thread.start()
-    osd.update(line_one=os.path.basename(self.filename).rpartition('.')[0], percentage=0)
-    osd.update_hook(self.osd_hook)
-    return self.mplayer
+    self.loop()
+    screen.blit(screenbkup, (0,0))
+    pygame.display.update()
+  def stop(self):
+    self.player.stop()
   def pause(self):
-    # This will temporarily stop or restart movie playback.
-    self.mplayer.stdin.write('pausing_keep_force osd_show_text "Paused"\n')
-    self.mplayer.stdin.write('pause\n')
-  def skip(self, seconds):
-    # Advance the movie playback time in seconds. This can be called before the movie is played to set the starting playback time. This can only skip the movie forward, not backwards. The argument is a floating point number.
-    ### I've added being able to go backwards.
-    self.osdtype = 'time'
-    osd.show(2)
-    if type(seconds) == float or type(seconds) == int:
-      if seconds < 0:
-        self.mplayer.stdin.write('seek %s\n' % seconds)
-      else:
-        self.mplayer.stdin.write('seek +%s\n' % seconds)
-    else:
-      self.mplayer.stdin.write('seek %s\n' % seconds)
-  def rewind(self, seconds=0):
-    # Sets the movie playback position to the start of the movie. The movie will automatically begin playing even if it stopped.
-    ### I've added being able to specify how far back to go
-    if seconds == 0:
-      self.mplayer.stdin.write('seek 0\n')
-    elif type(seconds) == float or type(seconds) == int:
-      self.mplayer.stdin.write('seek -%s\n' % seconds)
-    else:
-      self.mplayer.stdin.write('seek %s\n' % seconds)
-  def render_frame(self,frame_number):
-    # This takes an integer frame number to render. It attempts to render the given frame from the movie to the target Surface. It returns the real frame number that got rendered.
-    ### Might be worth implementing via 'jpeg' (or similar) video output driver, I can't be bothered with it for now.
-    return frame_number
-  def get_frame(self):
-    # Returns the integer frame number of the current video frame.
-    ### Would take a lot of effort to make work in Mplayer.
-    return 0
-  def get_time(self):
-    # Return the current playback time as a floating point value in seconds. This method currently seems broken and always returns 0.0.
-    ### This is easy to implement so do so even though the pygame version fails.
-    self.time_pos = None
-    try: self.mplayer.stdin.write('pausing_keep_force get_property time_pos\n')
-    except:
-      self.time_pos = 0
-      return 0
-    while self.time_pos == None: 
-      if not (self.threads.has_key('stdout') and self.threads['stdout'].isAlive()):
-        self.time_pos = 0
-    return self.time_pos
+    self.paused = self.paused == False
+    self.player.pause()
+  def set_volume(self, newVolume):
+    self.player.set_volume(newVolume)
+    self.volume = newVolume
   def osd_hook(self, arg):
     # Return the current playback time as a floating point value in seconds. This method currently seems broken and always returns 0.0.
     ### This is easy to implement so do so even though the pygame version fails.
     if arg == 'updating' and self.osdtype == 'time':
-      self.get_time()
-      curhrs = int(self.time_pos/60.0/60.0)
-      curmins = int((self.time_pos-(curhrs*60*60))/60)
-      cursecs = int(self.time_pos-((curhrs*60*60)+(curmins*60)))
-      if len(self.str_length.split(':')) == 1:
-        curpos = '%02d' % (cursecs)
-      elif len(self.str_length.split(':')) == 2:
-        curpos = '%02d:%02d' % (curmins,cursecs)
-      else:
-        curpos = '%02d:%02d:%02d' % (curhrs,curmins,cursecs)
+      curpos = self.human_readable_seconds(self.player.get_time())
       if not self.str_length == '0':
-        return [None, "%s of %s" % (curpos, self.str_length), self.percent_pos]
+        if len(self.str_length.split(':')) > len(curpos.split(':')):
+          curpos = ('00:' * (len(self.str_length.split(':')) - len(curpos.split(':')))) + curpos
+        return [None, "%s of %s" % (curpos, self.str_length), self.player.get_time()/(self.player.get_length()/100.0)]
       else:
-        return [None, "%s" % curpos, self.percent_pos]
+        return [None, "%s" % curpos, self.player.get_time()/(self.player.get_length()/100.0)]
     elif arg == 'updating' and self.osdtype == "volume":
-      return [None, "%s%% volume" % int(self.volume), self.volume]
+      return [None, "%s%% volume" % int(self.volume*100), self.volume*100]
     elif arg == 'updating' and not self.osdtype == 'time':
       return osd.display_data
     elif arg == 'toggle' and not self.osdtype == 'time':
       self.osdtype = 'time'
       return None
     return None
-  def get_busy(self):
-    self.paused = None
-    try: self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
-    except:
-      self.paused = True
-      return True
-    while self.paused == None:
-      if not (self.threads.has_key('stdout') and self.threads['stdout'].isAlive()):
-        self.paused = True
-    return not self.paused
-  def get_length(self):
-    # Returns the length of the movie in seconds as a floating point value.
-    return self.time_length
-  def get_size(self):
-    # Gets the resolution of the movie video. The movie will be stretched to the size of any Surface, but this will report the natural video size.
-    return self.video_resolution
-  def has_video(self):
-    # True when the opened movie file contains a video stream.
-    return True
-  def has_audio(self):
-    # True when the opened movie file contains an audio stream.
-    return True
-  def set_volume(self,volume=None):
-    # Set the playback volume for this movie. The argument is a value between 0.0 and 1.0. If the volume is set to 0 the movie audio will not be decoded.
-    if type(volume) == str and volume.startswith('+'):
-      if volume.endswith('%'): volume = int(volume.lstrip('+').rstrip('%'))
-      else: volume = float(volume.lstrip('+'))*100
-      self.mplayer.stdin.write('step_property volume %d\n' % volume)
-    elif type(volume) == str and volume.startswith('-'):
-      if volume.endswith('%'): volume = int(volume.lstrip('-').rstrip('%'))
-      else: volume = float(volume.lstrip('-'))*100
-      self.mplayer.stdin.write('step_property volume -%d\n' % volume)
-    elif type(volume) == int or type(volume) == float:
-      volume = volume*100
-      self.mplayer.stdin.write('set_property volume %d\n' % volume)
-    elif type(volume) == str and volume.endswith('%'):
-      volume = int(volume.rstrip('%'))
-      self.mplayer.stdin.write('set_property volume %d\n' % volume)
-    else:
-      raise Exception("Proper volume argument required. Got %s" % volume)
-    self.mplayer.stdin.write('get_property volume\n')
-  def set_display(self,surface=None,rect=None):
-    print "Setting a display surface is not supported by MPlayer"
-    return None
-  def poll(self):
-    status = self.mplayer.poll()
-    if status != None:
-      self.stop()
-    return status
-  def stop(self):
-    for thread in self.threads.values():
-      if 'cancel' in dir(thread):
-        thread.cancel()
-    try:
-      self.mplayer.stdin.write('quit\n')
-      self.mplayer.stdin.close()
-    except: pass
-    if self.mplayer.poll() != None:
-      try:
-        self.mplayer.terminate()
-        self.mplayer.kill()
-      except OSError: pass
-      response = self.mplayer.wait()
-    else:
-      response = self.mplayer.poll()
-    pygame.mouse.set_visible(pygame.mouse.set_visible(True))
-    return response
   def loop(self):
-    while self.poll() == None:
+    stop = False
+    while stop == False:
       try: events = pygame.event.get()
       except KeyboardInterrupt: events = [userquit()]
       for event in events:
-        if event.type == pygame.QUIT:
+        if event.type == pygame.USEREVENT and event.userevent == "movie end reached":
+          self.stop()
+          stop = True
+          break
+        elif event.type == pygame.QUIT:
           running = False
+          stop = True
           try: self.stop()
           except: break
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
           self.stop()
+          stop = True
+          break
         elif (event.type == pygame.KEYDOWN and (event.key == pygame.K_SPACE or event.key == pygame.K_p)) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1):
           self.osdtype = 'time'
           osd.show(2)
           self.pause()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
-          self.skip(300)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
-          self.skip(-290)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
-          self.skip(-20)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
-          self.skip(30)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
-          self.osdtype = 'time'
           osd.show(2)
-          self.mplayer.stdin.write('osd\n')
+          self.player.skip(300)
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
+          osd.show(2)
+          self.player.skip(-290)
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
+          osd.show(2)
+          self.player.skip(-20)
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
+          osd.show(2)
+          self.player.skip(30)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
           osd.toggle()
-#        elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
-#          self.mplayer.stdin.write('step_property fullscreen\n')
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
-          self.mplayer.stdin.write('step_property sub_visibility\n')
-          self.mplayer.stdin.write('get_property sub_visibility\n')
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
-          self.mplayer.stdin.write('step_property switch_audio\n')
-          self.mplayer.stdin.write('get_property switch_audio\n')
+#        elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
+#          self.mplayer.stdin.write('step_property sub_visibility\n')
+#          self.mplayer.stdin.write('get_property sub_visibility\n')
+#        elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
+#          self.mplayer.stdin.write('step_property switch_audio\n')
+#          self.mplayer.stdin.write('get_property switch_audio\n')
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_m:
-          self.mplayer.stdin.write('step_property mute\n')
+          if self.muted == True:
+            self.muted = False
+            self.set_volume(self.volume)
+          elif self.muted == False:
+            self.muted = True
+            self.set_volume(0.0)
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER):
-          save_pos = self.get_time()-10
+          try: print self.player.get_time()
+          except: print "WTF?"
+          save_pos = self.player.get_time()-10
           save_hrs = int(save_pos/60.0/60.0)
           save_mins = int((save_pos-(save_hrs*60*60))/60)
           save_secs = int(save_pos-((save_hrs*60*60)+(save_mins*60)))
           try: open(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'w').write('%s;%s\n# This line and everything below is ignored, it is only here so that you don\'t need to understand ^ that syntax.\nTime: %02d:%02d:%02d\nVolume: %d%%\n' % (save_pos, self.volume, save_hrs, save_mins, save_secs, self.volume))
           except IOError, (Errno, Errmsg):
             if Errno == 13:
-              self.mplayer.stdin.write('osd_show_text "Unable to save, permission denied."\n')
+#              self.mplayer.stdin.write('osd_show_text "Unable to save, permission denied."\n')
+              print "Permission denied."
             else:
               raise OSError((Errno, Errmsg))
           else:
-            self.mplayer.stdin.write('osd_show_text "Saved position: %02d:%02d:%02d"\n' % (save_hrs, save_mins, save_secs))
+#            self.mplayer.stdin.write('osd_show_text "Saved position: %02d:%02d:%02d"\n' % (save_hrs, save_mins, save_secs))
+            print "Saved position"
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
           ### FIXME ### Need to display volume in the OSD
           self.osdtype = 'volume'
           osd.show(2)
-          self.set_volume('-0.02')
+          self.set_volume(self.volume-0.02)
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
           ### FIXME ### Need to display volume in the OSD
           self.osdtype = 'volume'
           osd.show(2)
-          self.set_volume('+0.02')
+          self.set_volume(self.volume+0.02)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
           if self.get_busy():
             self.pause()
     self.stop()
-    for thread in self.threads.keys(): self.threads[thread].isAlive() # It seems as though if I don't interact with these processes Python gets confused and waits for them to finish even though they are already finished, simply checking all processes '.isAlive()' gets around this.
 ##### End class movieplayer()
 
 class musicplayer():
