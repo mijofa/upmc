@@ -12,8 +12,6 @@ vlc_instance = vlc.Instance("--no-video-title --no-keyboard-events")
 vlc_player = vlc_instance.media_player_new()
 vlc_player.video_set_key_input(0)
 event_manager = vlc_player.event_manager()
-def callback(wtf, player):
-  pass
 
 class Movie():
   def end_callback(self, vlcEvent, pygameEvent):
@@ -22,7 +20,6 @@ class Movie():
     self.skipTo = -1
     self.vlc_media = vlc_instance.media_new(filename)
     vlc_player.set_media(self.vlc_media)
-    event_manager.event_attach(vlc.EventType.MediaPlayerTimeChanged, callback, vlc_player)
   def play(self, loops = 0):
     vlc_player.play()
     if self.skipTo > 0:

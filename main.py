@@ -142,6 +142,7 @@ def render_textrect(string, font, rect, text_color, background = (0,0,0,0), just
 #     for word in words:
 #       if font.size(word)[0] >= rect.width:
 #         raise TextRectException, "The word " + word + " is too long to fit in the rect passed."
+      # No, do it anyway and let the word fall off the end.
       # Start a new line
       accumulated_line = words[0] + " "
       for word in words[1:]:
@@ -259,7 +260,6 @@ class osd_thread():
   def visible(self):
     return self.aosd.is_shown()
   def manageosd(self):
-    print "Starting OSD"
     time.sleep(0.1)
     command = None
     osd_time = -1
@@ -795,24 +795,8 @@ class filemenu():
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
         self.keyselect(3)
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_KP_ENTER:
-        surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 45), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
-        screenbkup = screen.copy()
-        screen.blit(surf, (0,0))
-        pygame.display.update()
-        player = movieplayer(self.itemsinfo[self.selected[1]]['filename'])
-        if not music == None and music.get_busy() == True:
-          old_osd_hook = osd.get_hook()
-          music.pause()
-          startmusic = True
-        else:
-          startmusic = False
-        player.play()
-        player.loop()
-        if startmusic == True:
-          osd.update_hook(old_osd_hook)
-          music.unpause()
-        screen.blit(screenbkup, (0,0))
-        pygame.display.update()
+        info = movieinfo(self.itemsinfo[self.selected[1]])
+        info.action()
       elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
         self.action(self.selected[1])
       elif (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3):
@@ -873,17 +857,10 @@ class filemenu():
     if selected == '../' and (self.itemsinfo[selected]['filename'] == '../'):
       return pygame.QUIT
     elif self.itemsinfo[selected]['file']:
-#      surf = render_textrect('Movie player is running\nPress the back button to quit', pygame.font.Font(fontname, 36), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
       screenbkup = screen.copy()
       info = movieinfo(self.itemsinfo[selected])
       info.display()
       info.loop()
-#      screen.blit(surf, (0,0))
-#      pygame.display.update()
-#      player = movieplayer(self.itemsinfo[selected]['filename'])
-#      player.play()
-#      player.loop()
-##      pygame.display.set_mode((0,0), pygame.FULLSCREEN|pygame.HWSURFACE)
       screen.blit(screenbkup, (0,0))
       pygame.display.update()
     elif not self.itemsinfo[selected]['file']:
@@ -1197,7 +1174,6 @@ class movieplayer():
       if ';' in start_time:
         self.set_volume(float(start_time.split(';')[1]))
         start_time = start_time.split(';')[0]
-      print int(float(start_time))
       self.player.skip(int(float(start_time)))
       try: os.remove(savefile)
       except OSError, (Errno, Errmsg):
@@ -1272,7 +1248,13 @@ class movieplayer():
           self.player.skip(30)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
           osd.toggle()
-#        elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
+          upmc_movie.vlc_player.video_set_spu(upmc_movie.vlc_player.video_get_spu() == False)
+          print "Subtitles",
+          if upmc_movie.vlc_player.video_get_spu() == True:
+            print "enabled"
+          else:
+            print "disabled"
 #          self.mplayer.stdin.write('step_property sub_visibility\n')
 #          self.mplayer.stdin.write('get_property sub_visibility\n')
 #        elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
@@ -1286,8 +1268,6 @@ class movieplayer():
             self.muted = True
             self.set_volume(0.0)
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER):
-          try: print self.player.get_time()
-          except: print "WTF?"
           save_pos = self.player.get_time()-10
           save_hrs = int(save_pos/60.0/60.0)
           save_mins = int((save_pos-(save_hrs*60*60))/60)
@@ -1303,12 +1283,10 @@ class movieplayer():
 #            self.mplayer.stdin.write('osd_show_text "Saved position: %02d:%02d:%02d"\n' % (save_hrs, save_mins, save_secs))
             print "Saved position"
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-          ### FIXME ### Need to display volume in the OSD
           self.osdtype = 'volume'
           osd.show(2)
           self.set_volume(self.volume-0.02)
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-          ### FIXME ### Need to display volume in the OSD
           self.osdtype = 'volume'
           osd.show(2)
           self.set_volume(self.volume+0.02)
@@ -1684,8 +1662,13 @@ def main():
   global osd
   osd = osd_thread()
   pygame.register_quit(osd.stop)
-  print osd
   
+  global screen
+  if windowed == False and resolution == None:
+    screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN) # Create a new window.
+  else:
+    screen = pygame.display.set_mode((int(resolution.split('x')[0]),int(resolution.split('x')[1]))) # Create a new window.
+
   foundfile = False
   founddir = False
   if len(arguments) > 0:
@@ -1693,8 +1676,9 @@ def main():
       if os.path.isfile(filename):
         foundfile = True
         player = movieplayer(filename)
-        mplayer = player.play()
-        player.loop()
+        osd.update_hook(player.osd_hook)
+        osd.update(filename.rpartition('.')[0])
+        player.start()
       elif os.path.isdir(filename):
         founddir = filename
     if foundfile == True:
@@ -1710,11 +1694,6 @@ def main():
     pygame.register_quit(music.stop)
     osd.update_hook(music.osd_hook)
   
-  global screen
-  if windowed == False and resolution == None:
-    screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN) # Create a new window.
-  else:
-    screen = pygame.display.set_mode((int(resolution.split('x')[0]),int(resolution.split('x')[1]))) # Create a new window.
   global background
   try: background = pygame.transform.scale(pygame.image.load(os.path.dirname(sys.argv[0])+'/background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
   except: # Failing that (no background image?) just create a completely blue background.
