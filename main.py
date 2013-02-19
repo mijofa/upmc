@@ -1249,17 +1249,22 @@ class movieplayer():
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
           osd.toggle()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
-          upmc_movie.vlc_player.video_set_spu(upmc_movie.vlc_player.video_get_spu() == False)
-          print "Subtitles",
-          if upmc_movie.vlc_player.video_get_spu() == True:
-            print "enabled"
+          if upmc_movie.vlc_player.video_get_spu_count() == 0:
+            print "No subtitles loaded."
           else:
-            print "disabled"
-#          self.mplayer.stdin.write('step_property sub_visibility\n')
-#          self.mplayer.stdin.write('get_property sub_visibility\n')
-#        elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
-#          self.mplayer.stdin.write('step_property switch_audio\n')
-#          self.mplayer.stdin.write('get_property switch_audio\n')
+            upmc_movie.vlc_player.video_set_spu(upmc_movie.vlc_player.video_get_spu() == False)
+            print "Subtitles",
+            if upmc_movie.vlc_player.video_get_spu() == True:
+              print "enabled"
+            else:
+              print "disabled"
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
+          current_track = upmc_movie.vlc_player.audio_get_track()
+          if current_track == upmc_movie.vlc_player.audio_get_track_count()-1:
+            upmc_movie.vlc_player.audio_set_track(1)
+          else:
+            upmc_movie.vlc_player.audio_set_track(current_track+1)
+          print "Playing track #", upmc_movie.vlc_player.audio_get_track(), '-', upmc_movie.vlc_player.audio_get_track_description()[upmc_movie.vlc_player.audio_get_track()][1]
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_m:
           if self.muted == True:
             self.muted = False
