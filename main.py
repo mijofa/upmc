@@ -1093,6 +1093,8 @@ class movieinfo():
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
           osd.toggle()
   def action(self):
+    ## This checking of whether the file exists should be done somehow, although it's not important, and I don't know how to easily do it for URLs & files.
+    """
     if not os.path.isfile(str(self['filename'])):
       surf = render_textrect('This file does not seem to exist. Has it been deleted?\n'+str(self['filename']), pygame.font.Font(fontname, 45), screen.get_rect(), (255,255,255), (0,0,0,127), 3)
       screenbkup = screen.copy()
@@ -1102,6 +1104,7 @@ class movieinfo():
       screen.blit(screenbkup, (0,0))
       pygame.display.update()
       return
+      """
     screenbkup = screen.copy()
     surf = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
     surf.fill((0,0,0,225))
@@ -1160,7 +1163,8 @@ class movieplayer():
     pygame.display.update()
     self.paused = False
     self.player.play()
-    while self.player.get_length() == 0L: pass
+    ## upmc_movie needs to be extended to do more fancy things since I no longer care about acting just like pygame.movie, and I shouldn't be calling vlc_player directly for any reason.
+    while upmc_movie.vlc_player.is_playing() == False: pass
     self.str_length = self.human_readable_seconds(self.player.get_length())
     self.set_volume(0.75)
     if os.path.isfile(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'):
@@ -1197,12 +1201,14 @@ class movieplayer():
     ### This is easy to implement so do so even though the pygame version fails.
     if arg == 'updating' and self.osdtype == 'time':
       curpos = self.human_readable_seconds(self.player.get_time())
-      if not self.str_length == '0':
+      if not self.str_length == '00':
         if len(self.str_length.split(':')) > len(curpos.split(':')):
           curpos = ('00:' * (len(self.str_length.split(':')) - len(curpos.split(':')))) + curpos
         return [None, "%s of %s" % (curpos, self.str_length), self.player.get_time()/(self.player.get_length()/100.0)]
+      elif not curpos == '00':
+        return [None, "%s" % curpos, 100.0]
       else:
-        return [None, "%s" % curpos, self.player.get_time()/(self.player.get_length()/100.0)]
+        return [None, "Live", 100.0]
     elif arg == 'updating' and self.osdtype == "volume":
       return [None, "%s%% volume" % int(self.volume*100), self.volume*100]
     elif arg == 'updating' and not self.osdtype == 'time':
