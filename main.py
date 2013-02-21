@@ -1,5 +1,4 @@
 #!/usr/bin/python
-print "hello"
 import os
 import ast
 class sys:
@@ -1136,15 +1135,22 @@ class movieinfo():
     player = movieplayer(self['filename'])
     if not music == None and music.get_busy() == True:
       old_osd_hook = osd.get_hook()
-      music.pause()
+      music.real_mute()
       startmusic = True
     else:
       startmusic = False
     player.play()
     player.loop()
     if startmusic == True:
-      osd.update_hook(old_osd_hook)
-      music.unpause()
+      if "lirc_amp" in rare_options.keys():
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"RESET"]).wait()
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-","--count=60"]).wait()
+        osd.update_hook(old_osd_hook)
+        music.real_mute()
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+","--count=20"])
+      else:
+        osd.update_hook(old_osd_hook)
+        music.unpause()
     self['watched'] = True
     screen.blit(screenbkup, (0,0))
     pygame.display.update()
@@ -1470,7 +1476,10 @@ class movieplayer():
           self.mplayer.stdin.write('step_property switch_audio\n')
           self.mplayer.stdin.write('get_property switch_audio\n')
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_m:
-          self.mplayer.stdin.write('step_property mute\n')
+          if "lirc_amp" in rare_options.keys():
+            subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"POWER"])
+          else:
+            self.mplayer.stdin.write('step_property mute\n')
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER):
           save_pos = self.get_time()-10
           save_hrs = int(save_pos/60.0/60.0)
@@ -1607,7 +1616,7 @@ class musicplayer():
     args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','demuxer=4:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify']
     global rare_options
     if "lirc_amp" in rare_options.keys():
-      args += ['-volume','35']
+      args += ['-volume','98']
     else:
       args += ['-volume','25']
     if music_args:
@@ -1633,6 +1642,13 @@ class musicplayer():
       self.mpc.disconnect()
   def pause(self):
     # Could also be possible if good buffering is in use, don't care not worth it: Temporarily stop playback of the music stream. It can be resumed with the pygame.mixer.music.unpause() function.
+    if "lirc_amp" in rare_options.keys():
+      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"POWER"])
+    else:
+      if not self.mplayer == None and not self.mplayer.stdin.closed:
+        self.mplayer.stdin.write("mute\n")
+        self.mplayer.stdin.write('pausing_keep_force get_property mute\n')
+  def real_mute(self):
     if not self.mplayer == None and not self.mplayer.stdin.closed:
       self.mplayer.stdin.write("mute\n")
       self.mplayer.stdin.write('pausing_keep_force get_property mute\n')
@@ -1909,11 +1925,15 @@ def main():
   global music
   music = None
   if not music_url == None:
+    if "lirc_amp" in rare_options.keys():
+      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"RESET"]).wait()
+      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-","--count=60"]).wait()
     music = musicplayer()
     music.load(music_url)
     music.play()
     pygame.register_quit(music.stop)
     osd.update_hook(music.osd_hook)
+    subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+","--count=20"])
   
   global screen
   if windowed == False and resolution == None:
