@@ -557,16 +557,24 @@ class filemenu():
             self.itemsinfo[directory+item] = {}
           self.itemsinfo[directory+item]['file'] = True
           self.itemsinfo[directory+item]['title'] = item
-          self.itemsinfo[directory+item]['filename'] = directory+filename
           self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
+          self.itemsinfo[directory+item]['filename'] = directory+filename
         elif ftype == 'image':
           if not self.itemsinfo.has_key(directory+item):
             self.itemsinfo[directory+item] = {}
           self.itemsinfo[directory+item]['thumb'] = directory+filename
         elif filename[-5:] == '.info':
+          if not directory+item in self.items:
+            self.items.append(directory+item)
           if not self.itemsinfo.has_key(directory+item):
             self.itemsinfo[directory+item] = {}
           self.itemsinfo[directory+item]['info'] = directory+filename
+          iteminfo = movieinfo(self.itemsinfo[directory+item])
+          if not 'filename' in self.itemsinfo[directory+item].keys() and 'filename' in iteminfo:
+            self.itemsinfo[directory+item]['file'] = True
+            self.itemsinfo[directory+item]['title'] = item
+            self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
+            self.itemsinfo[directory+item]['filename'] = iteminfo['filename']
   def render(self, directory = cwd, rowoffset = 0):
     global screenupdates
     screen.blit(background, (0,0))
@@ -795,6 +803,7 @@ class filemenu():
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
         self.keyselect(3)
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_KP_ENTER:
+        print self.itemsinfo[self.selected[1]]
         info = movieinfo(self.itemsinfo[self.selected[1]])
         info.action()
       elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
