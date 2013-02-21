@@ -1727,15 +1727,21 @@ def main():
     term = subprocess.Popen(['x-terminal-emulator'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE)
     return term.wait
   
-  menuitems = [('Videos', filemenu), ('Terminal', terminal), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
-  menu = textmenu(menuitems)
-  
   if android:
     os.chdir('/sdcard/Movies')
   elif not founddir == False:
     os.chdir(founddir)
   global rootdir
   rootdir = os.getcwd()
+
+  filemenu()
+  global running
+  running = False
+  pygame.quit()
+
+  """
+  menuitems = [('Videos', filemenu), ('Terminal', terminal), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
+  menu = textmenu(menuitems)
   
   ## These should avoid going through the loop unnecessarily (and wasting resources) when there is events that I'm not going to use anyway.
   pygame.event.set_allowed(None) # This says to not put *any* events into the event queue.
@@ -1788,6 +1794,7 @@ def main():
           music.next()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
           osd.toggle()
+          """
 
 if __name__ == "__main__":
   try: main()
