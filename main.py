@@ -1144,10 +1144,12 @@ class movieinfo():
     if startmusic == True:
       if "lirc_amp" in rare_options.keys():
         subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"RESET"]).wait()
-        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-","--count=60"]).wait()
+        for _ in xrange(60): music.set_volume('-0.01')
+#        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-","--count=60"]).wait()
         osd.update_hook(old_osd_hook)
         music.real_mute()
-        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+","--count=20"])
+        for _ in xrange(20): music.set_volume('+0.01')
+#        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+","--count=20"])
       else:
         osd.update_hook(old_osd_hook)
         music.unpause()
@@ -1402,7 +1404,7 @@ class movieplayer():
       if type(volume) == str and volume.startswith('+'):
         subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+"])
       elif type(volume) == str and volume.startswith('-'):
-        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-"])
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-"]).wait()
       elif type(volume) == int or type(volume) == float:
         volume = volume*100
         self.mplayer.stdin.write('set_property volume %d\n' % volume)
@@ -1477,7 +1479,7 @@ class movieplayer():
           self.mplayer.stdin.write('get_property switch_audio\n')
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_m:
           if "lirc_amp" in rare_options.keys():
-            subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"POWER"])
+            subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"POWER"]).wait()
           else:
             self.mplayer.stdin.write('step_property mute\n')
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER):
@@ -1643,7 +1645,7 @@ class musicplayer():
   def pause(self):
     # Could also be possible if good buffering is in use, don't care not worth it: Temporarily stop playback of the music stream. It can be resumed with the pygame.mixer.music.unpause() function.
     if "lirc_amp" in rare_options.keys():
-      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"POWER"])
+      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"POWER"]).wait()
     else:
       if not self.mplayer == None and not self.mplayer.stdin.closed:
         self.mplayer.stdin.write("mute\n")
@@ -1691,7 +1693,7 @@ class musicplayer():
       if type(volume) == str and volume.startswith('+'):
         subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+"])
       elif type(volume) == str and volume.startswith('-'):
-        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-"])
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-"]).wait()
       elif type(volume) == int or type(volume) == float:
         volume = volume*100
         self.mplayer.stdin.write('set_property volume %d\n' % volume)
@@ -1925,15 +1927,17 @@ def main():
   global music
   music = None
   if not music_url == None:
-    if "lirc_amp" in rare_options.keys():
-      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"RESET"]).wait()
-      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-","--count=60"]).wait()
     music = musicplayer()
     music.load(music_url)
+    if "lirc_amp" in rare_options.keys():
+      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"RESET"]).wait()
+      for _ in xrange(60): music.set_volume('-0.01')
+#      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-","--count=60"]).wait()
     music.play()
     pygame.register_quit(music.stop)
     osd.update_hook(music.osd_hook)
-    subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+","--count=20"])
+    for _ in xrange(60): music.set_volume('-0.01')
+#    subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+","--count=20"])
   
   global screen
   if windowed == False and resolution == None:
