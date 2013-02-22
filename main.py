@@ -807,7 +807,9 @@ class filemenu():
         info = movieinfo(self.itemsinfo[self.selected[1]])
         info.action()
       elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
-        self.action(self.selected[1])
+        print self.itemsinfo[self.selected[1]]
+        info = movieinfo(self.itemsinfo[self.selected[1]])
+        info.action()
       elif (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3):
         if self.action('../') == pygame.QUIT:
           screen.blit(background, (0,0)) # Put the background on the window.
@@ -1667,9 +1669,9 @@ def main():
         mpd_host = str(a)
       elif o == "--mpd-port":
         mpd_host = int(a)
-      elif o == "--movie-args":
-        movie_args = str(a).split(' ')
-      elif o == "music-args":
+#      elif o == "--movie-args":
+#        movie_args = str(a).split(' ')
+      elif o == "--music-args":
         music_args = str(a).split(' ')
       elif o == "-o" or o == "--options":
         unusual_options = str(a)
