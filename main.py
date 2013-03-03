@@ -1402,7 +1402,7 @@ class movieplayer():
       self.mplayer.stdin.write('get_property volume\n')
     else:
       if type(volume) == str and volume.startswith('+'):
-        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+"])
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+"]).wait()
       elif type(volume) == str and volume.startswith('-'):
         subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-"]).wait()
       elif type(volume) == int or type(volume) == float:
@@ -1691,7 +1691,7 @@ class musicplayer():
       self.mplayer.stdin.write('get_property volume\n')
     else:
       if type(volume) == str and volume.startswith('+'):
-        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+"])
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+"]).wait()
       elif type(volume) == str and volume.startswith('-'):
         subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-"]).wait()
       elif type(volume) == int or type(volume) == float:
@@ -1930,7 +1930,6 @@ def main():
     music = musicplayer()
     music.load(music_url)
     if "lirc_amp" in rare_options.keys():
-      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"RESET"]).wait()
       for _ in xrange(60): music.set_volume('-0.01')
 #      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-","--count=60"]).wait()
     music.play()
