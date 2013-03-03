@@ -1955,8 +1955,37 @@ def main():
 
   def terminal():
     term = subprocess.Popen(['x-terminal-emulator'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE)
-    return term.wait
+    return term.wait()
+
+  def steam_big_picture():
+    global music
+    steam = subprocess.Popen(['steam', '-bigpicture'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE)
+    screenbkup = screen.copy()
+    surf = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
+    surf.fill((0,0,0,225))
+    screen.blit(surf, (0,0))
+    render_textrect('Steam is still running.\n\nPress back key to kill Steam.', pygame.font.Font(fontname, 63), screen.get_rect(), (255,255,255), screen, 3)
+    pygame.display.update()
+    music.real_mute()
+    while steam.poll() == None:
+      try: events = pygame.event.get()
+      except KeyboardInterrupt: events = [userquit()]
+      for event in events:
+        if event.type == pygame.QUIT:
+          pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
+          pygame.quit()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+          if steam.poll() == None:
+            subprocess.Popen(['steam','-shutdown']).wait()
+          if steam.poll() == None:
+            steam.terminate()
+          if steam.poll() == None:
+            steam.kill()
+    screen.blit(screenbkup, (0,0))
+    pygame.display.update()
+    return steam.poll()
   
+#  menuitems = [('Videos', filemenu), ('Terminal', terminal), ("Steam", steam_big_picture), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
   menuitems = [('Videos', filemenu), ('Terminal', terminal), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
   menu = textmenu(menuitems)
   
