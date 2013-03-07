@@ -18,6 +18,7 @@ class urllib2:
 import socket
 class string:
   from string import digits
+import datetime
 import mimetypes
 import threading
 import subprocess
@@ -999,6 +1000,7 @@ class movieinfo():
   def __init__(self, iteminfo):
     global fontname
     self.font = pygame.font.Font(fontname, 36)
+    self.font_big = pygame.font.Font(fontname, 60)
     self.iteminfo = iteminfo
     self.config = ConfigParser.ConfigParser()
     if self.iteminfo.has_key('info'):
@@ -1012,7 +1014,7 @@ class movieinfo():
       thumbrect = thumb.get_rect().fit(screen.get_rect(width=(screen.get_width()/100)*95, height=(screen.get_height()/100)*95, center=(screen.get_width()/2, screen.get_height()/2)))
       thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (thumbrect[2], thumbrect[3]))
       screen.blit(thumb, thumb.get_rect(center=(screen.get_width()/2,screen.get_height()/2)))
-    title = self.font.render(self['title'], 1, (255,255,255))
+    title = self.font_big.render(self['title'], 1, (255,255,255))
     screen.blit(title,title.get_rect(midtop=(screen.get_width()/2,self.font.size('')[1])))
     vertborder = screen.get_height()/20
     horizborder = (screen.get_width()-self.font.size('')[1]*3)/20
@@ -1020,7 +1022,10 @@ class movieinfo():
     directorsurf = infosurf.subsurface(infosurf.get_rect(top=self.font.get_height()/2, height=self.font.get_height()))
     directorsurf.fill((0,0,0,200))
     render_textrect('Directed by: '+self['director'], self.font, directorsurf.get_rect(), (255,255,255), directorsurf, 0)
-    if not self['boolean:watched']: render_textrect('Not seen', self.font, directorsurf.get_rect(), (255,255,255), directorsurf, 2)
+    render_textrect('IMDB rating: %2.1f' % self['float:rating'], self.font, directorsurf.get_rect(), (255,255,255), directorsurf, 2)
+    plotsurf = infosurf.subsurface(infosurf.get_rect(height=infosurf.get_height()-(self.font.get_height()*6.5), top=self.font.get_height()*2, width=(infosurf.get_width()*0.75)-(self.font.size('W')[0]/2)))
+    plotsurf.fill((0,0,0,150))
+    render_textrect(self['plot outline'], self.font_big, plotsurf.get_rect(), (255,255,255), plotsurf, 0)
     miscsurf = infosurf.subsurface(infosurf.get_rect(top=(infosurf.get_height()-(self.font.get_height()/2))-(self.font.get_height()*2), height=self.font.get_height()*2))
     miscsurf.fill((0,0,0,100), (0,0,miscsurf.get_width(),self.font.get_height()))
     miscsurf.fill((0,0,0,200), (0,self.font.get_height(),miscsurf.get_width(),self.font.get_height()))
@@ -1038,29 +1043,16 @@ class movieinfo():
         runtime = ', '.join(runtime)
     render_textrect('Runtime\n%s minutes' % runtime, self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 0)
     render_textrect('Year\n%d' % self['int:year'], self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 1)
-    render_textrect('User rating\n%2.1f' % self['float:rating'], self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 2)
-    plotsurf = infosurf.subsurface(infosurf.get_rect(height=infosurf.get_height()-(self.font.get_height()*5), top=self.font.get_height()*2))
-    plotsurf.fill((0,0,0,150))
-    plots = ''
-    for plot in self['list:plot']:
-      if not plot == '' and not plot == 'Unknown':
-        if '::' in plot:
-          author = plot.split('::')[-1]
-          plot = '::'.join(plot.split('::')[0:-1])
-        else:
-          author = 'Anonymous'
-        plots += 'Plot written by '+author+':\n      '+plot+'\n\n'
-    if plots == '':
-      plots = 'None'
-    render_textrect(plots, self.font, plotsurf.get_rect(), (255,255,255), plotsurf, 0)
-    ##FINDME###
-#    infosurf.fill((0,0,0,150))
-#    if self.info.has_key('plot'):
-#      plotsurf = render_textrect(self.info['plot'], self.font, infosurf.get_rect(), (255,255,255), (0,0,0,0), 0)
-#      infosurf.blit(plotsurf, (0,0))
-#    if self.info.has_key('runtimes'):
-#      runtimesurf = self.font.render('Runtime: '+self.info['runtimes'], 1, (255,255,255))
-#      infosurf.blit(runtimesurf, runtimesurf.get_rect(left=0, bottom=infosurf.get_height()))
+    render_textrect("Last seen\n%s" % self['watched'], self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 2)
+    genresurf = infosurf.subsurface(infosurf.get_rect(top=(infosurf.get_height()-miscsurf.get_height()-(self.font.get_height()))-self.font.get_height(), height=self.font.get_height(), width=(infosurf.get_width()*0.75)-(self.font.size('W')[0]/2)))
+    genresurf.fill((0,0,0,150))
+    render_textrect("Genres: %s" % ', '.join(self['list:genres']), self.font, genresurf.get_rect(), (255,255,255), genresurf, 0)
+
+    castsurf = infosurf.subsurface(infosurf.get_rect(height=infosurf.get_height()-(self.font.get_height()*5), top=self.font.get_height()*2, right=infosurf.get_width(), width=infosurf.get_width()*0.25))
+    castsurf.fill((0,0,0,150))
+    render_textrect("Cast", self.font, castsurf.get_rect(height=self.font.get_height()), (255,255,255), castsurf, 1)
+    render_textrect('\n'.join(['']+self['list:cast']), self.font, castsurf.get_rect(height=castsurf.get_height()-self.font.get_height(), top=self.font.get_height()), (255,255,255), castsurf, 0)
+
     screen.blit(infosurf,(horizborder,self.font.size('')[1]*3,))
     pygame.display.update()
     if False:
@@ -1148,12 +1140,13 @@ class movieinfo():
 #        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-","--count=60"]).wait()
         osd.update_hook(old_osd_hook)
         music.real_mute()
-        for _ in xrange(20): music.set_volume('+0.01')
+        for _ in xrange(10): music.set_volume('+0.01')
 #        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+","--count=20"])
       else:
         osd.update_hook(old_osd_hook)
         music.unpause()
-    self['watched'] = True
+#    self['watched'] = True
+    self['watched'] = datetime.datetime.now().strftime('%Y-%m-%d, %H:%M') 
     screen.blit(screenbkup, (0,0))
     pygame.display.update()
 ##### End class movieinfo()
@@ -1402,9 +1395,9 @@ class movieplayer():
       self.mplayer.stdin.write('get_property volume\n')
     else:
       if type(volume) == str and volume.startswith('+'):
-        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+"]).wait()
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol+"]).wait()
       elif type(volume) == str and volume.startswith('-'):
-        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-"]).wait()
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol-"]).wait()
       elif type(volume) == int or type(volume) == float:
         volume = volume*100
         self.mplayer.stdin.write('set_property volume %d\n' % volume)
@@ -1479,7 +1472,7 @@ class movieplayer():
           self.mplayer.stdin.write('get_property switch_audio\n')
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_m:
           if "lirc_amp" in rare_options.keys():
-            subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"POWER"]).wait()
+            subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"mute"]).wait()
           else:
             self.mplayer.stdin.write('step_property mute\n')
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER):
@@ -1645,7 +1638,7 @@ class musicplayer():
   def pause(self):
     # Could also be possible if good buffering is in use, don't care not worth it: Temporarily stop playback of the music stream. It can be resumed with the pygame.mixer.music.unpause() function.
     if "lirc_amp" in rare_options.keys():
-      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"POWER"]).wait()
+      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"mute"]).wait()
     else:
       if not self.mplayer == None and not self.mplayer.stdin.closed:
         self.mplayer.stdin.write("mute\n")
@@ -1691,9 +1684,9 @@ class musicplayer():
       self.mplayer.stdin.write('get_property volume\n')
     else:
       if type(volume) == str and volume.startswith('+'):
-        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+"]).wait()
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol+"]).wait()
       elif type(volume) == str and volume.startswith('-'):
-        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-"]).wait()
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol-"]).wait()
       elif type(volume) == int or type(volume) == float:
         volume = volume*100
         self.mplayer.stdin.write('set_property volume %d\n' % volume)
@@ -1935,8 +1928,7 @@ def main():
     music.play()
     pygame.register_quit(music.stop)
     osd.update_hook(music.osd_hook)
-    for _ in xrange(60): music.set_volume('-0.01')
-#    subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+","--count=20"])
+    for _ in xrange(10): music.set_volume('+0.01')
   
   global screen
   if windowed == False and resolution == None:
