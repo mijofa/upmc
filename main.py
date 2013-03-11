@@ -1833,6 +1833,7 @@ def main():
   pygame.font.init()
   #pygame.image.init() # Doesn't have an '.init()' funtion.
   pygame.display.init()
+  pygame.joystick.init()
   #pygame.transform.init() # Doesn't have an '.init()' funtion.
   #pygame.event.init() # Doesn't have an '.init()' funtion.
   
@@ -1944,20 +1945,36 @@ def main():
   screen.blit(background, (0,0)) # Put the background on the window.
   pygame.display.update() # Update the display.
 
+  try:
+    joystick = pygame.joystick.Joystick(0)
+    joystick.init()
+  except:
+    pass
+
   def terminal():
-    term = subprocess.Popen(['x-terminal-emulator'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE)
-    return term.wait()
+    if windowed == False:
+      pygame.display.toggle_fullscreen()
+    term = subprocess.Popen(['x-terminal-emulator'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE).wait()
+    if windowed == False:
+      pygame.display.toggle_fullscreen()
+    return term
 
   def steam_big_picture():
     global music
-    steam = subprocess.Popen(['steam', '-bigpicture'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE)
+    steam = subprocess.Popen(['steam','-silent','-bigpicture','steam://open/bigpicture'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE)
     screenbkup = screen.copy()
+    if windowed == False:
+      pygame.display.toggle_fullscreen()
+    else:
+      print "windowed"
     surf = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
     surf.fill((0,0,0,225))
     screen.blit(surf, (0,0))
     render_textrect('Steam is still running.\n\nPress back key to kill Steam.', pygame.font.Font(fontname, 63), screen.get_rect(), (255,255,255), screen, 3)
     pygame.display.update()
-    music.real_mute()
+    if not music == None and music.get_busy() == True:
+      music.real_mute()
+    print "starting loop"
     while steam.poll() == None:
       try: events = pygame.event.get()
       except KeyboardInterrupt: events = [userquit()]
@@ -1972,12 +1989,18 @@ def main():
             steam.terminate()
           if steam.poll() == None:
             steam.kill()
+    if windowed == False:
+      pygame.display.toggle_fullscreen()
+    else:
+      print "Still windowed"
     screen.blit(screenbkup, (0,0))
     pygame.display.update()
+    if not music == None and music.get_busy() == True:
+      music.real_mute()
     return steam.poll()
   
-#  menuitems = [('Videos', filemenu), ('Terminal', terminal), ("Steam", steam_big_picture), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
-  menuitems = [('Videos', filemenu), ('Terminal', terminal), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
+  menuitems = [('Videos', filemenu), ('Terminal', terminal), ("Steam", steam_big_picture), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
+#  menuitems = [('Videos', filemenu), ('Terminal', terminal), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
   menu = textmenu(menuitems)
   
   if android:
@@ -1986,21 +2009,23 @@ def main():
     os.chdir(founddir)
   global rootdir
   rootdir = os.getcwd()
-  
+
   ## These should avoid going through the loop unnecessarily (and wasting resources) when there is events that I'm not going to use anyway.
   pygame.event.set_allowed(None) # This says to not put *any* events into the event queue.
   pygame.event.set_allowed([pygame.QUIT])
-  pygame.event.set_allowed([pygame.MOUSEMOTION,pygame.MOUSEBUTTONDOWN,pygame.MOUSEBUTTONUP,pygame.KEYDOWN]) # This says to put the events I want to see into the event queue, this needs to be updated anytime I want to monitor more events.
+  pygame.event.set_allowed([pygame.MOUSEMOTION,pygame.MOUSEBUTTONDOWN,pygame.MOUSEBUTTONUP,pygame.KEYDOWN,pygame.JOYHATMOTION,pygame.JOYBUTTONUP,pygame.JOYBUTTONDOWN]) # This says to put the events I want to see into the event queue, this needs to be updated anytime I want to monitor more events.
   global running
   while running == True:
     try: events = pygame.event.get()
     except KeyboardInterrupt: events = [userquit()]
     for event in events:
+      if event.type == pygame.JOYBUTTONDOWN:
+        print event
       if event.type == pygame.QUIT:
         running = False
         pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
         pygame.quit()
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+      elif (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (event.type == pygame.JOYBUTTONDOWN and event.button == 1):
         userquit()
       elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
         released = False
@@ -2014,13 +2039,15 @@ def main():
                 menu.action()
       elif event.type == pygame.MOUSEMOTION:
         menu.mouseselect(event.pos)
-      elif event.type == pygame.KEYDOWN and (event.key == pygame.K_UP or event.key == pygame.K_DOWN):
-        menu.keyselect(event.key==pygame.K_DOWN) # This will call keyselect(False) if K_UP is pressed, and keyselect(True) if K_DOWN is pressed.
-      elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
+      elif (event.type == pygame.KEYDOWN and event.key == pygame.K_UP) or (event.type == pygame.JOYHATMOTION and event.value[1] == 1):
+        menu.keyselect(False)
+      elif (event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN) or (event.type == pygame.JOYHATMOTION and event.value[1] == -1):
+        menu.keyselect(True) # This will call keyselect(False) if K_UP is pressed, and keyselect(True) if K_DOWN is pressed.
+      elif (event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE)) or (event.type == pygame.JOYBUTTONDOWN and event.button == 0):
         menu.action()
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
         pygame.display.toggle_fullscreen()
-      elif not music == None:
+      if not music == None:
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
           music.set_volume('-0.12')
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
@@ -2031,11 +2058,11 @@ def main():
           music.set_channel("+1")
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
           music.set_channel("-1")
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
+        elif event.type == pygame.KEYDOWN and (event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT))):
           music.prev()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
+        elif event.type == pygame.KEYDOWN and (event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT))):
           music.next()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_i) or (event.type == pygame.JOYBUTTONDOWN and (event.button == 7 or event.button == 10)):
           osd.toggle()
 
 if __name__ == "__main__":
