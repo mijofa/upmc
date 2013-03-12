@@ -1758,9 +1758,10 @@ class musicplayer():
     return self.previous()
 ##### End class musicplayer()
 
-def networkhandler():
-  remapped_keys = {'ESC': 'ESCAPE', 'ENTER': 'RETURN', 'ZERO': '0', 'ONE': '1', 'TWO': '2', 'THREE': '3', 'FOUR': '4', 'FIVE': '5', 'SIX': '6', 'SEVEN': '7', 'EIGHT': '8', 'NINE': '9'}
+def network_listener():
   server = socket.socket()
+  global network_clients
+  network_clients = {}
   while True:
     try:
       server.bind(('', 6546))
@@ -1768,46 +1769,55 @@ def networkhandler():
     except:
       time.sleep(15)
   while True:
+    client, client_info, client_thread = None, None, None
+    global quit
     quit = False
     server.listen(1)
-    (client, clientinfo) = server.accept()
-    clientfile = client.makefile('r')
+    (client, client_info) = server.accept()
     try:
       client.send("Unnamed Python Media Center network control interface\n")
       client.send("Currently only supports sending keypresses, more will come eventually.\n")
       client.send("----------------------------------------------------------------------\n")
     except: pass
-    while not clientfile.closed:
-      try: client.send('> ')
-      except: pass
-      data = clientfile.readline()
-      if data == '':
-        clientfile.close()
-      elif data[:-1] == 'quit '+os.uname()[1]:
-        pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
-        global quit
-        quit = True
-        clientfile.close()
-      elif data[:4] == 'key ':
-         if len(data[4:-1]) == 1:
-            key = data[4:-1]
-         elif len(data[4:-1]) > 1:
-           key = data[4:-1].upper()
-         if key.isdigit():
-           pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'mod': 0, 'key': int(key)}))
-           pygame.event.post(pygame.event.Event(pygame.KEYUP, {'mod': 0, 'key': int(key)}))
-         elif key in remapped_keys.keys() and 'K_'+remapped_keys[key] in dir(pygame):
-           pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'mod': 0, 'key': eval('pygame.K_'+remapped_keys[key]), 'unicode': key}))
-           pygame.event.post(pygame.event.Event(pygame.KEYUP, {'mod': 0, 'key': eval('pygame.K_'+remapped_keys[key]), 'unicode': key}))
-         elif 'K_'+key in dir(pygame):
-            pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'mod': 0, 'key': eval('pygame.K_'+key), 'unicode': key}))
-            pygame.event.post(pygame.event.Event(pygame.KEYUP, {'mod': 0, 'key': eval('pygame.K_'+key), 'unicode': key}))
-         else:
-           try: client.send("Unrecognised key '"+key+"'.\n")
-           except: pass
+    client_thread = threading.Thread(target=network_client_handler, name='network_client_handler', args=(client, client_info))
+    network_clients.update({client_info: (client, client_thread)})
+    client_thread.setDaemon(True)
+    client_thread.start()
     if quit:
       break
   server.close()
+
+def network_client_handler(client, clientinfo):
+  remapped_keys = {'ESC': 'ESCAPE', 'ENTER': 'RETURN', 'ZERO': '0', 'ONE': '1', 'TWO': '2', 'THREE': '3', 'FOUR': '4', 'FIVE': '5', 'SIX': '6', 'SEVEN': '7', 'EIGHT': '8', 'NINE': '9'}
+  clientfile = client.makefile('r')
+  while not clientfile.closed:
+    try: client.send('> ')
+    except: pass
+    data = clientfile.readline()
+    if data == '':
+      clientfile.close()
+    elif data[:-1] == 'quit '+os.uname()[1]:
+      pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
+      global quit
+      quit = True
+      clientfile.close()
+    elif data[:4] == 'key ':
+       if len(data[4:-1]) == 1:
+          key = data[4:-1]
+       elif len(data[4:-1]) > 1:
+         key = data[4:-1].upper()
+       if key.isdigit():
+         pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'mod': 0, 'key': int(key)}))
+         pygame.event.post(pygame.event.Event(pygame.KEYUP, {'mod': 0, 'key': int(key)}))
+       elif key in remapped_keys.keys() and 'K_'+remapped_keys[key] in dir(pygame):
+         pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'mod': 0, 'key': eval('pygame.K_'+remapped_keys[key]), 'unicode': key}))
+         pygame.event.post(pygame.event.Event(pygame.KEYUP, {'mod': 0, 'key': eval('pygame.K_'+remapped_keys[key]), 'unicode': key}))
+       elif 'K_'+key in dir(pygame):
+          pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'mod': 0, 'key': eval('pygame.K_'+key), 'unicode': key}))
+          pygame.event.post(pygame.event.Event(pygame.KEYUP, {'mod': 0, 'key': eval('pygame.K_'+key), 'unicode': key}))
+       else:
+         try: client.send("Unrecognised key '"+key+"'.\n")
+         except: pass
 
 def LIRChandler():
   pylirc.blocking(False)
@@ -1837,7 +1847,7 @@ def main():
   #pygame.transform.init() # Doesn't have an '.init()' funtion.
   #pygame.event.init() # Doesn't have an '.init()' funtion.
   
-  netthread = threading.Thread(target=networkhandler, name='networkhandler')
+  netthread = threading.Thread(target=network_listener, name='network_listener')
   netthread.setDaemon(True)
   netthread.start()
   lircthread = threading.Thread(target=LIRChandler, name='LIRChandler')
