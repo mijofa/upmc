@@ -1133,6 +1133,8 @@ class movieinfo():
       startmusic = False
     player.play()
     player.loop()
+    self['watched'] = datetime.datetime.now().strftime('%Y-%m-%d, %H:%M') 
+    pygame.display.update()
     if startmusic == True:
       if "lirc_amp" in rare_options.keys():
         subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"RESET"]).wait()
@@ -1145,8 +1147,6 @@ class movieinfo():
       else:
         osd.update_hook(old_osd_hook)
         music.unpause()
-#    self['watched'] = True
-    self['watched'] = datetime.datetime.now().strftime('%Y-%m-%d, %H:%M') 
     screen.blit(screenbkup, (0,0))
     pygame.display.update()
 ##### End class movieinfo()
