@@ -1975,8 +1975,6 @@ def main():
     screenbkup = screen.copy()
     if windowed == False:
       pygame.display.toggle_fullscreen()
-    else:
-      print "windowed"
     surf = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
     surf.fill((0,0,0,225))
     screen.blit(surf, (0,0))
@@ -1984,7 +1982,6 @@ def main():
     pygame.display.update()
     if not music == None and music.get_busy() == True:
       music.real_mute()
-    print "starting loop"
     while steam.poll() == None:
       try: events = pygame.event.get()
       except KeyboardInterrupt: events = [userquit()]
@@ -2001,8 +1998,6 @@ def main():
             steam.kill()
     if windowed == False:
       pygame.display.toggle_fullscreen()
-    else:
-      print "Still windowed"
     screen.blit(screenbkup, (0,0))
     pygame.display.update()
     if not music == None and music.get_busy() == True:
