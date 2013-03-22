@@ -2,26 +2,30 @@
 import os
 import sys
 import ast
-import mpd
-import aosd
 import time
 import cairo
 import Queue
 import getopt
-import pylirc
 import select
-import urllib2
 import socket
 import string
+import urllib2
 import datetime
 import mimetypes
 import threading
 import subprocess
 import ConfigParser
 
+import mpd
+import aosd
+import pylirc
+
 import pygame
 
 import upmc_movie
+
+mimetypes.add_type('video/divx', '.divx')
+mimetypes.add_type('video/ogm', '.ogm')
 
 try: # I would like this to run on Android as well, this section is needed for that to work.
   import android
@@ -555,6 +559,9 @@ class filemenu():
           item = item[2]
         try: ftype = mimetypes.guess_type(filename)[0].split('/')[0]
         except AttributeError: ftype = 'Unknown'
+        if ftype == 'Unknown':
+          if filename.lower().endswith('.divx'):
+            ftype = 'video'
         if ftype == 'video':
           if not directory+item in self.items:
             self.items.append(directory+item)
@@ -569,8 +576,6 @@ class filemenu():
             self.itemsinfo[directory+item] = {}
           self.itemsinfo[directory+item]['thumb'] = directory+filename
         elif filename[-5:] == '.info':
-          if not directory+item in self.items:
-            self.items.append(directory+item)
           if not self.itemsinfo.has_key(directory+item):
             self.itemsinfo[directory+item] = {}
           self.itemsinfo[directory+item]['info'] = directory+filename
@@ -580,6 +585,8 @@ class filemenu():
             self.itemsinfo[directory+item]['title'] = item
             self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
             self.itemsinfo[directory+item]['filename'] = iteminfo['filename']
+            if not directory+item in self.items:
+              self.items.append(directory+item)
   def render(self, directory = cwd, rowoffset = 0):
     global screenupdates
     screen.blit(background, (0,0))
@@ -1219,6 +1226,10 @@ class movieplayer():
     self.paused = self.paused == False
     self.player.pause()
   def set_volume(self, newVolume):
+    if newVolume >= 1.0:
+      newVolume = 1
+    elif newVolume <= 0.0:
+      newVolume = 0
     self.player.set_volume(newVolume)
     self.volume = newVolume
   def osd_hook(self, arg):
