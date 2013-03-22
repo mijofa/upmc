@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import os
 import sys
+import ast
 import mpd
 import aosd
 import time
@@ -12,6 +13,7 @@ import select
 import urllib2
 import socket
 import string
+import datetime
 import mimetypes
 import threading
 import subprocess
@@ -301,12 +303,14 @@ class osd_thread():
         self.aosd.show()
         self.aosd.loop_once()
         self.osdvisible = True
+      elif command == 'real_hide':
+        self.osdvisible = False
       elif command == "hide":
         if not self.hook == None:
           hook_data = self.hook('hide')
         self.aosd.hide()
         self.aosd.loop_once()
-        self.osdvisible = False
+        self.queue.put('real_hide')
       elif command == "toggle":
         if not self.hook == None:
           hook_data = self.hook('toggle')
@@ -552,7 +556,8 @@ class filemenu():
         try: ftype = mimetypes.guess_type(filename)[0].split('/')[0]
         except AttributeError: ftype = 'Unknown'
         if ftype == 'video':
-          self.items.append(directory+item)
+          if not directory+item in self.items:
+            self.items.append(directory+item)
           if not self.itemsinfo.has_key(directory+item):
             self.itemsinfo[directory+item] = {}
           self.itemsinfo[directory+item]['file'] = True
@@ -793,6 +798,7 @@ class filemenu():
       except KeyboardInterrupt: event = userquit()
       if event.type == pygame.QUIT:
         running = False
+        pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
         pygame.quit()
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
         self.keyselect(0)
@@ -807,9 +813,10 @@ class filemenu():
         info = movieinfo(self.itemsinfo[self.selected[1]])
         info.action()
       elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
-        print self.itemsinfo[self.selected[1]]
-        info = movieinfo(self.itemsinfo[self.selected[1]])
-        info.action()
+#        print self.itemsinfo[self.selected[1]]
+#        info = movieinfo(self.itemsinfo[self.selected[1]])
+#        info.action()
+        self.action(self.selected[-1])
       elif (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3):
         if self.action('../') == pygame.QUIT:
           screen.blit(background, (0,0)) # Put the background on the window.
@@ -843,10 +850,8 @@ class filemenu():
         pygame.display.toggle_fullscreen()
       elif not music == None:
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-          osd.show(2)
           music.set_volume('-0.12')
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-          osd.show(2)
           music.set_volume('+0.12')
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
           music.pause()
@@ -985,6 +990,7 @@ class movieinfo():
   def __init__(self, iteminfo):
     global fontname
     self.font = pygame.font.Font(fontname, 36)
+    self.font_big = pygame.font.Font(fontname, 60)
     self.iteminfo = iteminfo
     self.config = ConfigParser.ConfigParser()
     if self.iteminfo.has_key('info'):
@@ -998,7 +1004,7 @@ class movieinfo():
       thumbrect = thumb.get_rect().fit(screen.get_rect(width=(screen.get_width()/100)*95, height=(screen.get_height()/100)*95, center=(screen.get_width()/2, screen.get_height()/2)))
       thumb = pygame.transform.smoothscale(thumb.convert_alpha(), (thumbrect[2], thumbrect[3]))
       screen.blit(thumb, thumb.get_rect(center=(screen.get_width()/2,screen.get_height()/2)))
-    title = self.font.render(self['title'], 1, (255,255,255))
+    title = self.font_big.render(self['title'], 1, (255,255,255))
     screen.blit(title,title.get_rect(midtop=(screen.get_width()/2,self.font.size('')[1])))
     vertborder = screen.get_height()/20
     horizborder = (screen.get_width()-self.font.size('')[1]*3)/20
@@ -1006,7 +1012,10 @@ class movieinfo():
     directorsurf = infosurf.subsurface(infosurf.get_rect(top=self.font.get_height()/2, height=self.font.get_height()))
     directorsurf.fill((0,0,0,200))
     render_textrect('Directed by: '+self['director'], self.font, directorsurf.get_rect(), (255,255,255), directorsurf, 0)
-    if not self['boolean:watched']: render_textrect('Not seen', self.font, directorsurf.get_rect(), (255,255,255), directorsurf, 2)
+    render_textrect('IMDB rating: %2.1f' % self['float:rating'], self.font, directorsurf.get_rect(), (255,255,255), directorsurf, 2)
+    plotsurf = infosurf.subsurface(infosurf.get_rect(height=infosurf.get_height()-(self.font.get_height()*6.5), top=self.font.get_height()*2, width=(infosurf.get_width()*0.75)-(self.font.size('W')[0]/2)))
+    plotsurf.fill((0,0,0,150))
+    render_textrect(self['plot outline'], self.font_big, plotsurf.get_rect(), (255,255,255), plotsurf, 0)
     miscsurf = infosurf.subsurface(infosurf.get_rect(top=(infosurf.get_height()-(self.font.get_height()/2))-(self.font.get_height()*2), height=self.font.get_height()*2))
     miscsurf.fill((0,0,0,100), (0,0,miscsurf.get_width(),self.font.get_height()))
     miscsurf.fill((0,0,0,200), (0,self.font.get_height(),miscsurf.get_width(),self.font.get_height()))
@@ -1024,29 +1033,16 @@ class movieinfo():
         runtime = ', '.join(runtime)
     render_textrect('Runtime\n%s minutes' % runtime, self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 0)
     render_textrect('Year\n%d' % self['int:year'], self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 1)
-    render_textrect('User rating\n%2.1f' % self['float:rating'], self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 2)
-    plotsurf = infosurf.subsurface(infosurf.get_rect(height=infosurf.get_height()-(self.font.get_height()*5), top=self.font.get_height()*2))
-    plotsurf.fill((0,0,0,150))
-    plots = ''
-    for plot in self['list:plot']:
-      if not plot == '' and not plot == 'Unknown':
-        if '::' in plot:
-          author = plot.split('::')[-1]
-          plot = '::'.join(plot.split('::')[0:-1])
-        else:
-          author = 'Anonymous'
-        plots += 'Plot written by '+author+':\n      '+plot+'\n\n'
-    if plots == '':
-      plots = 'None'
-    render_textrect(plots, self.font, plotsurf.get_rect(), (255,255,255), plotsurf, 0)
-    ##FINDME###
-#    infosurf.fill((0,0,0,150))
-#    if self.info.has_key('plot'):
-#      plotsurf = render_textrect(self.info['plot'], self.font, infosurf.get_rect(), (255,255,255), (0,0,0,0), 0)
-#      infosurf.blit(plotsurf, (0,0))
-#    if self.info.has_key('runtimes'):
-#      runtimesurf = self.font.render('Runtime: '+self.info['runtimes'], 1, (255,255,255))
-#      infosurf.blit(runtimesurf, runtimesurf.get_rect(left=0, bottom=infosurf.get_height()))
+    render_textrect("Last seen\n%s" % self['watched'], self.font, miscsurf.get_rect(), (255,255,255), miscsurf, 2)
+    genresurf = infosurf.subsurface(infosurf.get_rect(top=(infosurf.get_height()-miscsurf.get_height()-(self.font.get_height()))-self.font.get_height(), height=self.font.get_height(), width=(infosurf.get_width()*0.75)-(self.font.size('W')[0]/2)))
+    genresurf.fill((0,0,0,150))
+    render_textrect("Genres: %s" % ', '.join(self['list:genres']), self.font, genresurf.get_rect(), (255,255,255), genresurf, 0)
+
+    castsurf = infosurf.subsurface(infosurf.get_rect(height=infosurf.get_height()-(self.font.get_height()*5), top=self.font.get_height()*2, right=infosurf.get_width(), width=infosurf.get_width()*0.25))
+    castsurf.fill((0,0,0,150))
+    render_textrect("Cast", self.font, castsurf.get_rect(height=self.font.get_height()), (255,255,255), castsurf, 1)
+    render_textrect('\n'.join(['']+self['list:cast']), self.font, castsurf.get_rect(height=castsurf.get_height()-self.font.get_height(), top=self.font.get_height()), (255,255,255), castsurf, 0)
+
     screen.blit(infosurf,(horizborder,self.font.size('')[1]*3,))
     pygame.display.update()
     if False:
@@ -1077,6 +1073,7 @@ class movieinfo():
       except KeyboardInterrupt: event = userquit()
       if event.type == pygame.QUIT:
         running = False
+        pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
         pygame.quit()
       elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
         self.action()
@@ -1086,10 +1083,8 @@ class movieinfo():
         self.action()
       elif not music == None:
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-          osd.show(2)
           music.set_volume('-0.12')
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-          osd.show(2)
           music.set_volume('+0.12')
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
           music.pause()
@@ -1125,7 +1120,7 @@ class movieinfo():
     player = movieplayer(self['filename'])
     if not music == None and music.get_busy() == True:
       old_osd_hook = osd.get_hook()
-      music.pause()
+      music.real_mute()
       startmusic = True
     else:
       startmusic = False
@@ -1134,10 +1129,20 @@ class movieinfo():
 #    player.start()
     player.start()
 #    player.loop()
+    self['watched'] = datetime.datetime.now().strftime('%Y-%m-%d, %H:%M') 
+    pygame.display.update()
     if startmusic == True:
-      osd.update_hook(old_osd_hook)
-      music.unpause()
-    self['watched'] = True
+      if "lirc_amp" in rare_options.keys():
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"RESET"]).wait()
+        for _ in xrange(60): music.set_volume('-0.01')
+#        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-","--count=60"]).wait()
+        osd.update_hook(old_osd_hook)
+        music.real_mute()
+        for _ in xrange(10): music.set_volume('+0.01')
+#        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+","--count=20"])
+      else:
+        osd.update_hook(old_osd_hook)
+        music.unpause()
     screen.blit(screenbkup, (0,0))
     pygame.display.update()
 ##### End class movieinfo()
@@ -1147,6 +1152,8 @@ class movieplayer():
   str_length = "0"
   volume = 0
   osdtype = 'time'
+  osdtitle = ''
+  osdnotification = ''
   muted = False
   def human_readable_seconds(self, seconds):
     hrs = int(seconds/60.0/60.0)
@@ -1174,6 +1181,7 @@ class movieplayer():
     pygame.display.update()
     self.paused = False
     self.player.play()
+    self.osdtitle = osd.display_data[0]
     ## upmc_movie needs to be extended to do more fancy things since I no longer care about acting just like pygame.movie, and I shouldn't be calling vlc_player directly for any reason.
     while upmc_movie.vlc_player.is_playing() == False: pass
     self.str_length = self.human_readable_seconds(self.player.get_length())
@@ -1185,17 +1193,23 @@ class movieplayer():
     else:
       savefile = None
     if not savefile == None:
-      start_time = open(savefile, 'r').readline().strip('\n')
+      try: start_time = open(savefile, 'r').readline().strip('\n')
+      except IOError as e:
+        if e.errno == 13:
+          print "Permission denied when reading save file."
+          start_time = "0"
+        else:
+          raise e
       if ';' in start_time:
         self.set_volume(float(start_time.split(';')[1]))
         start_time = start_time.split(';')[0]
       self.player.skip(int(float(start_time)))
       try: os.remove(savefile)
-      except OSError, (Errno, Errmsg):
-        if Errno == 30:
-          pass # Read-only, nothing I can do about it.
+      except OSError as e:
+        if e.errno == 30:
+          print "Unable to delete save file"
         else:
-          raise OSError((Errno, Errmsg))
+          raise e
     self.loop()
     screen.blit(screenbkup, (0,0))
     pygame.display.update()
@@ -1208,27 +1222,32 @@ class movieplayer():
     self.player.set_volume(newVolume)
     self.volume = newVolume
   def osd_hook(self, arg):
-    # Return the current playback time as a floating point value in seconds. This method currently seems broken and always returns 0.0.
-    ### This is easy to implement so do so even though the pygame version fails.
+    new_display_data = [None, None, None]
+    if (arg == 'toggle' or arg == 'hide'):
+      self.osdtype = 'time'
+      new_display_data[0] = self.osdtitle
+      self.osdnotification = ''
+    if self.osdnotification != '':
+      new_display_data[0] = self.osdnotification
     if arg == 'updating' and self.osdtype == 'time':
       curpos = self.human_readable_seconds(self.player.get_time())
       if not self.str_length == '00':
         if len(self.str_length.split(':')) > len(curpos.split(':')):
           curpos = ('00:' * (len(self.str_length.split(':')) - len(curpos.split(':')))) + curpos
-        return [None, "%s of %s" % (curpos, self.str_length), self.player.get_time()/(self.player.get_length()/100.0)]
+        new_display_data[1] = "%s of %s" % (curpos, self.str_length)
+        new_display_data[2] = self.player.get_time()/(self.player.get_length()/100.0)
       elif not curpos == '00':
-        return [None, "%s" % curpos, 100.0]
+        new_display_data[1] = "%s" % curpos
+        new_display_data[2] = 100.0
       else:
-        return [None, "Live", 100.0]
+        new_display_data[1] = "Live"
+        new_display_data[2] = 100.0
     elif arg == 'updating' and self.osdtype == "volume":
-      return [None, "%s%% volume" % int(self.volume*100), self.volume*100]
-    elif arg == 'updating' and not self.osdtype == 'time':
-      return osd.display_data
-    elif arg == 'toggle' and not self.osdtype == 'time':
-      self.osdtype = 'time'
-      return None
-    return None
+      new_display_data[1] = "%s%% volume" % int(self.volume*100)
+      new_display_data[2] = self.volume*100
+    return new_display_data
   def loop(self):
+    self.player.set_endevent(pygame.USEREVENT)
     stop = False
     while stop == False:
       try: events = pygame.event.get()
@@ -1241,6 +1260,7 @@ class movieplayer():
         elif event.type == pygame.QUIT:
           running = False
           stop = True
+          pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
           try: self.stop()
           except: break
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
@@ -1267,51 +1287,57 @@ class movieplayer():
           osd.toggle()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
           if upmc_movie.vlc_player.video_get_spu_count() == 0:
-            print "No subtitles loaded."
+            self.osdnotification = "No subtitles found"
           else:
             upmc_movie.vlc_player.video_set_spu(upmc_movie.vlc_player.video_get_spu() == False)
-            print "Subtitles",
-            if upmc_movie.vlc_player.video_get_spu() == True:
-              print "enabled"
-            else:
-              print "disabled"
+            self.osdnotification = "Subtitles enabled" if upmc_movie.vlc_player.video_get_spu() == True else "Subtitles disabled"
+          osd.show(2)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
           current_track = upmc_movie.vlc_player.audio_get_track()
           if current_track == upmc_movie.vlc_player.audio_get_track_count()-1:
             upmc_movie.vlc_player.audio_set_track(1)
           else:
             upmc_movie.vlc_player.audio_set_track(current_track+1)
-          print "Playing track #", upmc_movie.vlc_player.audio_get_track(), '-', upmc_movie.vlc_player.audio_get_track_description()[upmc_movie.vlc_player.audio_get_track()][1]
+          self.osdnotification = "Audio track #%d - %s" % (upmc_movie.vlc_player.audio_get_track(), upmc_movie.vlc_player.audio_get_track_description()[upmc_movie.vlc_player.audio_get_track()][1])
+          osd.show(2)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_m:
-          if self.muted == True:
-            self.muted = False
-            self.set_volume(self.volume)
-          elif self.muted == False:
-            self.muted = True
-            self.set_volume(0.0)
+          if "lirc_amp" in rare_options.keys():
+            subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"mute"]).wait()
+          else:
+            if self.muted == True:
+              self.muted = False
+              self.set_volume(self.volume)
+            elif self.muted == False:
+              self.muted = True
+              self.set_volume(0.0)
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER):
           save_pos = self.player.get_time()-10
           save_hrs = int(save_pos/60.0/60.0)
           save_mins = int((save_pos-(save_hrs*60*60))/60)
           save_secs = int(save_pos-((save_hrs*60*60)+(save_mins*60)))
           try: open(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'w').write('%s;%s\n# This line and everything below is ignored, it is only here so that you don\'t need to understand ^ that syntax.\nTime: %02d:%02d:%02d\nVolume: %d%%\n' % (save_pos, self.volume, save_hrs, save_mins, save_secs, self.volume))
-          except IOError, (Errno, Errmsg):
-            if Errno == 13:
-#              self.mplayer.stdin.write('osd_show_text "Unable to save, permission denied."\n')
-              print "Permission denied."
+          except IOError as e:
+            if e.errno == 13:
+              self.osdnotification = "Permission denied."
             else:
-              raise OSError((Errno, Errmsg))
+              raise e
           else:
-#            self.mplayer.stdin.write('osd_show_text "Saved position: %02d:%02d:%02d"\n' % (save_hrs, save_mins, save_secs))
-            print "Saved position"
+            self.osdnotification = "Position saved"
+          osd.show(2)
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-          self.osdtype = 'volume'
-          osd.show(2)
-          self.set_volume(self.volume-0.02)
+          if "lirc_amp" in rare_options.keys():
+            subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol-"]).wait()
+          else:
+            self.osdtype = 'volume'
+            osd.show(2)
+            self.set_volume(self.volume-0.02)
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-          self.osdtype = 'volume'
-          osd.show(2)
-          self.set_volume(self.volume+0.02)
+          if "lirc_amp" in rare_options.keys():
+            subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol+"]).wait()
+          else:
+            self.osdtype = 'volume'
+            osd.show(2)
+            self.set_volume(self.volume+0.02)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
           if self.get_busy():
             self.pause()
@@ -1424,7 +1450,11 @@ class musicplayer():
       url = self.url
     print "Starting playback of '%s', channel %02d: '%s'" % (self.url, self.cur_channel, url)
     args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','demuxer=4:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify']
-    args += ['-volume','37']
+    global rare_options
+    if "lirc_amp" in rare_options.keys():
+      args += ['-volume','98']
+    else:
+      args += ['-volume','25']
     if music_args:
       args += music_args
     self.mplayer = subprocess.Popen(['mplayer']+args+[url],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=1)
@@ -1448,6 +1478,13 @@ class musicplayer():
       self.mpc.disconnect()
   def pause(self):
     # Could also be possible if good buffering is in use, don't care not worth it: Temporarily stop playback of the music stream. It can be resumed with the pygame.mixer.music.unpause() function.
+    if "lirc_amp" in rare_options.keys():
+      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"mute"]).wait()
+    else:
+      if not self.mplayer == None and not self.mplayer.stdin.closed:
+        self.mplayer.stdin.write("mute\n")
+        self.mplayer.stdin.write('pausing_keep_force get_property mute\n')
+  def real_mute(self):
     if not self.mplayer == None and not self.mplayer.stdin.closed:
       self.mplayer.stdin.write("mute\n")
       self.mplayer.stdin.write('pausing_keep_force get_property mute\n')
@@ -1467,23 +1504,38 @@ class musicplayer():
     # self.set_volume(orig_volume)
   def set_volume(self,volume=None):
     # Set the playback volume for this movie. The argument is a value between 0.0 and 1.0. If the volume is set to 0 the movie audio will not be decoded.
-    if type(volume) == str and volume.startswith('+'):
-      if volume.endswith('%'): volume = int(volume.lstrip('+').rstrip('%'))
-      else: volume = float(volume.lstrip('+'))*100
-      self.mplayer.stdin.write('step_property volume %d\n' % volume)
-    elif type(volume) == str and volume.startswith('-'):
-      if volume.endswith('%'): volume = int(volume.lstrip('-').rstrip('%'))
-      else: volume = float(volume.lstrip('-'))*100
-      self.mplayer.stdin.write('step_property volume -%d\n' % volume)
-    elif type(volume) == int or type(volume) == float:
-      volume = volume*100
-      self.mplayer.stdin.write('set_property volume %d\n' % volume)
-    elif type(volume) == str and volume.endswith('%'):
-      volume = int(volume.rstrip('%'))
-      self.mplayer.stdin.write('set_property volume %d\n' % volume)
+    if not "lirc_amp" in rare_options.keys():
+      osd.show(2)
+      if type(volume) == str and volume.startswith('+'):
+        if volume.endswith('%'): volume = int(volume.lstrip('+').rstrip('%'))
+        else: volume = float(volume.lstrip('+'))*100
+        self.mplayer.stdin.write('step_property volume %d\n' % volume)
+      elif type(volume) == str and volume.startswith('-'):
+        if volume.endswith('%'): volume = int(volume.lstrip('-').rstrip('%'))
+        else: volume = float(volume.lstrip('-'))*100
+        self.mplayer.stdin.write('step_property volume -%d\n' % volume)
+      elif type(volume) == int or type(volume) == float:
+        volume = volume*100
+        self.mplayer.stdin.write('set_property volume %d\n' % volume)
+      elif type(volume) == str and volume.endswith('%'):
+        volume = int(volume.rstrip('%'))
+        self.mplayer.stdin.write('set_property volume %d\n' % volume)
+      else:
+        raise Exception("Proper volume argument required. Got %s" % volume)
+      self.mplayer.stdin.write('get_property volume\n')
     else:
-      raise Exception("Proper volume argument required. Got %s" % volume)
-    self.mplayer.stdin.write('get_property volume\n')
+      if type(volume) == str and volume.startswith('+'):
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol+"]).wait()
+      elif type(volume) == str and volume.startswith('-'):
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol-"]).wait()
+      elif type(volume) == int or type(volume) == float:
+        volume = volume*100
+        self.mplayer.stdin.write('set_property volume %d\n' % volume)
+      elif type(volume) == str and volume.endswith('%'):
+        volume = int(volume.rstrip('%'))
+        self.mplayer.stdin.write('set_property volume %d\n' % volume)
+      else:
+        raise Exception("Proper volume argument required. Got %s" % volume)
   def get_volume(self):
     # Returns the current volume for the mixer. The value will be between 0.0 and 1.0.
     self.volume = None
@@ -1547,9 +1599,10 @@ class musicplayer():
     return self.previous()
 ##### End class musicplayer()
 
-def networkhandler():
-  remapped_keys = {'ESC': 'ESCAPE', 'ENTER': 'RETURN', 'ZERO': '0', 'ONE': '1', 'TWO': '2', 'THREE': '3', 'FOUR': '4', 'FIVE': '5', 'SIX': '6', 'SEVEN': '7', 'EIGHT': '8', 'NINE': '9'}
+def network_listener():
   server = socket.socket()
+  global network_clients
+  network_clients = {}
   while True:
     try:
       server.bind(('', 6546))
@@ -1557,41 +1610,55 @@ def networkhandler():
     except:
       time.sleep(15)
   while True:
+    client, client_info, client_thread = None, None, None
+    global quit
     quit = False
     server.listen(1)
-    (client, clientinfo) = server.accept()
-    clientfile = client.makefile('r')
-    client.send("Unnamed Python Media Center network control interface\n")
-    client.send("Currently only supports sending keypresses, more will come eventually.\n")
-    client.send("----------------------------------------------------------------------\n")
-    while not clientfile.closed:
-      client.send('> ')
-      data = clientfile.readline()
-      if data == '':
-        clientfile.close()
-      elif data[:-1] == 'quit '+os.uname()[1]:
-        pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
-        quit = True
-        clientfile.close()
-      elif data[:4] == 'key ':
-         if len(data[4:-1]) == 1:
-            key = data[4:-1]
-         elif len(data[4:-1]) > 1:
-           key = data[4:-1].upper()
-         if key.isdigit():
-           pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'mod': 0, 'key': int(key)}))
-           pygame.event.post(pygame.event.Event(pygame.KEYUP, {'mod': 0, 'key': int(key)}))
-         elif key in remapped_keys.keys() and 'K_'+remapped_keys[key] in dir(pygame):
-           pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'mod': 0, 'key': eval('pygame.K_'+remapped_keys[key]), 'unicode': key}))
-           pygame.event.post(pygame.event.Event(pygame.KEYUP, {'mod': 0, 'key': eval('pygame.K_'+remapped_keys[key]), 'unicode': key}))
-         elif 'K_'+key in dir(pygame):
-            pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'mod': 0, 'key': eval('pygame.K_'+key), 'unicode': key}))
-            pygame.event.post(pygame.event.Event(pygame.KEYUP, {'mod': 0, 'key': eval('pygame.K_'+key), 'unicode': key}))
-         else:
-           client.send("Unrecognised key '"+key+"'.\n")
+    (client, client_info) = server.accept()
+    try:
+      client.send("Unnamed Python Media Center network control interface\n")
+      client.send("Currently only supports sending keypresses, more will come eventually.\n")
+      client.send("----------------------------------------------------------------------\n")
+    except: pass
+    client_thread = threading.Thread(target=network_client_handler, name='network_client_handler', args=(client, client_info))
+    network_clients.update({client_info: (client, client_thread)})
+    client_thread.setDaemon(True)
+    client_thread.start()
     if quit:
       break
   server.close()
+
+def network_client_handler(client, clientinfo):
+  remapped_keys = {'ESC': 'ESCAPE', 'ENTER': 'RETURN', 'ZERO': '0', 'ONE': '1', 'TWO': '2', 'THREE': '3', 'FOUR': '4', 'FIVE': '5', 'SIX': '6', 'SEVEN': '7', 'EIGHT': '8', 'NINE': '9'}
+  clientfile = client.makefile('r')
+  while not clientfile.closed:
+    try: client.send('> ')
+    except: pass
+    data = clientfile.readline()
+    if data == '':
+      clientfile.close()
+    elif data[:-1] == 'quit '+os.uname()[1]:
+      pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
+      global quit
+      quit = True
+      clientfile.close()
+    elif data[:4] == 'key ':
+       if len(data[4:-1]) == 1:
+          key = data[4:-1]
+       elif len(data[4:-1]) > 1:
+         key = data[4:-1].upper()
+       if key.isdigit():
+         pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'mod': 0, 'key': int(key)}))
+         pygame.event.post(pygame.event.Event(pygame.KEYUP, {'mod': 0, 'key': int(key)}))
+       elif key in remapped_keys.keys() and 'K_'+remapped_keys[key] in dir(pygame):
+         pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'mod': 0, 'key': eval('pygame.K_'+remapped_keys[key]), 'unicode': key}))
+         pygame.event.post(pygame.event.Event(pygame.KEYUP, {'mod': 0, 'key': eval('pygame.K_'+remapped_keys[key]), 'unicode': key}))
+       elif 'K_'+key in dir(pygame):
+          pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'mod': 0, 'key': eval('pygame.K_'+key), 'unicode': key}))
+          pygame.event.post(pygame.event.Event(pygame.KEYUP, {'mod': 0, 'key': eval('pygame.K_'+key), 'unicode': key}))
+       else:
+         try: client.send("Unrecognised key '"+key+"'.\n")
+         except: pass
 
 def LIRChandler():
   pylirc.blocking(False)
@@ -1617,10 +1684,11 @@ def main():
   pygame.font.init()
   #pygame.image.init() # Doesn't have an '.init()' funtion.
   pygame.display.init()
+  pygame.joystick.init()
   #pygame.transform.init() # Doesn't have an '.init()' funtion.
   #pygame.event.init() # Doesn't have an '.init()' funtion.
   
-  netthread = threading.Thread(target=networkhandler, name='networkhandler')
+  netthread = threading.Thread(target=network_listener, name='network_listener')
   netthread.setDaemon(True)
   netthread.start()
   lircthread = threading.Thread(target=LIRChandler, name='LIRChandler')
@@ -1649,8 +1717,8 @@ def main():
   movie_args = None
   global music_args
   music_args = None
-  global unusual_options
-  unusual_options = ''
+  global rare_options
+  rare_options = {None: None}
 
   if len(sys.argv) > 1:
     options, arguments = getopt.getopt(sys.argv[1:], 'w:m:o:', ["windowed=", "music-url=", "options=", "channels=", "mpd-host=", "mpd-port=", "movie-args=", "music-args="])
@@ -1673,8 +1741,8 @@ def main():
 #        movie_args = str(a).split(' ')
       elif o == "--music-args":
         music_args = str(a).split(' ')
-      elif o == "-o" or o == "--options":
-        unusual_options = str(a)
+      elif o == "--options" or o == "-o":
+        rare_options = ast.literal_eval(a)
   else:
     options, arguments = ([], [])
   
@@ -1712,9 +1780,13 @@ def main():
   if not music_url == None:
     music = musicplayer()
     music.load(music_url)
+    if "lirc_amp" in rare_options.keys():
+      for _ in xrange(60): music.set_volume('-0.01')
+#      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-","--count=60"]).wait()
     music.play()
     pygame.register_quit(music.stop)
     osd.update_hook(music.osd_hook)
+    for _ in xrange(10): music.set_volume('+0.01')
   
   global background
   try: background = pygame.transform.scale(pygame.image.load(os.path.dirname(sys.argv[0])+'/background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
@@ -1725,9 +1797,58 @@ def main():
   screen.blit(background, (0,0)) # Put the background on the window.
   pygame.display.update() # Update the display.
 
+  try:
+    joystick = pygame.joystick.Joystick(0)
+    joystick.init()
+  except:
+    pass
+
   def terminal():
-    term = subprocess.Popen(['x-terminal-emulator'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE)
-    return term.wait
+    if windowed == False:
+      pygame.display.toggle_fullscreen()
+    term = subprocess.Popen(['x-terminal-emulator'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE).wait()
+    if windowed == False:
+      pygame.display.toggle_fullscreen()
+    return term
+
+  def steam_big_picture():
+    global music
+    steam = subprocess.Popen(['steam','-silent','-bigpicture','steam://open/bigpicture'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE)
+    screenbkup = screen.copy()
+    if windowed == False:
+      pygame.display.toggle_fullscreen()
+    surf = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
+    surf.fill((0,0,0,225))
+    screen.blit(surf, (0,0))
+    render_textrect('Steam is still running.\n\nPress back key to kill Steam.', pygame.font.Font(fontname, 63), screen.get_rect(), (255,255,255), screen, 3)
+    pygame.display.update()
+    if not music == None and music.get_busy() == True:
+      music.real_mute()
+    while steam.poll() == None:
+      try: events = pygame.event.get()
+      except KeyboardInterrupt: events = [userquit()]
+      for event in events:
+        if event.type == pygame.QUIT:
+          pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
+          pygame.quit()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+          if steam.poll() == None:
+            subprocess.Popen(['steam','-shutdown']).wait()
+          if steam.poll() == None:
+            steam.terminate()
+          if steam.poll() == None:
+            steam.kill()
+    if windowed == False:
+      pygame.display.toggle_fullscreen()
+    screen.blit(screenbkup, (0,0))
+    pygame.display.update()
+    if not music == None and music.get_busy() == True:
+      music.real_mute()
+    return steam.poll()
+  
+  menuitems = [('Videos', filemenu), ('Terminal', terminal), ("Steam", steam_big_picture), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
+#  menuitems = [('Videos', filemenu), ('Terminal', terminal), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
+  menu = textmenu(menuitems)
   
   if android:
     os.chdir('/sdcard/Movies')
@@ -1736,28 +1857,34 @@ def main():
   global rootdir
   rootdir = os.getcwd()
 
-  filemenu()
-  global running
-  running = False
-  pygame.quit()
-
-  """
-  menuitems = [('Videos', filemenu), ('Terminal', terminal), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
-  menu = textmenu(menuitems)
+#  filemenu()
+#  global running
+#  running = False
+#  pygame.quit()
+#
+#  menuitems = [('Videos', filemenu), ('Terminal', terminal), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
+#  menu = textmenu(menuitems)
   
   ## These should avoid going through the loop unnecessarily (and wasting resources) when there is events that I'm not going to use anyway.
   pygame.event.set_allowed(None) # This says to not put *any* events into the event queue.
+  # These say to put the events I want to see into the event queue, this needs to be updated anytime I want to monitor more events.
   pygame.event.set_allowed([pygame.QUIT])
-  pygame.event.set_allowed([pygame.MOUSEMOTION,pygame.MOUSEBUTTONDOWN,pygame.MOUSEBUTTONUP,pygame.KEYDOWN]) # This says to put the events I want to see into the event queue, this needs to be updated anytime I want to monitor more events.
+  pygame.event.set_allowed([pygame.USEREVENT])
+  pygame.event.set_allowed([pygame.MOUSEMOTION,pygame.MOUSEBUTTONDOWN,pygame.MOUSEBUTTONUP])
+  pygame.event.set_allowed([pygame.KEYDOWN])
+  pygame.event.set_allowed([pygame.JOYHATMOTION,pygame.JOYBUTTONUP,pygame.JOYBUTTONDOWN]) 
   global running
   while running == True:
     try: events = pygame.event.get()
     except KeyboardInterrupt: events = [userquit()]
     for event in events:
+      if event.type == pygame.JOYBUTTONDOWN:
+        print event
       if event.type == pygame.QUIT:
         running = False
+        pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
         pygame.quit()
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+      elif (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (event.type == pygame.JOYBUTTONDOWN and event.button == 1):
         userquit()
       elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
         released = False
@@ -1771,18 +1898,18 @@ def main():
                 menu.action()
       elif event.type == pygame.MOUSEMOTION:
         menu.mouseselect(event.pos)
-      elif event.type == pygame.KEYDOWN and (event.key == pygame.K_UP or event.key == pygame.K_DOWN):
-        menu.keyselect(event.key==pygame.K_DOWN) # This will call keyselect(False) if K_UP is pressed, and keyselect(True) if K_DOWN is pressed.
-      elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
+      elif (event.type == pygame.KEYDOWN and event.key == pygame.K_UP) or (event.type == pygame.JOYHATMOTION and event.value[1] == 1):
+        menu.keyselect(False)
+      elif (event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN) or (event.type == pygame.JOYHATMOTION and event.value[1] == -1):
+        menu.keyselect(True) # This will call keyselect(False) if K_UP is pressed, and keyselect(True) if K_DOWN is pressed.
+      elif (event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE)) or (event.type == pygame.JOYBUTTONDOWN and event.button == 0):
         menu.action()
       elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
         pygame.display.toggle_fullscreen()
-      elif not music == None:
+      if not music == None:
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-          osd.show(2)
           music.set_volume('-0.12')
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-          osd.show(2)
           music.set_volume('+0.12')
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
           music.pause()
@@ -1790,13 +1917,12 @@ def main():
           music.set_channel("+1")
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
           music.set_channel("-1")
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
+        elif event.type == pygame.KEYDOWN and (event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT))):
           music.prev()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
+        elif event.type == pygame.KEYDOWN and (event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT))):
           music.next()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_i) or (event.type == pygame.JOYBUTTONDOWN and (event.button == 7 or event.button == 10)):
           osd.toggle()
-          """
 
 if __name__ == "__main__":
   try: main()

@@ -1,12 +1,6 @@
 import vlc
 from pygame.movie import MovieType
-class pygame:
-  class display:
-    from pygame.display import get_wm_info
-  class surface:
-    from pygame.surface import SurfaceType
-  class event:
-    from pygame.event import post, Event
+import pygame
 
 vlc_instance = vlc.Instance("--no-video-title --no-keyboard-events")
 vlc_player = vlc_instance.media_player_new()
@@ -72,6 +66,7 @@ class Movie():
     vlc_player.set_xwindow(x_window_id)
     return None
   def set_endevent(self, eventType = None):
+    print "SETTING ENDEVENT", eventType
     if not eventType == None:
       event_manager.event_attach(vlc.EventType.MediaPlayerEndReached, self.end_callback, eventType)
     else:
