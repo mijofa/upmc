@@ -1,7 +1,9 @@
-background.png      /usr/share/upmc/
-main.py             /usr/share/upmc/
 network-remote.py   /usr/share/upmc/
+background.png      /usr/share/upmc/
+upmc_movie.py       /usr/share/upmc/
 imdb.py             /usr/share/upmc/
+main.py             /usr/share/upmc/
+vlc.py              /usr/share/upmc/
 
 upmc.desktop        /usr/share/applications/
 
