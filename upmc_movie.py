@@ -1,6 +1,12 @@
 import vlc
-from pygame.movie import MovieType
 import pygame
+#MovieType = pygame.movie.MovieType
+
+VLC_NAVIGATE_ENTER = 0
+VLC_NAVIGATE_UP = 1
+VLC_NAVIGATE_DOWN = 2
+VLC_NAVIGATE_LEFT = 3
+VLC_NAVIGATE_RIGHT = 4
 
 vlc_instance = vlc.Instance("--no-video-title --no-keyboard-events")
 vlc_player = vlc_instance.media_player_new()
@@ -16,6 +22,7 @@ class Movie():
     vlc_player.set_media(self.vlc_media)
   def play(self, loops = 0):
     vlc_player.play()
+    vlc_player.video_set_spu(0)
     if self.skipTo > 0:
       vlc_player.set_time(self.skipTo)
   def stop(self):
@@ -73,3 +80,19 @@ class Movie():
       event_manager.event_detach(vlc.EventType.MediaPlayerEndReached)
   def get_endevent(self):
     return event_manager._callbacks.values()[0][1][0]
+  def dvd_navigate(self, key):
+    if vlc_player.get_title() != 0 or vlc_player.get_title_count() == 0:
+      return False
+    else:
+      if key == pygame.K_RETURN:
+        key = VLC_NAVIGATE_ENTER
+      elif key == pygame.K_UP:
+        key = VLC_NAVIGATE_UP
+      elif key == pygame.K_DOWN:
+        key = VLC_NAVIGATE_DOWN
+      elif key == pygame.K_LEFT:
+        key = VLC_NAVIGATE_LEFT
+      elif key == pygame.K_RIGHT:
+        key = VLC_NAVIGATE_RIGHT = 4
+      print vlc_player.navigate(key)
+      return True

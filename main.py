@@ -26,6 +26,7 @@ import upmc_movie
 
 mimetypes.add_type('video/divx', '.divx')
 mimetypes.add_type('video/ogm', '.ogm')
+mimetypes.add_type('video/dvd', '.dvd')
 
 try: # I would like this to run on Android as well, this section is needed for that to work.
   import android
@@ -529,7 +530,7 @@ class filemenu():
     files = []
     for item in os.listdir(directory):
       if not item.startswith('.') and os.access(directory+item, os.R_OK):
-        if os.path.isdir(directory+item):
+        if os.path.isdir(directory+item) and not item.lower().endswith('.dvd'):
           directories.append(item + '/')
         else:
           files.append(item)
@@ -581,12 +582,12 @@ class filemenu():
           self.itemsinfo[directory+item]['info'] = directory+filename
           iteminfo = movieinfo(self.itemsinfo[directory+item])
           if not 'filename' in self.itemsinfo[directory+item].keys() and 'filename' in iteminfo:
+            if not directory+item in self.items:
+              self.items.append(directory+item)
             self.itemsinfo[directory+item]['file'] = True
             self.itemsinfo[directory+item]['title'] = item
             self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
             self.itemsinfo[directory+item]['filename'] = iteminfo['filename']
-            if not directory+item in self.items:
-              self.items.append(directory+item)
   def render(self, directory = cwd, rowoffset = 0):
     global screenupdates
     screen.blit(background, (0,0))
@@ -1191,7 +1192,6 @@ class movieplayer():
     self.osdtitle = osd.display_data[0]
     ## upmc_movie needs to be extended to do more fancy things since I no longer care about acting just like pygame.movie, and I shouldn't be calling vlc_player directly for any reason.
     while upmc_movie.vlc_player.is_playing() == False: pass
-    self.str_length = self.human_readable_seconds(self.player.get_length())
     self.set_volume(0.75)
     if os.path.isfile(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'):
       savefile = os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'
@@ -1242,6 +1242,7 @@ class movieplayer():
       new_display_data[0] = self.osdnotification
     if arg == 'updating' and self.osdtype == 'time':
       curpos = self.human_readable_seconds(self.player.get_time())
+      self.str_length = self.human_readable_seconds(self.player.get_length())
       if not self.str_length == '00':
         if len(self.str_length.split(':')) > len(curpos.split(':')):
           curpos = ('00:' * (len(self.str_length.split(':')) - len(curpos.split(':')))) + curpos
@@ -1278,30 +1279,38 @@ class movieplayer():
           self.stop()
           stop = True
           break
-        elif (event.type == pygame.KEYDOWN and (event.key == pygame.K_SPACE or event.key == pygame.K_p)) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1):
+        elif (event.type == pygame.KEYDOWN and (event.key == pygame.K_SPACE or event.key == pygame.K_p)): # or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1):
           self.osdtype = 'time'
           osd.show(2)
           self.pause()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
-          osd.show(2)
-          self.player.skip(300)
+          if self.player.dvd_navigate(event.key) != True:
+            osd.show(2)
+            self.player.skip(300)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
-          osd.show(2)
-          self.player.skip(-290)
+          if self.player.dvd_navigate(event.key) != True:
+            osd.show(2)
+            self.player.skip(-290)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
-          osd.show(2)
-          self.player.skip(-20)
+          if self.player.dvd_navigate(event.key) != True:
+            osd.show(2)
+            self.player.skip(-20)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
-          osd.show(2)
-          self.player.skip(30)
+          if self.player.dvd_navigate(event.key) != True:
+            osd.show(2)
+            self.player.skip(30)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
           osd.toggle()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
+          current_subtitles = upmc_movie.vlc_player.video_get_spu()
           if upmc_movie.vlc_player.video_get_spu_count() == 0:
             self.osdnotification = "No subtitles found"
+          elif current_subtitles == upmc_movie.vlc_player.video_get_spu_count()-1:
+            upmc_movie.vlc_player.video_set_spu(0)
+            self.osdnotification = "Subtitles disabled"
           else:
-            upmc_movie.vlc_player.video_set_spu(upmc_movie.vlc_player.video_get_spu() == False)
-            self.osdnotification = "Subtitles enabled" if upmc_movie.vlc_player.video_get_spu() == True else "Subtitles disabled"
+            upmc_movie.vlc_player.video_set_spu(current_subtitles+1)
+            self.osdnotification = "Subtitles: %s" % upmc_movie.vlc_player.video_get_spu_description()[upmc_movie.vlc_player.video_get_spu()][1]
           osd.show(2)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
           current_track = upmc_movie.vlc_player.audio_get_track()
@@ -1322,19 +1331,20 @@ class movieplayer():
               self.muted = True
               self.set_volume(0.0)
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER):
-          save_pos = self.player.get_time()-10
-          save_hrs = int(save_pos/60.0/60.0)
-          save_mins = int((save_pos-(save_hrs*60*60))/60)
-          save_secs = int(save_pos-((save_hrs*60*60)+(save_mins*60)))
-          try: open(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'w').write('%s;%s\n# This line and everything below is ignored, it is only here so that you don\'t need to understand ^ that syntax.\nTime: %02d:%02d:%02d\nVolume: %d%%\n' % (save_pos, self.volume, save_hrs, save_mins, save_secs, self.volume))
-          except IOError as e:
-            if e.errno == 13:
-              self.osdnotification = "Permission denied."
+          if self.player.dvd_navigate(pygame.K_RETURN) != True:
+            save_pos = self.player.get_time()-10
+            save_hrs = int(save_pos/60.0/60.0)
+            save_mins = int((save_pos-(save_hrs*60*60))/60)
+            save_secs = int(save_pos-((save_hrs*60*60)+(save_mins*60)))
+            try: open(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'w').write('%s;%s\n# This line and everything below is ignored, it is only here so that you don\'t need to understand ^ that syntax.\nTime: %02d:%02d:%02d\nVolume: %d%%\n' % (save_pos, self.volume, save_hrs, save_mins, save_secs, self.volume))
+            except IOError as e:
+              if e.errno == 13:
+                self.osdnotification = "Permission denied."
+              else:
+                raise e
             else:
-              raise e
-          else:
-            self.osdnotification = "Position saved"
-          osd.show(2)
+              self.osdnotification = "Position saved"
+            osd.show(2)
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
           if "lirc_amp" in rare_options.keys():
             subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol-"]).wait()
@@ -1774,7 +1784,7 @@ def main():
   founddir = False
   if len(arguments) > 0:
     for filename in arguments:
-      if os.path.isfile(filename):
+      if os.path.isfile(filename) or filename.lower().endswith('.dvd'):
         foundfile = True
         player = movieplayer(filename)
         osd.update_hook(player.osd_hook)
