@@ -24,6 +24,9 @@ import pygame
 
 import upmc_movie
 
+UPMC_DATADIR = os.getcwd()
+#UPMC_DATADIR = '/usr/share/upmc/'
+
 mimetypes.add_type('video/divx', '.divx')
 mimetypes.add_type('video/ogm', '.ogm')
 mimetypes.add_type('video/dvd', '.dvd')
@@ -588,6 +591,10 @@ class filemenu():
             self.itemsinfo[directory+item]['title'] = item
             self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
             self.itemsinfo[directory+item]['filename'] = iteminfo['filename']
+    if (directory == rootdir or (directory == './' and os.getcwd() == rootdir)) and not self.itemsinfo.has_key('dvd://'):
+      self.items.append('dvd://')
+      self.itemsinfo['dvd://'] = {'file': True, 'filename': 'dvd://', 'thumb': UPMC_DATADIR+'/dvd.jpg', 'title': "Play DVD"}
+      self.itemsinfo['dvd://']['itemnum'] = self.items.index('dvd://')
   def render(self, directory = cwd, rowoffset = 0):
     global screenupdates
     screen.blit(background, (0,0))
@@ -1810,7 +1817,7 @@ def main():
     for _ in xrange(10): music.set_volume('+0.01')
   
   global background
-  try: background = pygame.transform.scale(pygame.image.load(os.path.dirname(sys.argv[0])+'/background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
+  try: background = pygame.transform.scale(pygame.image.load(UPMC_DATADIR+'/background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
   except: # Failing that (no background image?) just create a completely blue background.
     background = pygame.Surface(screen.get_size()).convert() 
     background.fill((125,0,0))
