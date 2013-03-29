@@ -24,8 +24,8 @@ import pygame
 
 import upmc_movie
 
-UPMC_DATADIR = os.getcwd()
-#UPMC_DATADIR = '/usr/share/upmc/'
+#UPMC_DATADIR = os.getcwd()
+UPMC_DATADIR = '/usr/share/upmc/'
 
 mimetypes.add_type('video/divx', '.divx')
 mimetypes.add_type('video/ogm', '.ogm')
