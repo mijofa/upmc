@@ -1198,7 +1198,7 @@ class movieplayer():
     self.player.play()
     self.osdtitle = osd.display_data[0]
     ## upmc_movie needs to be extended to do more fancy things since I no longer care about acting just like pygame.movie, and I shouldn't be calling vlc_player directly for any reason.
-    while upmc_movie.vlc_player.is_playing() == False: pass
+    while self.player.vlc_player.is_playing() == False: pass
     self.set_volume(0.75)
     if os.path.isfile(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'):
       savefile = os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'
@@ -1309,23 +1309,23 @@ class movieplayer():
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
           osd.toggle()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
-          current_subtitles = upmc_movie.vlc_player.video_get_spu()
-          if upmc_movie.vlc_player.video_get_spu_count() == 0:
+          current_subtitles = self.player.vlc_player.video_get_spu()
+          if self.player.vlc_player.video_get_spu_count() == 0:
             self.osdnotification = "No subtitles found"
-          elif current_subtitles == upmc_movie.vlc_player.video_get_spu_count()-1:
-            upmc_movie.vlc_player.video_set_spu(0)
+          elif current_subtitles == self.player.vlc_player.video_get_spu_count()-1:
+            self.player.vlc_player.video_set_spu(0)
             self.osdnotification = "Subtitles disabled"
           else:
-            upmc_movie.vlc_player.video_set_spu(current_subtitles+1)
-            self.osdnotification = "Subtitles: %s" % upmc_movie.vlc_player.video_get_spu_description()[upmc_movie.vlc_player.video_get_spu()][1]
+            self.player.vlc_player.video_set_spu(current_subtitles+1)
+            self.osdnotification = "Subtitles: %s" % self.player.vlc_player.video_get_spu_description()[self.player.vlc_player.video_get_spu()][1]
           osd.show(2)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
-          current_track = upmc_movie.vlc_player.audio_get_track()
-          if current_track == upmc_movie.vlc_player.audio_get_track_count()-1:
-            upmc_movie.vlc_player.audio_set_track(1)
+          current_track = self.player.vlc_player.audio_get_track()
+          if current_track == self.player.vlc_player.audio_get_track_count()-1:
+            self.player.vlc_player.audio_set_track(1)
           else:
-            upmc_movie.vlc_player.audio_set_track(current_track+1)
-          self.osdnotification = "Audio track #%d - %s" % (upmc_movie.vlc_player.audio_get_track(), upmc_movie.vlc_player.audio_get_track_description()[upmc_movie.vlc_player.audio_get_track()][1])
+            self.player.vlc_player.audio_set_track(current_track+1)
+          self.osdnotification = "Audio track #%d - %s" % (self.player.vlc_player.audio_get_track(), self.player.vlc_player.audio_get_track_description()[self.player.vlc_player.audio_get_track()][1])
           osd.show(2)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_m:
           if "lirc_amp" in rare_options.keys():
