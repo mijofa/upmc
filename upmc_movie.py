@@ -81,7 +81,7 @@ class Movie():
   def get_endevent(self):
     return event_manager._callbacks.values()[0][1][0]
   def dvd_navigate(self, key):
-    if vlc_player.get_title() != 0 or vlc_player.get_title_count() == 0:
+    if vlc_player.get_title() != 0 or vlc_player.get_title_count() <= 1:
       return False
     else:
       if key == pygame.K_RETURN:
