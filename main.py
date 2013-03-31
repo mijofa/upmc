@@ -1286,7 +1286,7 @@ class movieplayer():
           self.stop()
           stop = True
           break
-        elif (event.type == pygame.KEYDOWN and (event.key == pygame.K_SPACE or event.key == pygame.K_p)): # or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1):
+        elif (event.type == pygame.KEYDOWN and (event.key == pygame.K_SPACE or event.key == pygame.K_p)) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1):
           self.osdtype = 'time'
           osd.show(2)
           self.pause()
