@@ -508,6 +508,8 @@ class filemenu():
   def customsortkey(self, item):
     newitem = item
     itemHasDigit = False
+    if os.path.isdir(item) and not item.lower().endswith('.dvd'):
+      newitem = '       ' + newitem # I want directories to be at the start of the list, I think ' ' is the first ASCII character and will get sorted before the others.
     for num in string.digits:
       if num in newitem:
         itemHasDigit = True
@@ -524,77 +526,64 @@ class filemenu():
     return newitem
   def builditems(self, directory = './'):
     self.items = []
-    if not directory == rootdir and not (directory == './' and os.getcwd() == rootdir):
+    if not directory == rootdir and not (directory == './' and os.getcwd() == rootdir) and not os.getcwd() == '/':
       self.items.append('../')
       self.itemsinfo['../']['filename'] = directory+'../'
     else:
       self.itemsinfo['../']['filename'] = '../'
-    directories = []
-    files = []
+    dirlist = []
     for item in os.listdir(directory):
       if not item.startswith('.') and os.access(directory+item, os.R_OK):
-        if os.path.isdir(directory+item) and not item.lower().endswith('.dvd'):
-          directories.append(item + '/')
-        else:
-          files.append(item)
-    directories.sort(key=self.customsortkey)
-    files.sort(key=self.customsortkey)
-    for item in directories:
-      if not directory+item in self.items:
-        self.items.append(directory+item)
-        if not self.itemsinfo.has_key(directory+item):
-          self.itemsinfo[directory+item] = {}
-          self.itemsinfo[directory+item]['file'] = False
-          self.itemsinfo[directory+item]['title'] = item
-          self.itemsinfo[directory+item]['filename'] = directory+item + '/'
-          if not self.itemsinfo[directory+item].has_key('thumb'):
-            for extension in ['.jpg', '.png', '.jpeg', '.gif']:
-              for filename in ['folder'+extension, '.folder'+extension, 'folder'+extension.upper(), '.folder'+extension.upper()]:
-                if os.path.isfile(directory + item + filename) and os.access(directory + item + filename, os.R_OK):
-                  self.itemsinfo[directory+item]['thumb'] = directory + item + filename
-                  break
+        dirlist.append(item)
+    dirlist.sort(key=self.customsortkey)
+    for filename in dirlist:
+      item = filename.rpartition('.')
+      if item[1] == '.':
+        item = item[0]
+      else:
+        item = item[2]
+      if not self.itemsinfo.has_key(directory+item):
+        self.itemsinfo[directory+item] = {}
+      try: ftype = mimetypes.guess_type(filename)[0].partition('/')[0]
+      except AttributeError: ftype = 'Unknown'
+      if ftype == 'video':
+        if not directory+item in self.items:
+          self.items.append(directory+item)
+        self.itemsinfo[directory+item]['file'] = True
+        self.itemsinfo[directory+item]['title'] = item
         self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
-    for filename in files:
-      if not directory+filename in self.items:
-        item = filename.rpartition('.')
-        if item[1] == '.':
-          item = item[0]
-        else:
-          item = item[2]
-        try: ftype = mimetypes.guess_type(filename)[0].split('/')[0]
-        except AttributeError: ftype = 'Unknown'
-        if ftype == 'Unknown':
-          if filename.lower().endswith('.divx'):
-            ftype = 'video'
-        if ftype == 'video':
-          if not directory+item in self.items:
-            self.items.append(directory+item)
-          if not self.itemsinfo.has_key(directory+item):
-            self.itemsinfo[directory+item] = {}
-          self.itemsinfo[directory+item]['file'] = True
-          self.itemsinfo[directory+item]['title'] = item
-          self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
-          self.itemsinfo[directory+item]['filename'] = directory+filename
-        elif ftype == 'image':
-          if not self.itemsinfo.has_key(directory+item):
-            self.itemsinfo[directory+item] = {}
-          self.itemsinfo[directory+item]['thumb'] = directory+filename
-        elif filename[-5:] == '.info':
-          if not self.itemsinfo.has_key(directory+item):
-            self.itemsinfo[directory+item] = {}
-          self.itemsinfo[directory+item]['info'] = directory+filename
+        self.itemsinfo[directory+item]['filename'] = directory+filename
+      elif ftype == 'image':
+        self.itemsinfo[directory+item]['thumb'] = directory+filename
+      elif filename[-5:] == '.info':
+        self.itemsinfo[directory+item]['info'] = directory+filename
+        if not 'filename' in self.itemsinfo[directory+item]:
           iteminfo = movieinfo(self.itemsinfo[directory+item])
-          if not 'filename' in self.itemsinfo[directory+item].keys() and 'filename' in iteminfo:
+          if 'filename' in iteminfo:
             if not directory+item in self.items:
               self.items.append(directory+item)
             self.itemsinfo[directory+item]['file'] = True
             self.itemsinfo[directory+item]['title'] = item
             self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
             self.itemsinfo[directory+item]['filename'] = iteminfo['filename']
-    if (directory == rootdir or (directory == './' and os.getcwd() == rootdir)) and not self.itemsinfo.has_key('dvd://'):
+      elif ftype == 'Unknown' and os.path.isdir(filename):
+        self.items.append(directory+item)
+        self.itemsinfo[directory+item] = {}
+        self.itemsinfo[directory+item]['file'] = False
+        self.itemsinfo[directory+item]['title'] = item
+        self.itemsinfo[directory+item]['itemnum'] = self.items.index(directory+item)
+        self.itemsinfo[directory+item]['filename'] = directory+item + '/'
+        if not self.itemsinfo[directory+item].has_key('thumb'):
+          for extension in ['.jpg', '.png', '.jpeg', '.gif']:
+            for filename in ['folder'+extension, '.folder'+extension, 'folder'+extension.upper(), '.folder'+extension.upper()]:
+              if os.path.isfile(directory + item +'/'+ filename) and os.access(directory + item +'/'+ filename, os.R_OK):
+                self.itemsinfo[directory+item]['thumb'] = directory + item +'/'+ filename
+                break
+    if directory == rootdir or (directory == './' and os.getcwd() == rootdir):
       self.items.append('dvd://')
-      self.itemsinfo['dvd://'] = {'file': True, 'filename': 'dvd://', 'thumb': UPMC_DATADIR+'/dvd.jpg', 'title': "Play DVD"}
-      self.itemsinfo['dvd://']['itemnum'] = self.items.index('dvd://')
+      if not self.itemsinfo.has_key('dvd://'):
+        self.itemsinfo['dvd://'] = {'file': True, 'filename': 'dvd://', 'thumb': UPMC_DATADIR+'/dvd.jpg', 'title': "Play DVD"}
+        self.itemsinfo['dvd://']['itemnum'] = self.items.index('dvd://')
   def render(self, directory = cwd, rowoffset = 0):
     global screenupdates
     screen.blit(background, (0,0))
@@ -897,9 +886,10 @@ class filemenu():
     elif not self.itemsinfo[selected]['file']:
       self.select(None)
       filename = self.itemsinfo[selected]['filename'].replace('//', '/')
-      if '../' in filename:
-        filename = filename[:filename.rindex('../')].rsplit('/', 2)[0]+'/'
-      self.builditems(directory=filename)
+#      if '../' in filename:
+#        filename = filename[:filename.rindex('../')].rsplit('/', 2)[0]+'/'
+      os.chdir(filename)
+      self.builditems()
       self.selected = [None, None]
       self.render()
       if self.cwd in self.items:
