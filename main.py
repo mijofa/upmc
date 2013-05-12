@@ -892,6 +892,8 @@ class filemenu():
     elif not self.itemsinfo[selected]['file']:
       self.select(None)
       filename = self.itemsinfo[selected]['filename'].replace('//', '/')
+      if filename.endswith('../'):
+        filename = filename.rsplit('/', 3)[0]
 #      if '../' in filename:
 #        filename = filename[:filename.rindex('../')].rsplit('/', 2)[0]+'/'
       os.chdir(filename)
