@@ -498,7 +498,7 @@ class filemenu():
   selected = [None, None]
   pagerows = [[]]
   items = []
-  cwd = './'
+  cwd = os.getcwd()
   rowoffset = 0
   def __init__(self):
     self.font = pygame.font.Font(fontname, 45)
@@ -525,8 +525,14 @@ class filemenu():
       newitem = newitem[4:]
     return newitem
   def builditems(self, directory = './'):
+    if directory == './':
+      directory = os.getcwd()
+    elif not directory.startswith('/'):
+      directory = os.getcwd()+'/'+directory
+    if not directory.endswith('/'):
+      directory = directory+'/'
     self.items = []
-    if not directory == rootdir and not (directory == './' and os.getcwd() == rootdir) and not os.getcwd() == '/':
+    if not directory.rstrip('/') == rootdir.rstrip('/') and not os.getcwd() == '/':
       self.items.append('../')
       self.itemsinfo['../']['filename'] = directory+'../'
     else:
@@ -579,12 +585,12 @@ class filemenu():
               if os.path.isfile(directory + item +'/'+ filename) and os.access(directory + item +'/'+ filename, os.R_OK):
                 self.itemsinfo[directory+item]['thumb'] = directory + item +'/'+ filename
                 break
-    if directory == rootdir or (directory == './' and os.getcwd() == rootdir):
+    if directory.rstrip('/') == rootdir.rstrip('/'):
       self.items.append('dvd://')
       if not self.itemsinfo.has_key('dvd://'):
         self.itemsinfo['dvd://'] = {'file': True, 'filename': 'dvd://', 'thumb': UPMC_DATADIR+'/dvd.jpg', 'title': "Play DVD"}
         self.itemsinfo['dvd://']['itemnum'] = self.items.index('dvd://')
-  def render(self, directory = cwd, rowoffset = 0):
+  def render(self, rowoffset = 0):
     global screenupdates
     screen.blit(background, (0,0))
     pygame.display.update()
@@ -892,8 +898,8 @@ class filemenu():
       self.builditems()
       self.selected = [None, None]
       self.render()
-      if self.cwd in self.items:
-        self.select(self.items.index(self.cwd))
+      if self.cwd.rstrip('/') in self.items:
+        self.select(self.items.index(self.cwd.rstrip('/')))
       else:
         self.select(0)
       self.cwd = filename
@@ -1292,11 +1298,14 @@ class movieplayer():
           if self.player.dvd_navigate(event.key) != True:
             osd.show(2)
             self.player.skip(-20)
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 2:
+          osd.show(2)
+          self.player.skip(-20)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
           if self.player.dvd_navigate(event.key) != True:
             osd.show(2)
             self.player.skip(30)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_i or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3):
           osd.toggle()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
           current_subtitles = upmc_movie.vlc_player.video_get_spu()
