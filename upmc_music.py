@@ -20,9 +20,9 @@ class MyHTTPRedirectHandler(urllib2.HTTPRedirectHandler):
     raise RedirectException(newurl)
 
 class music_thread(threading.Thread):
-  icy_name = ''
   icy_info = {}
   channel_num = 0
+  channel_name = ''
   new_channel_num = None
   channel_urls = [
       "http://music/ch00.mp3",
@@ -32,19 +32,7 @@ class music_thread(threading.Thread):
       "http://music/ch04.mp3",
       "http://music/ch05.mp3",
   ]
-  def get_metaint(self):
-    headers = True
-    while headers:
-      line = self.readline()
-      print line.rstrip('\r\n')
-      if line[0:12] == "icy-metaint:":
-        self.icy_interval = int(line[12:])
-      if line[0:9] == "icy-name:":
-        self.icy_name = line[10:].rstrip('\r\n')
-      elif line == "\r\n":
-        headers = False
-  def change_channel(self, new_channel_num):
-    self.new_channel_num = new_channel_num
+  muted = False
   def connect(self):
     url = self.channel_urls[self.channel_num]
     retry = True
@@ -59,6 +47,29 @@ class music_thread(threading.Thread):
         url = e.newurl
         retry = True
     self.get_metaint()
+  def get_metaint(self):
+    headers = True
+    while headers:
+      line = self.readline()
+      print line.rstrip('\r\n')
+      if line[0:12] == "icy-metaint:":
+        self.icy_interval = int(line[12:])
+      if line[0:9] == "icy-name:":
+        self.icy_name = line[10:].rstrip('\r\n')
+      elif line == "\r\n":
+        headers = False
+  def read(self, chunk_size):
+    if chunk_size == 0:
+      return ''
+    data = self.http_response.read(chunk_size)
+    if data != '':
+      return data
+    raise CustomHTTPError("Connection lost")
+  def readline(self):
+    data = self.http_response.readline()
+    if data != '':
+      return data
+    raise CustomHTTPError("Connection lost")
   def reconnect(self):
     no_conn = True
     tries = 0
@@ -71,20 +82,6 @@ class music_thread(threading.Thread):
     if no_conn == True:
       raise CustomHTTPError("Can't connect to HTTP stream")
     self.get_metaint()
-  def read(self, chunk_size):
-    if chunk_size == 0:
-      return ''
-    data = self.http_response.read(chunk_size)
-    if data != '':
-      return data
-    self.reconnect()
-    raise CustomHTTPError("Reconnected")
-  def readline(self):
-    data = self.http_response.readline()
-    if data != '':
-      return data
-    self.reconnect()
-    raise CustomHTTPError("Reconnected")
   def process_icy(self):
     len = ord(self.read(1))*16
     if len != 0:
@@ -138,17 +135,30 @@ class music_thread(threading.Thread):
           else:
             self.reconnect()
       except CustomHTTPError as e:
-        if e.message == "Reconnected":
+        if e.message == "Connection lost":
+          self.reconnect()
           offset = 0
         else:
           raise e
-
-class music(object):
-  def go(self, url):
-    http = http_thread()
-    buffer_filename = http.connect(url)
-    http.start()
-    return http
+  def set_volume(self, value):
+    pygame.mixer.set_volume(value)
+    self.volume = pygame.mixer.get_volume()
+    return self.volume
+  def increment_volume(self, value):
+    return self.set_volume(self.volume+value)
+  def get_volume(self):
+    return self.volume
+  def set_channel(self, new_channel_num):
+    self.new_channel_num = new_channel_num
+    return self.new_channel_num
+  def increment_channel(self, new_channel_increment):
+    new_channel_num = self.channel_num+new_channel_increment
+    while not (new_channel_num >= 0 and new_channel_num < len(self.channel_urls)):
+      if new_channel_num < 0:
+        new_channel_num += len(self.channel_urls)
+      elif new_channel_num >= len(self.channel_urls):
+        new_channel_num -= len(self.channel_urls)
+    return self.set_channel(new_channel_num)
 
 def m():
   a = music_thread()#"http://music/ch05.mp3")
