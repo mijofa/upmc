@@ -2,6 +2,8 @@ import pygame.mixer
 import threading
 import urllib2
 import time
+import mpd
+import sys
 import os
 
 BUFFER_LENGTH = 1024
@@ -19,22 +21,29 @@ class MyHTTPRedirectHandler(urllib2.HTTPRedirectHandler):
   def redirect_request(self, req, fp, code, msg, hdrs, newurl):
     raise RedirectException(newurl)
 
-class music_thread(threading.Thread):
+class music_playback(threading.Thread):
+  icy_name = ''
   icy_info = {}
   channel_num = 0
   channel_name = ''
   new_channel_num = None
-  channel_urls = [
-      "http://music/ch00.mp3",
-      "http://music/ch01.mp3",
-      "http://music/ch02.mp3",
-      "http://music/ch03.mp3",
-      "http://music/ch04.mp3",
-      "http://music/ch05.mp3",
+  channels = [
+      ("http://music/ch00.mp3", ("music", 6600)),
+      ("http://music/ch01.mp3", ("music", 6601)),
+      ("http://music/ch02.mp3", ("music", 6602)),
+      ("http://music/ch03.mp3", ("music", 6603)),
+      ("http://music/ch04.mp3", ("music", 6604)),
+      ("http://music/ch05.mp3", ("music", 6605)),
   ]
   muted = False
+  def __init__(self):
+    super(music_playback, self).__init__()
+    self.mpc = mpd.MPDClient()
+    self._stop = threading.Event()
+  def stop(self):
+    self._stop.set()
   def connect(self):
-    url = self.channel_urls[self.channel_num]
+    url = self.channels[self.channel_num][0]
     retry = True
     while retry == True:
       try:
@@ -42,11 +51,21 @@ class music_thread(threading.Thread):
         self.http_request.add_header('Icy-MetaData','1')
         self.http_opener = urllib2.build_opener(MyHTTPRedirectHandler)
         self.http_response = self.http_opener.open(self.http_request)
+        try: self.mpc.disconnect()
+        except: pass
+        self.mpc.connect(*self.channels[self.channel_num][1])
         retry = False
       except RedirectException as e:
         url = e.newurl
         retry = True
     self.get_metaint()
+  def disconnect(self):
+    try: self.mpc.disconnect()
+    except mpd.ConnectionError as e:
+      if e.message != "Not connected":
+        raise e
+    self.http_opener.close()
+    self.http_response.fp.close()
   def get_metaint(self):
     headers = True
     while headers:
@@ -95,25 +114,25 @@ class music_thread(threading.Thread):
           key = pair.split('=', 1)[0]
           value = pair.split('=', 1)[1].strip("'\"")
         self.icy_info.update({key: value})
-      print 'info', self.icy_info
+      print time.ctime(), self.icy_info
       leftover = icy_data[1]
       return leftover # Supposedly these "leftovers" are empty bytes and should be dropped. I'm not seeing empty bytes here though, so I'm assuming they're part of the MP3 stream and passing them on to PyGame.
                       # I'm using MPD as the streaming server, perhaps that doesn't properly follow the spec here?
     return ''
   def run(self):
-    self.buffer_filename = os.tmpnam()+'.mp3'
-    os.mkfifo(self.buffer_filename)
-    self.stream_buffer = open(self.buffer_filename, 'w+') # Opening this read-write is wrong, I only want to write to it. But I can't figure out how to open one side of a FIFO without opening the other side yet.
+    buffer_filename = os.tmpnam()+'.mp3'
+    os.mkfifo(buffer_filename)
+    self.stream_buffer = open(buffer_filename, 'w+') # Opening this read-write is wrong, I only want to write to it. But I can't figure out how to open one side of a FIFO without opening the other side yet.
     self.connect()
     global BUFFER_LENGTH
     if self.icy_interval < BUFFER_LENGTH:
       BUFFER_LENGTH = self.icy_interval
     data = self.read(BUFFER_LENGTH)
     self.stream_buffer.write(data)
-    pygame.mixer.music.load(self.buffer_filename)
+    pygame.mixer.music.load(buffer_filename)
     pygame.mixer.music.play()
     offset = BUFFER_LENGTH
-    while True:
+    while not self._stop.is_set():
       try:
         if self.new_channel_num != None:
           self.http_response.close()
@@ -140,9 +159,28 @@ class music_thread(threading.Thread):
           offset = 0
         else:
           raise e
+    pygame.mixer.music.stop()
+    self.disconnect()
+    self.stream_buffer.close()
+    os.remove(buffer_filename)
+  def set_mute(self, value):
+    if type(value) == bool:
+      if value == True:
+        self.volume = pygame.mixer.music.get_volume()
+        pygame.mixer.music.set_volume(0)
+        self.muted = True
+      elif value == False:
+        pygame.mixer.music.set_volume(self.volume)
+        self.muted = False
+      else:
+        raise Exception("WTF?!?!?!?")
+    else:
+      raise TypeError("set_mute() argument must be a bool, not %s" % type(value))
+  def toggle_mute(self):
+    self.set_mute(self.muted==False)
   def set_volume(self, value):
-    pygame.mixer.set_volume(value)
-    self.volume = pygame.mixer.get_volume()
+    pygame.mixer.music.set_volume(value)
+    self.volume = pygame.mixer.music.get_volume()
     return self.volume
   def increment_volume(self, value):
     return self.set_volume(self.volume+value)
@@ -153,20 +191,26 @@ class music_thread(threading.Thread):
     return self.new_channel_num
   def increment_channel(self, new_channel_increment):
     new_channel_num = self.channel_num+new_channel_increment
-    while not (new_channel_num >= 0 and new_channel_num < len(self.channel_urls)):
+    while not (new_channel_num >= 0 and new_channel_num < len(self.channels)):
       if new_channel_num < 0:
-        new_channel_num += len(self.channel_urls)
-      elif new_channel_num >= len(self.channel_urls):
-        new_channel_num -= len(self.channel_urls)
+        new_channel_num += len(self.channels)
+      elif new_channel_num >= len(self.channels):
+        new_channel_num -= len(self.channels)
     return self.set_channel(new_channel_num)
+  def next(self):
+    return self.mpc.next()
+  def prev(self):
+    return self.mpc.prev()
 
 def m():
-  a = music_thread()#"http://music/ch05.mp3")
-  a.start()
+  p = music_playback()#"http://music/ch05.mp3")
+  p.start()
   data = ''
   while data != None:
-    data = raw_input('blah? ')
-    print a.icy_name, '-', data
-    try: print eval(data)
+    try: data = raw_input('> ')
     except EOFError: break
+    print p.icy_name, '-', data
+    try: print eval(data)
     except Exception as e: print e
+  print "EOF detected: Shutting down."
+  p.stop()
