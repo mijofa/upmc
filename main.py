@@ -23,6 +23,7 @@ import pylirc
 import pygame
 
 import upmc_movie
+import upmc_music
 
 #UPMC_DATADIR = os.getcwd()
 UPMC_DATADIR = '/usr/share/upmc/'
@@ -860,15 +861,18 @@ class filemenu():
         pygame.display.toggle_fullscreen()
       elif not music == None:
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-          music.set_volume('-0.12')
+          osd.show(5)
+          music.increment_volume(-0.02)
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-          music.set_volume('+0.12')
+          osd.show(5)
+          music.increment_volume(+0.02)
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
-          music.pause()
+          osd.show(5)
+          music.toggle_mute()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
-          music.set_channel("+1")
+          music.increment_channel(+1)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
-          music.set_channel("-1")
+          music.increment_channel(-1)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
           music.prev()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
@@ -1096,15 +1100,18 @@ class movieinfo():
         self.action()
       elif not music == None:
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-          music.set_volume('-0.12')
+          osd.show(5)
+          music.increment_volume(-0.02)
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-          music.set_volume('+0.12')
+          osd.show(5)
+          music.increment_volume(+0.02)
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
-          music.pause()
+          osd.show(5)
+          music.toggle_mute()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
-          music.set_channel("+1")
+          music.increment_channel(+1)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
-          music.set_channel("-1")
+          music.increment_channel(-1)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
           music.prev()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
@@ -1131,9 +1138,9 @@ class movieinfo():
     render_textrect('Movie player is running.\n\nPress the back button to quit.', pygame.font.Font(fontname, 63), screen.get_rect(), (255,255,255), screen, 3)
     pygame.display.update()
     player = movieplayer(self['filename'])
-    if not music == None and music.get_busy() == True:
+    if not music == None and music.muted == True:
       old_osd_hook = osd.get_hook()
-      music.real_mute()
+      music.set_mute(True)
       startmusic = True
     else:
       startmusic = False
@@ -1145,17 +1152,9 @@ class movieinfo():
     self['watched'] = datetime.datetime.now().strftime('%Y-%m-%d, %H:%M') 
     pygame.display.update()
     if startmusic == True:
-      if "lirc_amp" in rare_options.keys():
-        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"RESET"]).wait()
-        for _ in xrange(60): music.set_volume('-0.01')
-#        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-","--count=60"]).wait()
-        osd.update_hook(old_osd_hook)
-        music.real_mute()
-        for _ in xrange(10): music.set_volume('+0.01')
-#        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL+","--count=20"])
-      else:
-        osd.update_hook(old_osd_hook)
-        music.unpause()
+      osd.update_hook(old_osd_hook)
+      music.set_mute(False)
+      music.set_volume(0.1)
     screen.blit(screenbkup, (0,0))
     pygame.display.update()
 ##### End class movieinfo()
@@ -1373,259 +1372,49 @@ class movieplayer():
     self.stop()
 ##### End class movieplayer()
 
-class musicplayer():
-  # This should be a drop-in replacement for pygame.mixer.music but this only needs to support a HTTP streamed audio stream via Mplayer.
-  url = None
-  mpc = mpd.MPDClient()
-  muted = False
-  paused = None
-  volume = None
-  mplayer = None
-  threads = {}
-  trackinfo = {}
-  streaminfo = {}
-  cur_channel = 0
-  def load(self, url):
-    # This will load a music URL object and prepare it for playback. This does not start the music playing.
-    global fontname
-    self.font = pygame.font.Font(fontname, 45)
-    self.url = url
-  def mpcReconnect(self):
-    try: self.mpc.disconnect()
-    except mpd.ConnectionError: pass #Probably not connected yet, ignore.
-    finally: self.mpc.connect(mpd_host, mpd_port+self.cur_channel)
-  def procoutput(self):
-    response = None
-    while not response == '' and not self.mplayer.stdout.closed:
-      response = self.mplayer.stdout.read(1)+self.mplayer.stdout.readline().strip('\r\n')
-      if response.startswith("ICY Info: ") or response.startswith("\nICY Info: "):
-        self.streaminfo = {}
-        for key_value in ' '.join(response.split(' ')[2:]).split(';'):
-          key = key_value.split('=')[0]
-          value = '='.join(key_value.split('=')[1:]).strip("\"'")
-          self.streaminfo[key] = value
-        print "StreamTitle changed: %s" % self.streaminfo["StreamTitle"]
-        self.trackinfo = {}
-        try: self.trackinfo = self.mpc.currentsong()
-        except mpd.ConnectionError: 
-          self.mpcReconnect()
-          self.trackinfo = self.mpc.currentsong()
-        if 'artist' in self.trackinfo.keys() and 'album' in self.trackinfo.keys() and 'title' in self.trackinfo.keys():
-          print "Assuming a new track started: %s - %s/%s" % (self.trackinfo["artist"], self.trackinfo["album"], self.trackinfo["title"])
-        else:
-          print "Assuming a new track started: at least one of artist, album, or title is missing."
-        if not self.volume == 0.0 and self.muted == False:
-          osd.show(4)
-        sys.stdout.flush()
-      elif response.startswith("No bind found for key '"):
-        key = response.strip(' ')[len("No bind found for key '"):].rstrip('.').rstrip("'")
-        if key in self.remapped_keys.keys(): key = self.remapped_keys[key]
-        if 'K_'+key in dir(pygame):
-          pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': eval('pygame.K_'+key)}))
-          pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': eval('pygame.K_'+key)}))
-        elif key.startswith('MOUSE_BTN'):
-          try:
-            pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, {'button': int(key.replace('MOUSE_BTN', ''))+1, 'pos': (0,0)}))
-            pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONUP, {'button': int(key.replace('MOUSE_BTN', ''))+1, 'pos': (0,0)}))
-          except:
-            print 'This try except block is temporary, I will put a proper fix in place.'
-        elif key == 'CLOSE_WIN':
-          pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
-      elif response.startswith('ANS_') or response.startswith('ID_'):
-        response = '_'.join(response.split('_')[1:]).lower()
-        if response.startswith('exit'):
-          break
-	elif not self.paused == None and response.startswith('video_aspect'):
-          threading.Timer(1, osd.show, [5]).start()
-        elif response == 'paused':
-          self.paused = True
-        elif response.startswith('pause='):
-          self.paused = response.split('=')[-1] == 'yes'
-        elif response.startswith('volume='):
-          self.volume = float(response.split('=')[1])
-        elif response.startswith('mute='):
-          self.muted = bool(response.split('=')[1].lower() == 'yes')
+class musicplayer(upmc_music.music):
   def osd_hook(self, arg):
 #    if 'title' in self.trackinfo.keys():
 #      line_one = self.trackinfo['title']
 #    else:
 #      line_one = "Unkown"
-    line_one = ''
-    if 'artist' in self.trackinfo.keys():
-      line_one += self.trackinfo['artist']
-      line_one += ' - '
-    if 'title' in self.trackinfo.keys():
-      line_one += self.trackinfo['title']
-    else:
-      line_one += "Unknown"
-    if line_one == '':
-      line_one = "Unknown"
-    line_two= "Channel %02d" % self.cur_channel
-    if self.volume == None:
-      try: self.mplayer.stdin.write('pausing_keep_force get_property volume\n')
-      except: pass
-    return line_one, line_two, self.volume
-  def play(self, loops=0, start=0.0):
-    # This will play the loaded music stream. If the music is already playing it will be restarted.
-    # This can't work for streaming audio: The loops argument controls the number of repeats a music will play. play(5) will cause the music to played once, then repeated five times, for a total of six. If the loops is -1 then the music will repeat indefinitely.
-    # Neither can this: The starting position argument controls where in the music the song starts playing. The starting position is dependent on the format of music playing. MP3 and OGG use the position as time (in seconds). MOD music it is the pattern order number. Passing a startpos will raise a NotImplementedError if it cannot set the start position
-    if not start == 0.0:
-      raise NotImplementedError("Can not set a start position on streaming media.")
-    if self.url == None:
-      return "musicplayer().play: No URL loaded, ignoring."
-    elif "%02d" in self.url:
-      url = self.url % self.cur_channel
-    else:
-      url = self.url
-    print "Starting playback of '%s', channel %02d: '%s'" % (self.url, self.cur_channel, url)
-    args = ['-really-quiet','-input','conf=/dev/null:nodefault-bindings','-msglevel','demuxer=4:identify=5:global=4:input=5:cplayer=0:statusline=0','-slave','-identify']
-    global rare_options
-    if "lirc_amp" in rare_options.keys():
-      args += ['-volume','98']
-    else:
-      args += ['-volume','25']
-    if music_args:
-      args += music_args
-    self.mplayer = subprocess.Popen(['mplayer']+args+[url],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=1)
-    if self.mplayer.poll() != None:
-      raise Exception(mplayer.stdout.read())
-    self.mplayer.stdin.write('pausing_keep_force get_property pause\n')
-    self.mplayer.stdin.write('pausing_keep_force get_property volume\n')
-    thread = threading.Thread(target=self.procoutput, name='stdout')
-    self.mpcReconnect()
-    self.threads.update({thread.name: thread})
-    thread.start()
-  def rewind(self):
-    # This could be done if there is decent buffering, don't care not worth it: Resets playback of the current music to the beginning.
-    return None
-  def stop(self):
-    # Stops the music playback if it is currently playing.
-    osd.hide()
-    if not self.mplayer == None and not self.mplayer.stdin.closed:
-      self.mplayer.stdin.write("quit\n")
-      self.mplayer.stdin.close()
-      self.mpc.disconnect()
-  def pause(self):
-    # Could also be possible if good buffering is in use, don't care not worth it: Temporarily stop playback of the music stream. It can be resumed with the pygame.mixer.music.unpause() function.
+    line_one = self.track_info.get('StreamTitle')
+    if line_one == None:
+      if 'artist' in self.trackinfo.keys():
+        line_one += self.trackinfo['artist']
+        line_one += ' - '
+      if 'title' in self.trackinfo.keys():
+        line_one += self.trackinfo['title']
+      else:
+        line_one += "Unknown"
+      if line_one == '':
+        line_one = "Unknown"
+    line_two = self.title
+    return line_one, line_two, self.volume*100
+  def toggle_mute(self):
     if "lirc_amp" in rare_options.keys():
       subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"mute"]).wait()
     else:
-      if not self.mplayer == None and not self.mplayer.stdin.closed:
-        self.mplayer.stdin.write("mute\n")
-        self.mplayer.stdin.write('pausing_keep_force get_property mute\n')
-  def real_mute(self):
-    if not self.mplayer == None and not self.mplayer.stdin.closed:
-      self.mplayer.stdin.write("mute\n")
-      self.mplayer.stdin.write('pausing_keep_force get_property mute\n')
-  def unpause(self):
-    # Could also be possible if good buffering is in use, don't care not worth it: This will resume the playback of a music stream after it has been paused.
-    ## I have implemented pausing as a toggle and can't programatically tell whether it is paused or not.
-    return self.pause()
-  def fadeout(self, fadetime):
-    # This will stop the music playback after it has been faded out over the specified time (measured in milliseconds).
-    ## I haven't set up any way to query for Mplayer's current volume, I'll deal with this some other time, tbis would be quite useful with the chanell changing.
-    return self.stop()
-    # orig_volume = mplayer.volume
-    # for i in range(mplayer.volume,0,-(mplayer.volume/fadetime)):
-    #   self.set_volume(i)
-    # 
-    # mplayer.stop()
-    # self.set_volume(orig_volume)
-  def set_volume(self,volume=None):
-    # Set the playback volume for this movie. The argument is a value between 0.0 and 1.0. If the volume is set to 0 the movie audio will not be decoded.
+      super(musicplayer, self).toggle_mute()
+  def set_volume(self, value):
     if not "lirc_amp" in rare_options.keys():
-      osd.show(2)
-      if type(volume) == str and volume.startswith('+'):
-        if volume.endswith('%'): volume = int(volume.lstrip('+').rstrip('%'))
-        else: volume = float(volume.lstrip('+'))*100
-        self.mplayer.stdin.write('step_property volume %d\n' % volume)
-      elif type(volume) == str and volume.startswith('-'):
-        if volume.endswith('%'): volume = int(volume.lstrip('-').rstrip('%'))
-        else: volume = float(volume.lstrip('-'))*100
-        self.mplayer.stdin.write('step_property volume -%d\n' % volume)
-      elif type(volume) == int or type(volume) == float:
-        volume = volume*100
-        self.mplayer.stdin.write('set_property volume %d\n' % volume)
-      elif type(volume) == str and volume.endswith('%'):
-        volume = int(volume.rstrip('%'))
-        self.mplayer.stdin.write('set_property volume %d\n' % volume)
-      else:
-        raise Exception("Proper volume argument required. Got %s" % volume)
-      self.mplayer.stdin.write('get_property volume\n')
+      super(musicplayer, self).set_volume(value)
     else:
-      if type(volume) == str and volume.startswith('+'):
+      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"RESET"]).wait()
+      for _ in xrange(60): subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol-"]).wait()
+      for _ in xrange(int(value*100)): subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol+"]).wait()
+  def increment_volume(self, value):
+    print "WTF?", value, self.volume
+    if not "lirc_amp" in rare_options.keys():
+      super(musicplayer, self).increment_volume(value)
+    else:
+      if value > 0:
         subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol+"]).wait()
-      elif type(volume) == str and volume.startswith('-'):
+      elif value < 0:
         subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol-"]).wait()
-      elif type(volume) == int or type(volume) == float:
-        volume = volume*100
-        self.mplayer.stdin.write('set_property volume %d\n' % volume)
-      elif type(volume) == str and volume.endswith('%'):
-        volume = int(volume.rstrip('%'))
-        self.mplayer.stdin.write('set_property volume %d\n' % volume)
-      else:
-        raise Exception("Proper volume argument required. Got %s" % volume)
-  def get_volume(self):
-    # Returns the current volume for the mixer. The value will be between 0.0 and 1.0.
-    self.volume = None
-    self.muted = None
-    self.mplayer.stdin.write('pausing_keep_force get_property volume\n')
-    self.mplayer.stdin.write('pausing_keep_force get_property mute\n')
-    while self.volume == None or self.muted == None: pass
-    if self.muted == True:
-      return 0
-    else:
-      return self.volume/100.0
-  def get_busy(self):
-    # Returns True when the music stream is actively playing. When the music is idle this returns False.
-    if not self.mplayer.poll() == None:
-      return False
-
-    return not self.get_volume() == 0.0
-  def set_pos(self, pos):
-    # Also not possible with a stream: This sets the position in the music file where playback will start. The meaning of "pos", a float (or a number that can be converted to a float), depends on the music format. Newer versions of SDL_mixer have better positioning support than earlier. An SDLError is raised if a particular format does not support positioning.
-    return None
-  def get_pos(self):
-    # Possible, but not useful, don't care to support it: This gets the number of milliseconds that the music has been playing for. The returned time only represents how long the music has been playing; it does not take into account any starting position offsets.
-    return None
-  def queue(self, url):
-    # Not useful because the stream should always be there: This will load a music file and queue it. A queued music file will begin as soon as the current music naturally ends. If the current music is ever stopped or changed, the queued song will be lost.
-    return None
-  def set_endevent(self, type = None):
-    # This causes Pygame to signal (by means of the event queue) when the music is done playing. The argument determines the type of event that will be queued.
-    # The event will be queued every time the music finishes, not just the first time. To stop the event from being queued, call this method with no argument.
-    ## Possible, not very useful, can't be bothered.
-    return None
-  def get_endevent(self):
-    # Returns the event type to be sent every time the music finishes playback. If there is no endevent the function returns pygame.NOEVENT.
-    return pygame.NOEVENT
-  def set_channel(self, ch = 0):
-    if type(ch) == str and ch.startswith('+'):
-      self.cur_channel += int(ch.lstrip('+'))
-    elif type(ch) == str and ch.startswith('-'):
-      self.cur_channel -= int(ch.lstrip('-'))
-    elif type(ch) == int or type(ch) == float:
-      self.cur_channel = ch
-    elif not (type(ch) == int or type(ch) == float):
-      raise Exception("Proper channel argument required. Got %s" % ch)
-    self.stop()
-    if self.cur_channel > channels[-1]:
-      self.cur_channel = channels[0]
-    elif self.cur_channel < channels[0]:
-      self.cur_channel = channels[-1]
-    self.play()
-  def next(self):
-    try: self.mpc.next()
-    except mpd.ConnectionError:
-      self.mpcReconnect()
-      self.mpc.next()
-  def previous(self):
-    try: self.mpc.previous()
-    except mpd.ConnectionError:
-      self.mpcReconnect()
-      self.mpc.previous()
-  def prev(self):
-    return self.previous()
+  def new_track_hook(self):
+    global osd
+    osd.show(2)
 ##### End class musicplayer()
 
 def network_listener():
@@ -1735,7 +1524,6 @@ def main():
   global windowed
   resolution = None
   windowed = False
-  music_url = None
   global mpd_host
   mpd_host = None
   global channels
@@ -1744,13 +1532,12 @@ def main():
   mpd_port = 6600
   global movie_args
   movie_args = None
-  global music_args
-  music_args = None
   global rare_options
   rare_options = {None: None}
+  start_music = False
 
   if len(sys.argv) > 1:
-    options, arguments = getopt.getopt(sys.argv[1:], 'w:m:o:', ["windowed=", "music-url=", "options=", "channels=", "mpd-host=", "mpd-port=", "movie-args=", "music-args="])
+    options, arguments = getopt.getopt(sys.argv[1:], 'w:m:o:', ["windowed=", "music", "options=", "channels=", "mpd-host=", "mpd-port=", "movie-args="])
     for o, a in options:
       if o == "--windowed" or o == '-w':
         resolution = str(a)
@@ -1758,8 +1545,6 @@ def main():
           windowed = False
         else:
           windowed = True
-      elif o == "--music-url" or o == '-m':
-        music_url = str(a)
       elif o == "--channels":
         channels = range(0, int(a))
       elif o == "--mpd-host":
@@ -1768,16 +1553,13 @@ def main():
         mpd_host = int(a)
 #      elif o == "--movie-args":
 #        movie_args = str(a).split(' ')
-      elif o == "--music-args":
-        music_args = str(a).split(' ')
       elif o == "--options" or o == "-o":
         rare_options = ast.literal_eval(a)
+      elif o == "--music":
+        start_music = True
   else:
     options, arguments = ([], [])
   
-  if mpd_host == None and not music_url == None:
-    mpd_host = urllib2.urlparse.urlparse(music_url)[1].split(':')[0]
-
   global osd
   osd = osd_thread()
   pygame.register_quit(osd.stop)
@@ -1806,16 +1588,15 @@ def main():
   
   global music
   music = None
-  if not music_url == None:
+  if start_music == True:
     music = musicplayer()
-    music.load(music_url)
     if "lirc_amp" in rare_options.keys():
-      for _ in xrange(60): music.set_volume('-0.01')
-#      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"VOL-","--count=60"]).wait()
-    music.play()
+      music.volume = 1
+    music.start()
     pygame.register_quit(music.stop)
     osd.update_hook(music.osd_hook)
-    for _ in xrange(10): music.set_volume('+0.01')
+    if "lirc_amp" in rare_options.keys():
+      music.set_volume(0.1)
   
   global background
   try: background = pygame.transform.scale(pygame.image.load(UPMC_DATADIR+'/background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
@@ -1851,8 +1632,10 @@ def main():
     screen.blit(surf, (0,0))
     render_textrect('Steam is still running.\n\nPress back key to kill Steam.', pygame.font.Font(fontname, 63), screen.get_rect(), (255,255,255), screen, 3)
     pygame.display.update()
-    if not music == None and music.get_busy() == True:
-      music.real_mute()
+    startmusic = False
+    if not music == None and music.muted == True:
+      startmusic = True
+      music.set_mute(True)
     while steam.poll() == None:
       try: events = pygame.event.get()
       except KeyboardInterrupt: events = [userquit()]
@@ -1871,8 +1654,8 @@ def main():
       pygame.display.toggle_fullscreen()
     screen.blit(screenbkup, (0,0))
     pygame.display.update()
-    if not music == None and music.get_busy() == True:
-      music.real_mute()
+    if startmusic == True:
+      music.set_mute(False)
     return steam.poll()
   
   menuitems = [('Videos', filemenu), ('Terminal', terminal), ("Steam", steam_big_picture), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
@@ -1938,15 +1721,18 @@ def main():
         pygame.display.toggle_fullscreen()
       if not music == None:
         if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-          music.set_volume('-0.12')
+          osd.show(5)
+          music.increment_volume(-0.02)
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-          music.set_volume('+0.12')
+          osd.show(5)
+          music.increment_volume(+0.02)
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
-          music.pause()
+          osd.show(5)
+          music.toggle_mute()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
-          music.set_channel("+1")
+          music.increment_channel(+1)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
-          music.set_channel("-1")
+          music.increment_channel(-1)
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT))):
           music.prev()
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT))):

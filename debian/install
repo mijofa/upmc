@@ -1,6 +1,7 @@
 network-remote.py   /usr/share/upmc/
 background.png      /usr/share/upmc/
 upmc_movie.py       /usr/share/upmc/
+upmc_music.py       /usr/share/upmc/
 dvd.jpg             /usr/share/upmc/
 imdb.py             /usr/share/upmc/
 main.py             /usr/share/upmc/

@@ -21,9 +21,10 @@ class MyHTTPRedirectHandler(urllib2.HTTPRedirectHandler):
   def redirect_request(self, req, fp, code, msg, hdrs, newurl):
     raise RedirectException(newurl)
 
-class music_playback(threading.Thread):
-  icy_name = ''
-  icy_info = {}
+class music(threading.Thread):
+  volume = 0.25
+  title = ''
+  track_info = {}
   channel_num = 0
   channel_name = ''
   new_channel_num = None
@@ -36,10 +37,12 @@ class music_playback(threading.Thread):
       ("http://music/ch05.mp3", ("music", 6605)),
   ]
   muted = False
+  new_track_hook = None
   def __init__(self):
-    super(music_playback, self).__init__()
+    super(music, self).__init__()
     self.mpc = mpd.MPDClient()
     self._stop = threading.Event()
+    pygame.mixer.music.set_volume(self.volume)
   def stop(self):
     self._stop.set()
   def connect(self):
@@ -74,7 +77,7 @@ class music_playback(threading.Thread):
       if line[0:12] == "icy-metaint:":
         self.icy_interval = int(line[12:])
       if line[0:9] == "icy-name:":
-        self.icy_name = line[10:].rstrip('\r\n')
+        self.title = line[10:].rstrip('\r\n')
       elif line == "\r\n":
         headers = False
   def read(self, chunk_size):
@@ -105,7 +108,7 @@ class music_playback(threading.Thread):
     len = ord(self.read(1))*16
     if len != 0:
       icy_data = self.read(len).rpartition(';')
-      self.icy_info.clear()
+      self.track_info.clear()
       for pair in icy_data[0].split(';'):
         if not '=' in pair:
           key = pair
@@ -113,9 +116,12 @@ class music_playback(threading.Thread):
         else:
           key = pair.split('=', 1)[0]
           value = pair.split('=', 1)[1].strip("'\"")
-        self.icy_info.update({key: value})
-      print time.ctime(), self.icy_info
+        self.track_info.update({key: value})
+      self.track_info.update(self.mpc.currentsong())
+      print time.ctime(), self.track_info
       leftover = icy_data[1]
+      if self.new_track_hook != None:
+        self.new_track_hook()
       return leftover # Supposedly these "leftovers" are empty bytes and should be dropped. I'm not seeing empty bytes here though, so I'm assuming they're part of the MP3 stream and passing them on to PyGame.
                       # I'm using MPD as the streaming server, perhaps that doesn't properly follow the spec here?
     return ''
@@ -199,17 +205,18 @@ class music_playback(threading.Thread):
     return self.set_channel(new_channel_num)
   def next(self):
     return self.mpc.next()
-  def prev(self):
-    return self.mpc.prev()
+  def previous(self):
+    return self.mpc.previous()
+  prev = previous
 
 def m():
-  p = music_playback()#"http://music/ch05.mp3")
+  p = music()#"http://music/ch05.mp3")
   p.start()
   data = ''
   while data != None:
     try: data = raw_input('> ')
     except EOFError: break
-    print p.icy_name, '-', data
+    print p.title , '-', data
     try: print eval(data)
     except Exception as e: print e
   print "EOF detected: Shutting down."
