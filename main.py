@@ -1417,8 +1417,9 @@ class musicplayer(upmc_music.music):
       elif value < 0:
         subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol-"]).wait()
   def new_track_hook(self):
-    global osd
-    osd.show(2)
+    if self.muted == False:
+      global osd
+      osd.show(2)
 ##### End class musicplayer()
 
 def network_listener():
