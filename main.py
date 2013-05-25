@@ -1138,7 +1138,8 @@ class movieinfo():
     render_textrect('Movie player is running.\n\nPress the back button to quit.', pygame.font.Font(fontname, 63), screen.get_rect(), (255,255,255), screen, 3)
     pygame.display.update()
     player = movieplayer(self['filename'])
-    if not music == None and music.muted == True:
+    if not music == None and music.muted == False:
+      print "Muting"
       old_osd_hook = osd.get_hook()
       music.set_mute(True)
       startmusic = True
@@ -1152,6 +1153,7 @@ class movieinfo():
     self['watched'] = datetime.datetime.now().strftime('%Y-%m-%d, %H:%M') 
     pygame.display.update()
     if startmusic == True:
+      print "Unmuting"
       osd.update_hook(old_osd_hook)
       music.set_mute(False)
       music.set_volume(0.1)
@@ -1633,7 +1635,7 @@ def main():
     render_textrect('Steam is still running.\n\nPress back key to kill Steam.', pygame.font.Font(fontname, 63), screen.get_rect(), (255,255,255), screen, 3)
     pygame.display.update()
     startmusic = False
-    if not music == None and music.muted == True:
+    if not music == None and music.muted == False:
       startmusic = True
       music.set_mute(True)
     while steam.poll() == None:
