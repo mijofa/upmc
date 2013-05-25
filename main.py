@@ -1398,6 +1398,8 @@ class musicplayer(upmc_music.music):
       subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"mute"]).wait()
     else:
       super(musicplayer, self).toggle_mute()
+  def set_volume_for_real(self, value):
+    super(musicplayer, self).set_volume(value)
   def set_volume(self, value):
     if not "lirc_amp" in rare_options.keys():
       super(musicplayer, self).set_volume(value)
@@ -1592,13 +1594,14 @@ def main():
   music = None
   if start_music == True:
     music = musicplayer()
-    if "lirc_amp" in rare_options.keys():
-      music.volume = 1
     music.start()
     pygame.register_quit(music.stop)
     osd.update_hook(music.osd_hook)
     if "lirc_amp" in rare_options.keys():
+      music.set_volume_for_real(1)
       music.set_volume(0.1)
+    else:
+      music.set_volume(0.25)
   
   global background
   try: background = pygame.transform.scale(pygame.image.load(UPMC_DATADIR+'/background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
