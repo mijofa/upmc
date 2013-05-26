@@ -170,14 +170,23 @@ class music(threading.Thread):
     self.stream_buffer.close()
     os.remove(buffer_filename)
   def set_mute(self, value):
+    print "Setting mute"
     if type(value) == bool:
+      print "bool"
       if value == True:
+        print "True"
         self.volume = pygame.mixer.music.get_volume()
+        print "Got volume"
         pygame.mixer.music.set_volume(0)
+        print "set volume"
         self.muted = True
+        print "Set muted"
       elif value == False:
+        print "False"
         pygame.mixer.music.set_volume(self.volume)
+        print "Set volume"
         self.muted = False
+        print "Set muted"
       else:
         raise Exception("WTF?!?!?!?")
     else:

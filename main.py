@@ -1140,8 +1140,8 @@ class movieinfo():
     player = movieplayer(self['filename'])
     if not music == None and music.muted == False:
       print "Muting"
-      old_osd_hook = osd.get_hook()
       music.set_mute(True)
+      old_osd_hook = osd.get_hook()
       startmusic = True
     else:
       startmusic = False
@@ -1154,9 +1154,13 @@ class movieinfo():
     pygame.display.update()
     if startmusic == True:
       print "Unmuting"
-      osd.update_hook(old_osd_hook)
       music.set_mute(False)
-      music.set_volume(0.1)
+      print "Unmuted"
+      osd.update_hook(old_osd_hook)
+      print "Updated hook"
+      if "lirc_amp" in rare_options.keys():
+        music.set_volume(0.1)
+        print "set volume"
     screen.blit(screenbkup, (0,0))
     pygame.display.update()
 ##### End class movieinfo()
