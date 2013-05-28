@@ -1,10 +1,12 @@
-"""
 import threading
 import urllib2
 import time
 import mpd
 import sys
 import os
+
+"""
+import vlc
 
 BUFFER_LENGTH = 1024
 
@@ -25,6 +27,8 @@ class music(threading.Thread):
     self.player.video_set_key_input(0)
     self.player_event_manager = self.player.event_manager()
 """
+import pygame
+
 pygame.mixer.init(buffer=1024*7) # Buffer size likely needs more fine tuning, I might drop the quality on the server. Coincidentally at current quality it's about 1024 per second.
 
 class CustomHTTPError(Exception):
