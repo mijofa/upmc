@@ -22,8 +22,8 @@ import pylirc
 
 import pygame
 
-import upmc_movie
-import upmc_music
+import upmc.movie
+import upmc.music
 
 #UPMC_DATADIR = os.getcwd()
 UPMC_DATADIR = '/usr/share/upmc/'
@@ -1189,7 +1189,7 @@ class movieplayer():
     global fontname
     self.font = pygame.font.Font(fontname, 45)
     self.filename = filename
-    self.player = upmc_movie.Movie(self.filename)
+    self.player = upmc.movie.Movie(self.filename)
     global screen
     self.player.set_display(screen)
   def start(self):
@@ -1200,8 +1200,8 @@ class movieplayer():
     self.paused = False
     self.player.play()
     self.osdtitle = osd.display_data[0]
-    ## upmc_movie needs to be extended to do more fancy things since I no longer care about acting just like pygame.movie, and I shouldn't be calling vlc_player directly for any reason.
-    while upmc_movie.vlc_player.is_playing() == False: pass
+    ## upmc.movie needs to be extended to do more fancy things since I no longer care about acting just like pygame.movie, and I shouldn't be calling vlc_player directly for any reason.
+    while upmc.movie.vlc_player.is_playing() == False: pass
     self.set_volume(0.75)
     if os.path.isfile(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'):
       savefile = os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'
@@ -1315,23 +1315,23 @@ class movieplayer():
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_i or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3):
           osd.toggle()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
-          current_subtitles = upmc_movie.vlc_player.video_get_spu()
-          if upmc_movie.vlc_player.video_get_spu_count() == 0:
+          current_subtitles = upmc.movie.vlc_player.video_get_spu()
+          if upmc.movie.vlc_player.video_get_spu_count() == 0:
             self.osdnotification = "No subtitles found"
-          elif current_subtitles == upmc_movie.vlc_player.video_get_spu_count()-1:
-            upmc_movie.vlc_player.video_set_spu(0)
+          elif current_subtitles == upmc.movie.vlc_player.video_get_spu_count()-1:
+            upmc.movie.vlc_player.video_set_spu(0)
             self.osdnotification = "Subtitles disabled"
           else:
-            upmc_movie.vlc_player.video_set_spu(current_subtitles+1)
-            self.osdnotification = "Subtitles: %s" % upmc_movie.vlc_player.video_get_spu_description()[upmc_movie.vlc_player.video_get_spu()][1]
+            upmc.movie.vlc_player.video_set_spu(current_subtitles+1)
+            self.osdnotification = "Subtitles: %s" % upmc.movie.vlc_player.video_get_spu_description()[upmc.movie.vlc_player.video_get_spu()][1]
           osd.show(2)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
-          current_track = upmc_movie.vlc_player.audio_get_track()
-          if current_track == upmc_movie.vlc_player.audio_get_track_count()-1:
-            upmc_movie.vlc_player.audio_set_track(1)
+          current_track = upmc.movie.vlc_player.audio_get_track()
+          if current_track == upmc.movie.vlc_player.audio_get_track_count()-1:
+            upmc.movie.vlc_player.audio_set_track(1)
           else:
-            upmc_movie.vlc_player.audio_set_track(current_track+1)
-          self.osdnotification = "Audio track #%d - %s" % (upmc_movie.vlc_player.audio_get_track(), upmc_movie.vlc_player.audio_get_track_description()[upmc_movie.vlc_player.audio_get_track()][1])
+            upmc.movie.vlc_player.audio_set_track(current_track+1)
+          self.osdnotification = "Audio track #%d - %s" % (upmc.movie.vlc_player.audio_get_track(), upmc.movie.vlc_player.audio_get_track_description()[upmc.movie.vlc_player.audio_get_track()][1])
           osd.show(2)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_m:
           if "lirc_amp" in rare_options.keys():
@@ -1378,7 +1378,7 @@ class movieplayer():
     self.stop()
 ##### End class movieplayer()
 
-class musicplayer(upmc_music.music):
+class musicplayer(upmc.music.Music):
   def osd_hook(self, arg):
 #    if 'title' in self.trackinfo.keys():
 #      line_one = self.trackinfo['title']
@@ -1504,7 +1504,7 @@ def LIRChandler():
             pygame.event.post(pygame.event.Event(pygame.KEYUP, {'mod': 0, 'key': eval('pygame.K_'+key), 'unicode': key}))
   pylirc.exit()
 
-def main():
+def main(args):
   ## The Pygame modules need to be initialised before they can be used.
   ### The Pygame docs say to just initialise *everything* at once, I think this is wasteful and am only initialising the bits I'm using.
   #pygame.init()
@@ -1545,8 +1545,8 @@ def main():
   rare_options = {None: None}
   start_music = False
 
-  if len(sys.argv) > 1:
-    options, arguments = getopt.getopt(sys.argv[1:], 'w:m:o:', ["windowed=", "music", "options=", "channels=", "mpd-host=", "mpd-port=", "movie-args="])
+  if len(args) > 1:
+    options, arguments = getopt.getopt(args[1:], 'w:m:o:', ["windowed=", "music", "options=", "channels=", "mpd-host=", "mpd-port=", "movie-args="])
     for o, a in options:
       if o == "--windowed" or o == '-w':
         resolution = str(a)
@@ -1751,5 +1751,5 @@ def main():
           osd.toggle()
 
 if __name__ == "__main__":
-  try: main()
+  try: main(sys.argv)
   except: pygame.quit()
