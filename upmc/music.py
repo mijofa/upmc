@@ -10,7 +10,7 @@ import vlc
 
 BUFFER_LENGTH = 1024
 
-class music(threading.Thread):
+class Music(threading.Thread):
   channel_num = 0
   new_channel_num = None
   channels = [
@@ -42,7 +42,7 @@ class MyHTTPRedirectHandler(urllib2.HTTPRedirectHandler):
   def redirect_request(self, req, fp, code, msg, hdrs, newurl):
     raise RedirectException(newurl)
 
-class music(threading.Thread):
+class Music(threading.Thread):
   volume = 0.25
   title = ''
   track_info = {}
