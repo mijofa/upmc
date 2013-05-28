@@ -60,7 +60,7 @@ class Music(threading.Thread):
   muted = False
   new_track_hook = None
   def __init__(self):
-    super(music, self).__init__()
+    super(Music, self).__init__()
     self.mpc = mpd.MPDClient()
     self._stop = threading.Event()
     pygame.mixer.music.set_volume(self.volume)
