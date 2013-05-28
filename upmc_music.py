@@ -1,4 +1,4 @@
-import pygame.mixer
+"""
 import threading
 import urllib2
 import time
@@ -8,6 +8,23 @@ import os
 
 BUFFER_LENGTH = 1024
 
+class music(threading.Thread):
+  channel_num = 0
+  new_channel_num = None
+  channels = [
+      ("http://music/ch00.mp3", ("music", 6600)),
+      ("http://music/ch01.mp3", ("music", 6601)),
+      ("http://music/ch02.mp3", ("music", 6602)),
+      ("http://music/ch03.mp3", ("music", 6603)),
+      ("http://music/ch04.mp3", ("music", 6604)),
+      ("http://music/ch05.mp3", ("music", 6605)),
+  ]
+  def __init__(self):
+    self.instance = vlc.Instance("--no-video-title --no-keyboard-events")
+    self.player = self.instance.media_player_new()
+    self.player.video_set_key_input(0)
+    self.player_event_manager = self.player.event_manager()
+"""
 pygame.mixer.init(buffer=1024*7) # Buffer size likely needs more fine tuning, I might drop the quality on the server. Coincidentally at current quality it's about 1024 per second.
 
 class CustomHTTPError(Exception):
