@@ -70,7 +70,7 @@ class Movie():
       return False
     else:
       if type(key) != type(NAVIGATE_ENTER):
-        if key in [NAVIGATE_ENTER, NAVIGATE_UP, NAVIGATE_DOWN, NAVIGATE_LEFT, NAVIGATE_RIGHT]
+        if key in [NAVIGATE_ENTER, NAVIGATE_UP, NAVIGATE_DOWN, NAVIGATE_LEFT, NAVIGATE_RIGHT]:
           self.vlc_player.navigate(key)
           return True
         else:
