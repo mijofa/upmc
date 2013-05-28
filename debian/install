@@ -9,4 +9,4 @@ vlc.py              /usr/share/upmc/
 
 upmc.desktop        /usr/share/applications/
 
-upmc                /usr/bin/
+upmc.sh             /usr/bin/upmc
