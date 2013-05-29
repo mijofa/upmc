@@ -29,7 +29,7 @@ class Movie():
   def play(self, loops = 0):
     self.vlc_player.play()
     self.vlc_player.video_set_spu(1)
-    if self.start_time > 0:
+    if self.start_time > 0: # VLC won't let me set the time before I start playing, this is a workaround. self.set_time sets this variable if the media stream is not running.
       self.vlc_player.set_time(self.start_time)
       self.start_time = 0
   def stop(self):
@@ -40,6 +40,8 @@ class Movie():
   def set_pause(self, value):
     # If value == True, pause. else value == False, unpause.
     # Returns current paused state.
+    if type(value) != bool:
+      raise TypeError("value must be a bool")
     if value != self.get_pause():
       return self.toggle_pause()
     return self.get_pause()
@@ -50,6 +52,7 @@ class Movie():
     return self.get_pause()
   def get_volume(self):
     # Return current volume. 1.0 = 100% 0.5 = 50%
+    ## FIXME
   def set_volume(self, value):
     # Set volume to value.
     # Return current volume.
@@ -61,9 +64,13 @@ class Movie():
     return self.set_volume(self.get_volume()+value) # Should I be treating 200% as max or 100% ?
   def get_mute(self):
     # Return current mute state. True = muted, False = not
+    ## FIXME
   def set_mute(self, value):
     # If value == True, mute. else value == False, unmute.
     # Return current mute state
+    ## FIXME
+    if type(value) != bool:
+      raise TypeError("value must be a bool")
     return self.get_mute()
   def toggle_mute(self):
     # Toggles mute state.
@@ -71,9 +78,11 @@ class Movie():
     return self.set_mute(!self.get_mute())
   def get_audio_track(self):
     # Return current audio track. Don't know how to handle this, probably a tuple including track # and description.
+    ## FIXME
   def set_audio_track(self, value):
     # Set audio track to value.
     # Return audio track
+    ## FIXME
     return self.get_audio_track()
   def increment_audio_track(self, value):
     # Set audio track to current audio track + value.
@@ -81,18 +90,18 @@ class Movie():
     return self.set_audio_track(self.get_audio_track()+value)
   def get_length(self):
     # Return length of media file in seconds.
-    return .001 * self.vlc_player.get_length()
+    return .001 * self.vlc_player.get_length() # Convert milliseconds into seconds
   def get_time(self):
     # Return current time in seconds.
-    return .001 * self.vlc_player.get_time()
+    return .001 * self.vlc_player.get_time() # Convert milliseconds into seconds
   def set_time(self, value):
     # Seek to value seconds.
     # Return current time in seconds.
-    milliseconds = seconds * 1000L # VLC works with milliseconds, I prefer working with seconds.
+    vlc_value = value * 1000L # VLC works with milliseconds, I prefer working with seconds.
     if self.vlc_player.get_time() == -1L:
-      self.start_time = milliseconds # VLC won't let me set the time before I start playing, this is a workaround.
+      self.start_time = vlc_value # VLC won't let me set the time before I start playing, this is a workaround. self.play sets the start time to this variable if set.
     else:
-      self.vlc_player.set_time(self.vlc_player.get_time()+milliseconds)
+      self.vlc_player.set_time(self.vlc_player.get_time()+vlc_value)
     return self.get_time()
   def increment_time(self, value):
     # Seek to current time+value seconds.
@@ -100,23 +109,31 @@ class Movie():
     return self.set_time(self.get_time()+value)
   def get_subtitles_visibility(self):
     # Return subtitles visibility.
+    ## FIXME
   def set_subtitles_visibility(self, value):
     # Set subtitles visibility to value.
     # Return subtitles visibility.
+    ## FIXME
+    if type(value) != bool:
+      raise TypeError("value must be a bool")
     return self.get_subtitles_visibility()
   def toggle_subtitles_visibility(self):
     # Toggle subtitles visibility.
     # Return subtitles visibility.
+    ## FIXME
     return self.set_subtitles_visibility(!self.get_subtitles_visibility())
   def get_subtitles_track(self):
     # Return subtitles track
+    ## FIXME
   def set_subtitles_track(self, value):
     # Set subtitles track to value.
     # Return subtitles track
+    ## FIXME
     return self.get_subtitles_track()
   def increment_subtitles_track(self, value):
     # Set subtitles track to current subtitles track + value.
     # Return subtitles track.
+    ## FIXME
     return self.set_subtitles_track(self.get_subtitles_track()+value)
 
   def set_end_callback(self, callback = None, args = None):
