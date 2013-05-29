@@ -64,8 +64,6 @@ class Music(threading.Thread):
     self.mpc = mpd.MPDClient()
     self._stop = threading.Event()
     pygame.mixer.music.set_volume(self.volume)
-  def stop(self):
-    self._stop.set()
   def connect(self):
     url = self.channels[self.channel_num][0]
     retry = True
@@ -209,9 +207,11 @@ class Music(threading.Thread):
         self.muted = False
         print "Set muted"
       else:
-        raise Exception("WTF?!?!?!?")
+        raise Exception("WTF?!?! A bool can't be neither True or False! O.o")
     else:
       raise TypeError("set_mute() argument must be a bool, not %s" % type(value))
+  def stop(self):
+    self._stop.set()
   def toggle_mute(self):
     self.set_mute(self.muted==False)
   def set_volume(self, value):
