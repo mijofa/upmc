@@ -11,6 +11,7 @@ NAVIGATE_LEFT = 3
 NAVIGATE_RIGHT = 4
 
 class Movie():
+  current_spu = -1
   def __init__(self, filename):
     self.start_time = -1
     self.vlc_instance = vlc.Instance("--no-video-title --no-keyboard-events")
@@ -52,8 +53,7 @@ class Movie():
     return self.get_pause()
   def get_volume(self):
     # Return current volume. 1.0 = 100% 0.5 = 50%
-    ## FIXME
-    raise NotImplementedError
+    return self.vlc_player.audio_get_volume()/100.0 # Should I be treating 200% as max or 100% ?
   def set_volume(self, value):
     # Set volume to value.
     # Return current volume.
@@ -65,20 +65,19 @@ class Movie():
     return self.set_volume(self.get_volume()+value) # Should I be treating 200% as max or 100% ?
   def get_mute(self):
     # Return current mute state. True = muted, False = not
-    ## FIXME
-    raise NotImplementedError
+    return bool(self.vlc_player.audio_get_mute())
   def set_mute(self, value):
     # If value == True, mute. else value == False, unmute.
     # Return current mute state
-    ## FIXME
-    raise NotImplementedError
     if type(value) != bool:
       raise TypeError("value must be a bool")
+    self.vlc_player.audio_set_mute(value)
     return self.get_mute()
   def toggle_mute(self):
     # Toggles mute state.
     # Return current mute state.
-    return self.set_mute(!self.get_mute())
+    self.vlc_player.audio_toggle_mute()
+    return self.get_mute()
   def get_audio_track(self):
     # Return current audio track. Don't know how to handle this, probably a tuple including track # and description.
     ## FIXME
@@ -114,37 +113,47 @@ class Movie():
     return self.set_time(self.get_time()+value)
   def get_subtitles_visibility(self):
     # Return subtitles visibility.
-    ## FIXME
-    raise NotImplementedError
+    spu = self.vlc_player.video_get_spu()
+    if spu == 0 or spu == -1:
+      return False
+    else:
+      self.current_spu = spu
+      return True
   def set_subtitles_visibility(self, value):
     # Set subtitles visibility to value.
     # Return subtitles visibility.
-    ## FIXME
-    raise NotImplementedError
     if type(value) != bool:
       raise TypeError("value must be a bool")
+    self.get_subtitles_track()
+    if value == True and self.current_spu == -1:
+      self.vlc_player.video_set_spu(1)
+    elif value == True:
+      self.vlc_player.video_set_spu(self.current_spu)
+    elif value == False:
+      self.vlc_player.video_set_spu(0)
+    else:
+      raise Exception("WTF")
     return self.get_subtitles_visibility()
   def toggle_subtitles_visibility(self):
     # Toggle subtitles visibility.
     # Return subtitles visibility.
-    ## FIXME
-    raise NotImplementedError
-    return self.set_subtitles_visibility(!self.get_subtitles_visibility())
+    return self.set_subtitles_visibility(self.get_subtitles_visibility() == False)
   def get_subtitles_track(self):
     # Return subtitles track
-    ## FIXME
-    raise NotImplementedError
+    spu = self.vlc_player.video_get_spu()
+    if spu != 0 and spu != -1:
+      self.current_spu = spu
+    return self.current_spu-1
   def set_subtitles_track(self, value):
     # Set subtitles track to value.
     # Return subtitles track
-    ## FIXME
-    raise NotImplementedError
+    if type(value) != int:
+      raise TypeError("value must be an int")
+    self.vlc_player.video_set_spu(value+1)
     return self.get_subtitles_track()
   def increment_subtitles_track(self, value):
     # Set subtitles track to current subtitles track + value.
     # Return subtitles track.
-    ## FIXME
-    raise NotImplementedError
     return self.set_subtitles_track(self.get_subtitles_track()+value)
 
   def set_end_callback(self, callback = None, args = None):
