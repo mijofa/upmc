@@ -80,13 +80,13 @@ class Movie():
     return self.get_mute()
   def get_audio_track(self):
     # Return current audio track. Don't know how to handle this, probably a tuple including track # and description.
-    ## FIXME
-    raise NotImplementedError
+    return self.vlc_player.audio_get_track()-1
   def set_audio_track(self, value):
     # Set audio track to value.
     # Return audio track
-    ## FIXME
-    raise NotImplementedError
+    if type(value) != int:
+      raise TypeError("value must be an int")
+    self.vlc_player.audio_set_track(value+1)
     return self.get_audio_track()
   def increment_audio_track(self, value):
     # Set audio track to current audio track + value.
