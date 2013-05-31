@@ -4,11 +4,11 @@ import vlc
 
 # player.get_meta(vlc.Meta.Title)
 
-NAVIGATE_ENTER = 0
-NAVIGATE_UP = 1
-NAVIGATE_DOWN = 2
-NAVIGATE_LEFT = 3
-NAVIGATE_RIGHT = 4
+NAVIGATE_ENTER = vlc.NavigateMode.activate
+NAVIGATE_UP = vlc.NavigateMode.up
+NAVIGATE_DOWN = vlc.NavigateMode.down
+NAVIGATE_LEFT = vlc.NavigateMode.left
+NAVIGATE_RIGHT = vlc.NavigateMode.right
 
 class Movie():
   current_spu = -1

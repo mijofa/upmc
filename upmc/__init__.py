@@ -22,7 +22,8 @@ import pylirc
 
 import pygame
 
-import upmc.movie
+import upmc.players.vlc_wrapper
+#import upmc.movie
 import upmc.music
 
 #UPMC_DATADIR = os.getcwd()
@@ -46,6 +47,19 @@ global screenupdates
 screenupdates = []
 global running
 running = True
+
+def human_readable_seconds(self, seconds):
+  hrs = int(seconds/60.0/60.0)
+  mins = int((seconds-(hrs*60*60))/60)
+  secs = int(seconds-((hrs*60*60)+(mins*60)))
+  if not hrs == 0:
+    return "%02d:%02d:%02d" % (hrs,mins,secs)
+  elif not secs == 0:
+    return "%02d:%02d" % (mins,secs)
+  elif not secs == 0:
+    return "%02d" % (secs)
+  else:
+    return "00"
 
 def userquit():
   pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
@@ -1165,83 +1179,14 @@ class movieinfo():
     pygame.display.update()
 ##### End class movieinfo()
 
-class movieplayer():
-  paused = None
+class movieplayer(upmc.players.vlc_wrapper.Movie):
   str_length = "0"
   volume = 0
   osdtype = 'time'
   osdtitle = ''
   osdnotification = ''
-  muted = False
-  def human_readable_seconds(self, seconds):
-    hrs = int(seconds/60.0/60.0)
-    mins = int((seconds-(hrs*60*60))/60)
-    secs = int(seconds-((hrs*60*60)+(mins*60)))
-    if not hrs == 0:
-      return "%02d:%02d:%02d" % (hrs,mins,secs)
-    elif not secs == 0:
-      return "%02d:%02d" % (mins,secs)
-    elif not secs == 0:
-      return "%02d" % (secs)
-    else:
-      return "00"
-  def __init__(self, filename):
-    global fontname
-    self.font = pygame.font.Font(fontname, 45)
-    self.filename = filename
-    self.player = upmc.movie.Movie(self.filename)
-    global screen
-    self.player.set_display(screen)
-  def start(self):
-    global screen
-    screenbkup = screen.copy()
-    screen.fill((0,0,0,255))
-    pygame.display.update()
-    self.paused = False
-    self.player.play()
-    self.osdtitle = osd.display_data[0]
-    ## upmc.movie needs to be extended to do more fancy things since I no longer care about acting just like pygame.movie, and I shouldn't be calling vlc_player directly for any reason.
-    while upmc.movie.vlc_player.is_playing() == False: pass
-    self.set_volume(0.75)
-    if os.path.isfile(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'):
-      savefile = os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save'
-    elif os.path.isfile(os.path.dirname(self.filename)+'/'+self.filename+'-'+os.uname()[1]+'.save'):
-      savefile = os.path.dirname(self.filename)+'/'+self.filename+'-'+os.uname()[1]+'.save'
-    else:
-      savefile = None
-    if not savefile == None:
-      try: start_time = open(savefile, 'r').readline().strip('\n')
-      except IOError as e:
-        if e.errno == 13:
-          print "Permission denied when reading save file."
-          start_time = "0"
-        else:
-          raise e
-      if ';' in start_time:
-        self.set_volume(float(start_time.split(';')[1]))
-        start_time = start_time.split(';')[0]
-      self.player.skip(int(float(start_time)))
-      try: os.remove(savefile)
-      except OSError as e:
-        if e.errno == 30:
-          print "Unable to delete save file"
-        else:
-          raise e
-    self.loop()
-    screen.blit(screenbkup, (0,0))
-    pygame.display.update()
-  def stop(self):
-    self.player.stop()
-  def pause(self):
-    self.paused = self.paused == False
-    self.player.pause()
-  def set_volume(self, newVolume):
-    if newVolume >= 1.0:
-      newVolume = 1
-    elif newVolume <= 0.0:
-      newVolume = 0
-    self.player.set_volume(newVolume)
-    self.volume = newVolume
+#  def __init__(self, filename):
+#    super(movieplayer, self).__init__(filename)
   def osd_hook(self, arg):
     new_display_data = [None, None, None]
     if (arg == 'toggle' or arg == 'hide'):
