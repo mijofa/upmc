@@ -1,6 +1,4 @@
 import vlc
-#import pygame
-#MovieType = pygame.movie.MovieType
 
 # player.get_meta(vlc.Meta.Title)
 
@@ -10,7 +8,13 @@ NAVIGATE_DOWN = vlc.NavigateMode.down
 NAVIGATE_LEFT = vlc.NavigateMode.left
 NAVIGATE_RIGHT = vlc.NavigateMode.right
 
-class Movie():
+class capabilities:
+  movies = True
+  music = True
+  http = True
+  dvd = True
+
+class Player():
   current_spu = -1
   def __init__(self, filename):
     self.start_time = -1
@@ -155,6 +159,10 @@ class Movie():
     # Set subtitles track to current subtitles track + value.
     # Return subtitles track.
     return self.set_subtitles_track(self.get_subtitles_track()+value)
+  def get_stream_title(self):
+    return self.vlc_media.get_meta(vlc.Meta.Title)
+  def get_now_playing(self):
+    return self.vlc_media.get_meta(vlc.Meta.NowPlaying)
 
   def set_end_callback(self, callback = None, args = None):
     # The callback should probably do something like trigger a pygame event.

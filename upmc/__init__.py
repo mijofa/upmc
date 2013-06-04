@@ -22,8 +22,7 @@ import pylirc
 
 import pygame
 
-import upmc.players.vlc_wrapper
-#import upmc.movie
+import upmc.movie
 import upmc.music
 
 #UPMC_DATADIR = os.getcwd()
@@ -1179,7 +1178,7 @@ class movieinfo():
     pygame.display.update()
 ##### End class movieinfo()
 
-class movieplayer(upmc.players.vlc_wrapper.Movie):
+class movieplayer(upmc.movie.Movie):
   str_length = "0"
   volume = 0
   osdtype = 'time'
