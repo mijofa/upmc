@@ -47,7 +47,7 @@ screenupdates = []
 global running
 running = True
 
-def human_readable_seconds(self, seconds):
+def human_readable_seconds(seconds):
   hrs = int(seconds/60.0/60.0)
   mins = int((seconds-(hrs*60*60))/60)
   secs = int(seconds-((hrs*60*60)+(mins*60)))
@@ -1144,13 +1144,14 @@ class movieinfo():
       pygame.display.update()
       return
       """
+#    player = movieplayer(self['filename'])
     screenbkup = screen.copy()
     surf = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
     surf.fill((0,0,0,225))
     screen.blit(surf, (0,0))
     render_textrect('Movie player is running.\n\nPress the back button to quit.', pygame.font.Font(fontname, 63), screen.get_rect(), (255,255,255), screen, 3)
     pygame.display.update()
-    player = movieplayer(self['filename'])
+
     if not music == None and music.muted == False:
       print "Muting"
       music.set_mute(True)
@@ -1158,13 +1159,11 @@ class movieinfo():
       startmusic = True
     else:
       startmusic = False
-    osd.update_hook(player.osd_hook)
+
     osd.update(self['title'])
-#    player.start()
-    player.start()
-#    player.loop()
     self['watched'] = datetime.datetime.now().strftime('%Y-%m-%d, %H:%M') 
-    pygame.display.update()
+    movieplayer.start(self['filename'])
+
     if startmusic == True:
       print "Unmuting"
       music.set_mute(False)
@@ -1174,18 +1173,34 @@ class movieinfo():
       if "lirc_amp" in rare_options.keys():
         music.set_volume(0.1)
         print "set volume"
+
     screen.blit(screenbkup, (0,0))
     pygame.display.update()
+#    player.play()
+#    player.loop()
 ##### End class movieinfo()
 
-class movieplayer(upmc.movie.Movie):
+class movieplayer(upmc.movie.Player):
   str_length = "0"
   volume = 0
   osdtype = 'time'
   osdtitle = ''
   osdnotification = ''
-#  def __init__(self, filename):
-#    super(movieplayer, self).__init__(filename)
+  @staticmethod
+  def start(filename):
+    screenbkup = screen.copy()
+    screen.fill((0,0,0,255))
+    pygame.display.update()
+
+    player = movieplayer(filename)
+    player.set_xwindow(pygame.display.get_wm_info()['window'])
+    osd.update_hook(player.osd_hook)
+    player.set_end_callback(player.stop)
+    player.play()
+    player.loop()
+
+    screen.blit(screenbkup, (0,0))
+    pygame.display.update()
   def osd_hook(self, arg):
     new_display_data = [None, None, None]
     if (arg == 'toggle' or arg == 'hide'):
@@ -1195,13 +1210,13 @@ class movieplayer(upmc.movie.Movie):
     if self.osdnotification != '':
       new_display_data[0] = self.osdnotification
     if arg == 'updating' and self.osdtype == 'time':
-      curpos = self.human_readable_seconds(self.player.get_time())
-      self.str_length = self.human_readable_seconds(self.player.get_length())
+      curpos = human_readable_seconds(self.get_time())
+      self.str_length = human_readable_seconds(self.get_length())
       if not self.str_length == '00':
         if len(self.str_length.split(':')) > len(curpos.split(':')):
           curpos = ('00:' * (len(self.str_length.split(':')) - len(curpos.split(':')))) + curpos
         new_display_data[1] = "%s of %s" % (curpos, self.str_length)
-        new_display_data[2] = self.player.get_time()/(self.player.get_length()/100.0)
+        new_display_data[2] = self.get_time()/(self.get_length()/100.0)
       elif not curpos == '00':
         new_display_data[1] = "%s" % curpos
         new_display_data[2] = 100.0
@@ -1212,18 +1227,26 @@ class movieplayer(upmc.movie.Movie):
       new_display_data[1] = "%s%% volume" % int(self.volume*100)
       new_display_data[2] = self.volume*100
     return new_display_data
+  def toggle_mute(self):
+    if "lirc_amp" in rare_options.keys():
+      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"mute"]).wait()
+    else:
+      super(movieplayer, self).toggle_mute()
+  def increment_volume(self, value):
+    if not "lirc_amp" in rare_options.keys():
+      super(musicplayer, self).increment_volume(value)
+    else:
+      if value > 0:
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol+"]).wait()
+      elif value < 0:
+        subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol-"]).wait()
   def loop(self):
-    self.player.set_endevent(pygame.USEREVENT)
     stop = False
     while stop == False:
       try: events = pygame.event.get()
       except KeyboardInterrupt: events = [userquit()]
       for event in events:
-        if event.type == pygame.USEREVENT and event.userevent == "movie end reached":
-          self.stop()
-          stop = True
-          break
-        elif event.type == pygame.QUIT:
+        if event.type == pygame.QUIT:
           running = False
           stop = True
           pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
@@ -1236,60 +1259,39 @@ class movieplayer(upmc.movie.Movie):
         elif (event.type == pygame.KEYDOWN and (event.key == pygame.K_SPACE or event.key == pygame.K_p)) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1):
           self.osdtype = 'time'
           osd.show(2)
-          self.pause()
+          self.toggle_pause()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
-          if self.player.dvd_navigate(event.key) != True:
+          if self.dvd_navigate(upmc.movie.NAVIGATE_UP) != True:
             osd.show(2)
-            self.player.skip(300)
+            self.increment_time(600)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
-          if self.player.dvd_navigate(event.key) != True:
+          if self.dvd_navigate(upmc.movie.NAVIGATE_DOWN) != True:
             osd.show(2)
-            self.player.skip(-290)
+            self.increment_time(-590)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
-          if self.player.dvd_navigate(event.key) != True:
+          if self.dvd_navigate(upmc.movie.NAVIGATE_LEFT) != True:
             osd.show(2)
-            self.player.skip(-20)
+            self.increment_time(-20)
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
+          if self.dvd_navigate(upmc.movie.NAVIGATE_RIGHT) != True:
+            osd.show(2)
+            self.increment_time(30)
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 2:
           osd.show(2)
-          self.player.skip(-20)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
-          if self.player.dvd_navigate(event.key) != True:
-            osd.show(2)
-            self.player.skip(30)
+          self.increment_time(-20)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_i or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3):
           osd.toggle()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
-          current_subtitles = upmc.movie.vlc_player.video_get_spu()
-          if upmc.movie.vlc_player.video_get_spu_count() == 0:
-            self.osdnotification = "No subtitles found"
-          elif current_subtitles == upmc.movie.vlc_player.video_get_spu_count()-1:
-            upmc.movie.vlc_player.video_set_spu(0)
-            self.osdnotification = "Subtitles disabled"
-          else:
-            upmc.movie.vlc_player.video_set_spu(current_subtitles+1)
-            self.osdnotification = "Subtitles: %s" % upmc.movie.vlc_player.video_get_spu_description()[upmc.movie.vlc_player.video_get_spu()][1]
+          self.osdnotification = "Subtitles %s" % self.increment_subtitles_track(1)
           osd.show(2)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
-          current_track = upmc.movie.vlc_player.audio_get_track()
-          if current_track == upmc.movie.vlc_player.audio_get_track_count()-1:
-            upmc.movie.vlc_player.audio_set_track(1)
-          else:
-            upmc.movie.vlc_player.audio_set_track(current_track+1)
-          self.osdnotification = "Audio track #%d - %s" % (upmc.movie.vlc_player.audio_get_track(), upmc.movie.vlc_player.audio_get_track_description()[upmc.movie.vlc_player.audio_get_track()][1])
+          self.osdnotification = "Audio track %s" % self.increment_audio_track(1)
           osd.show(2)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_m:
-          if "lirc_amp" in rare_options.keys():
-            subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"mute"]).wait()
-          else:
-            if self.muted == True:
-              self.muted = False
-              self.set_volume(self.volume)
-            elif self.muted == False:
-              self.muted = True
-              self.set_volume(0.0)
+          self.toggle_mute()
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER):
-          if self.player.dvd_navigate(pygame.K_RETURN) != True:
-            save_pos = self.player.get_time()-10
+          if self.dvd_navigate(upmc.movie.NAVIGATE_ENTER) != True:
+            save_pos = self.get_time()-10
             save_hrs = int(save_pos/60.0/60.0)
             save_mins = int((save_pos-(save_hrs*60*60))/60)
             save_secs = int(save_pos-((save_hrs*60*60)+(save_mins*60)))
@@ -1303,22 +1305,13 @@ class movieplayer(upmc.movie.Movie):
               self.osdnotification = "Position saved"
             osd.show(2)
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-          if "lirc_amp" in rare_options.keys():
-            subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol-"]).wait()
-          else:
-            self.osdtype = 'volume'
-            osd.show(2)
-            self.set_volume(self.volume-0.02)
+          osd.show(2)
+          self.increment_volume(-0.02)
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-          if "lirc_amp" in rare_options.keys():
-            subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol+"]).wait()
-          else:
-            self.osdtype = 'volume'
-            osd.show(2)
-            self.set_volume(self.volume+0.02)
+          osd.show(2)
+          self.increment_volume(0.02)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
-          if self.get_busy():
-            self.pause()
+          self.set_pause(True)
     self.stop()
 ##### End class movieplayer()
 

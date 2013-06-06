@@ -17,6 +17,7 @@ class capabilities:
 class Player():
   current_spu = -1
   def __init__(self, filename):
+    self.filename = filename
     self.start_time = -1
     self.vlc_instance = vlc.Instance("--no-video-title --no-keyboard-events")
     self.vlc_player = self.vlc_instance.media_player_new()
@@ -95,7 +96,20 @@ class Player():
   def increment_audio_track(self, value):
     # Set audio track to current audio track + value.
     # Return audio track.
-    return self.set_audio_track(self.get_audio_track()+value)
+    count = self.vlc_player.audio_get_track_count()
+    new_value = self.vlc_player.audio_get_track()+value
+    print count, self.vlc_player.audio_get_track(), new_value
+    while new_value > count or new_value < 0:
+      print 'something'
+      if new_value > count:
+        print 'newvalue > count'
+        new_value -= count
+      elif new_value < 0:
+        print 'newvalue < 0'
+        new_value += count
+    print new_value
+    self.vlc_player.audio_set_track(new_value)
+    return self.get_audio_track()
   def get_length(self):
     # Return length of media file in seconds.
     return .001 * self.vlc_player.get_length() # Convert milliseconds into seconds
@@ -105,11 +119,11 @@ class Player():
   def set_time(self, value):
     # Seek to value seconds.
     # Return current time in seconds.
-    vlc_value = value * 1000L # VLC works with milliseconds, I prefer working with seconds.
+    vlc_value = long(value * 1000L) # VLC works with milliseconds, I prefer working with seconds.
     if self.vlc_player.get_time() == -1L:
       self.start_time = vlc_value # VLC won't let me set the time before I start playing, this is a workaround. self.play sets the start time to this variable if set.
     else:
-      self.vlc_player.set_time(self.vlc_player.get_time()+vlc_value)
+      self.vlc_player.set_time(vlc_value)
     return self.get_time()
   def increment_time(self, value):
     # Seek to current time+value seconds.
@@ -158,7 +172,17 @@ class Player():
   def increment_subtitles_track(self, value):
     # Set subtitles track to current subtitles track + value.
     # Return subtitles track.
-    return self.set_subtitles_track(self.get_subtitles_track()+value)
+    count = self.vlc_player.video_get_spu_count()
+    new_value = self.vlc_player.video_get_spu()+value
+    print count, new_value
+    while new_value > count or new_value < 0:
+      if new_value > count:
+        new_value -= count
+      elif new_value < 0:
+        new_value += count
+    print new_value
+    self.vlc_player.video_set_spu(new_value)
+    return self.get_subtitles_track()
   def get_stream_title(self):
     return self.vlc_media.get_meta(vlc.Meta.Title)
   def get_now_playing(self):
