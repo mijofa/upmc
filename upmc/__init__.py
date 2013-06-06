@@ -818,84 +818,92 @@ class filemenu():
     global running
     self.select(0)
     while running == True:
-      try: event = pygame.event.wait()
-      except KeyboardInterrupt: event = userquit()
-      if event.type == pygame.QUIT:
-        running = False
-        pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
-        pygame.quit()
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
-        self.keyselect(0)
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
-        self.keyselect(1)
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
-        self.keyselect(2)
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
-        self.keyselect(3)
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_KP_ENTER:
-        print self.itemsinfo[self.selected[1]]
-        info = movieinfo(self.itemsinfo[self.selected[1]])
-        info.action()
-      elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
-#        print self.itemsinfo[self.selected[1]]
-#        info = movieinfo(self.itemsinfo[self.selected[1]])
-#        info.action()
-        self.action(self.selected[-1])
-      elif (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3):
-        if self.action('../') == pygame.QUIT:
-          screen.blit(background, (0,0)) # Put the background on the window.
-          pygame.display.update() # Update the display.
-          return
-      elif event.type == pygame.MOUSEMOTION:
-        self.mouseselect(event.pos)
-      elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-        released = False
-        scrolled = False
-        origpos = event.pos
-        item = self.mouseselect(event.pos)
-        while released != True:
-          event = pygame.event.wait()
-          if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            if not item == None and self.mouseselect(event.pos) == item and not scrolled:
-              self.action(self.selected[1])
-            released = True
-            break
-          if origpos[1] >= event.pos[1]+140:
-            scrolled = True
-            origpos = event.pos
-            self.scroll(1,1)
-          elif origpos[1] <= event.pos[1]-140:
-            scrolled = True
-            origpos = event.pos
-            self.scroll(0,1)
-      elif event.type == pygame.MOUSEBUTTONDOWN and (event.button == 4 or event.button == 5):
-        self.scroll(event.button==5, 1)
-      elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
-        pygame.display.toggle_fullscreen()
-      elif not music == None:
-        if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-          osd.show(5)
-          music.increment_volume(-0.02)
-        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-          osd.show(5)
-          music.increment_volume(+0.02)
-        elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
-          osd.show(5)
-          music.toggle_mute()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
-          music.increment_channel(+1)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
-          music.increment_channel(-1)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
-          music.prev()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
-          music.next()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
-          osd.toggle()
-      else:
-        if android:
-          print 'event', event
-          print android.check_pause()
+      try: events = pygame.event.get()
+      except KeyboardInterrupt: events = [userquit()]
+      if not music == None:
+        new_track = music.get_now_playing()
+        if music.old_track != new_track:
+          music.old_track = new_track
+          osd.show(2)
+        elif music.get_state() == "Ended":
+          music.reconnect()
+      for event in events:
+        if event.type == pygame.QUIT:
+          running = False
+          pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
+          pygame.quit()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
+          self.keyselect(0)
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
+          self.keyselect(1)
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
+          self.keyselect(2)
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
+          self.keyselect(3)
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_KP_ENTER:
+          print self.itemsinfo[self.selected[1]]
+          info = movieinfo(self.itemsinfo[self.selected[1]])
+          info.action()
+        elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
+  #        print self.itemsinfo[self.selected[1]]
+  #        info = movieinfo(self.itemsinfo[self.selected[1]])
+  #        info.action()
+          self.action(self.selected[-1])
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3):
+          if self.action('../') == pygame.QUIT:
+            screen.blit(background, (0,0)) # Put the background on the window.
+            pygame.display.update() # Update the display.
+            return
+        elif event.type == pygame.MOUSEMOTION:
+          self.mouseselect(event.pos)
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+          released = False
+          scrolled = False
+          origpos = event.pos
+          item = self.mouseselect(event.pos)
+          while released != True:
+            event = pygame.event.wait()
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+              if not item == None and self.mouseselect(event.pos) == item and not scrolled:
+                self.action(self.selected[1])
+              released = True
+              break
+            if origpos[1] >= event.pos[1]+140:
+              scrolled = True
+              origpos = event.pos
+              self.scroll(1,1)
+            elif origpos[1] <= event.pos[1]-140:
+              scrolled = True
+              origpos = event.pos
+              self.scroll(0,1)
+        elif event.type == pygame.MOUSEBUTTONDOWN and (event.button == 4 or event.button == 5):
+          self.scroll(event.button==5, 1)
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
+          pygame.display.toggle_fullscreen()
+        elif not music == None:
+          if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
+            osd.show(5)
+            music.increment_volume(-0.02)
+          elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
+            osd.show(5)
+            music.increment_volume(+0.02)
+          elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
+            osd.show(5)
+            music.toggle_mute()
+          elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
+            music.increment_channel(+1)
+          elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
+            music.increment_channel(-1)
+          elif event.type == pygame.KEYDOWN and event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
+            music.previous_track()
+          elif event.type == pygame.KEYDOWN and event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
+            music.next_track()
+          elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
+            osd.toggle()
+        else:
+          if android:
+            print 'event', event
+            print android.check_pause()
   def action(self, selected):
     if selected == '../' and (self.itemsinfo[selected]['filename'] == '../'):
       return pygame.QUIT
@@ -1099,38 +1107,46 @@ class movieinfo():
   def loop(self):
     global running
     while running == True:
-      try: event = pygame.event.wait()
-      except KeyboardInterrupt: event = userquit()
-      if event.type == pygame.QUIT:
-        running = False
-        pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
-        pygame.quit()
-      elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
-        self.action()
-      elif (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3):
-        return
-      elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-        self.action()
-      elif not music == None:
-        if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
-          osd.show(5)
-          music.increment_volume(-0.02)
-        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
-          osd.show(5)
-          music.increment_volume(+0.02)
-        elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
-          osd.show(5)
-          music.toggle_mute()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
-          music.increment_channel(+1)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
-          music.increment_channel(-1)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
-          music.prev()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
-          music.next()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
-          osd.toggle()
+      try: events = pygame.event.get()
+      except KeyboardInterrupt: events = [userquit()]
+      if not music == None:
+        new_track = music.get_now_playing()
+        if music.old_track != new_track:
+          music.old_track = new_track
+          osd.show(2)
+        elif music.get_state() == "Ended":
+          music.reconnect()
+      for event in events:
+        if event.type == pygame.QUIT:
+          running = False
+          pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
+          pygame.quit()
+        elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
+          self.action()
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3):
+          return
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+          self.action()
+        elif not music == None:
+          if (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
+            osd.show(5)
+            music.increment_volume(-0.02)
+          elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
+            osd.show(5)
+            music.increment_volume(+0.02)
+          elif event.type == pygame.KEYDOWN and (event.key == pygame.K_p or event.key == pygame.K_m):
+            osd.show(5)
+            music.toggle_mute()
+          elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
+            music.increment_channel(+1)
+          elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
+            music.increment_channel(-1)
+          elif event.type == pygame.KEYDOWN and event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
+            music.previous_track()
+          elif event.type == pygame.KEYDOWN and event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
+            music.next_track()
+          elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
+            osd.toggle()
   def action(self):
     ## This checking of whether the file exists should be done somehow, although it's not important, and I don't know how to easily do it for URLs & files.
     """
@@ -1171,8 +1187,9 @@ class movieinfo():
       osd.update_hook(old_osd_hook)
       print "Updated hook"
       if "lirc_amp" in rare_options.keys():
-        music.set_volume(0.1)
-        print "set volume"
+        music.set_volume(1)
+        for i in xrange(0,10):
+          music.increment_volume(+0.01)
 
     screen.blit(screenbkup, (0,0))
     pygame.display.update()
@@ -1180,9 +1197,7 @@ class movieinfo():
 #    player.loop()
 ##### End class movieinfo()
 
-class movieplayer(upmc.movie.Player):
-  str_length = "0"
-  volume = 0
+class movieplayer(upmc.movie.Movie):
   osdtype = 'time'
   osdtitle = ''
   osdnotification = ''
@@ -1197,6 +1212,11 @@ class movieplayer(upmc.movie.Player):
     osd.update_hook(player.osd_hook)
     player.set_end_callback(player.stop)
     player.play()
+    time.sleep(0.03) # This is needed because I can't set the volume before the movie starts... I don't like that way I've done this though. :/
+    if "lirc_amp" in rare_options.keys():
+      print player.set_volume(1)
+    else:
+      print player.set_volume(0.75)
     player.loop()
 
     screen.blit(screenbkup, (0,0))
@@ -1224,25 +1244,36 @@ class movieplayer(upmc.movie.Player):
         new_display_data[1] = "Live"
         new_display_data[2] = 100.0
     elif arg == 'updating' and self.osdtype == "volume":
-      new_display_data[1] = "%s%% volume" % int(self.volume*100)
-      new_display_data[2] = self.volume*100
+      volume = self.get_volume()
+      new_display_data[1] = "%s%% volume" % int(volume*100)
+      if volume > 1:
+        volume = 1
+      new_display_data[2] = volume*100
     return new_display_data
   def toggle_mute(self):
     if "lirc_amp" in rare_options.keys():
       subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"mute"]).wait()
     else:
-      super(movieplayer, self).toggle_mute()
+      return super(movieplayer, self).toggle_mute()
+    return False
   def increment_volume(self, value):
     if not "lirc_amp" in rare_options.keys():
-      super(musicplayer, self).increment_volume(value)
+      return super(movieplayer, self).increment_volume(value)
     else:
       if value > 0:
         subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol+"]).wait()
       elif value < 0:
         subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol-"]).wait()
+      return 1
   def loop(self):
+    old_volume = 0
+    new_volume = 0
     stop = False
     while stop == False:
+      old_volume = new_volume
+      new_volume = self.get_volume()
+      if old_volume != new_volume:
+        print old_volume, new_volume
       try: events = pygame.event.get()
       except KeyboardInterrupt: events = [userquit()]
       for event in events:
@@ -1282,10 +1313,10 @@ class movieplayer(upmc.movie.Player):
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_i or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3):
           osd.toggle()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
-          self.osdnotification = "Subtitles %s" % self.increment_subtitles_track(1)
+          self.osdnotification = "Subtitles %s: %s" % self.increment_subtitles_track(1)
           osd.show(2)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
-          self.osdnotification = "Audio track %s" % self.increment_audio_track(1)
+          self.osdnotification = "Audio track %s: %s" % self.increment_audio_track(1)
           osd.show(2)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_m:
           self.toggle_mute()
@@ -1305,9 +1336,11 @@ class movieplayer(upmc.movie.Player):
               self.osdnotification = "Position saved"
             osd.show(2)
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_9) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 5):
+          self.osdtype = 'volume'
           osd.show(2)
           self.increment_volume(-0.02)
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_0) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 4):
+          self.osdtype = 'volume'
           osd.show(2)
           self.increment_volume(0.02)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
@@ -1321,35 +1354,15 @@ class musicplayer(upmc.music.Music):
 #      line_one = self.trackinfo['title']
 #    else:
 #      line_one = "Unkown"
-    line_one = self.track_info.get('StreamTitle')
-    if line_one == None:
-      if 'artist' in self.trackinfo.keys():
-        line_one += self.trackinfo['artist']
-        line_one += ' - '
-      if 'title' in self.trackinfo.keys():
-        line_one += self.trackinfo['title']
-      else:
-        line_one += "Unknown"
-      if line_one == '':
-        line_one = "Unknown"
-    line_two = self.title
-    return line_one, line_two, self.volume*100
+    line_one = self.get_now_playing()
+    line_two = self.get_stream_title()
+    return line_one, line_two, self.get_volume()*100
   def toggle_mute(self):
     if "lirc_amp" in rare_options.keys():
       subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"mute"]).wait()
     else:
       super(musicplayer, self).toggle_mute()
-  def set_volume_for_real(self, value):
-    super(musicplayer, self).set_volume(value)
-  def set_volume(self, value):
-    if not "lirc_amp" in rare_options.keys():
-      super(musicplayer, self).set_volume(value)
-    else:
-      subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"RESET"]).wait()
-      for _ in xrange(60): subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol-"]).wait()
-      for _ in xrange(int(value*100)): subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol+"]).wait()
   def increment_volume(self, value):
-    print "WTF?", value, self.volume
     if not "lirc_amp" in rare_options.keys():
       super(musicplayer, self).increment_volume(value)
     else:
@@ -1357,10 +1370,6 @@ class musicplayer(upmc.music.Music):
         subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol+"]).wait()
       elif value < 0:
         subprocess.Popen(["irsend","SEND_ONCE",rare_options["lirc_amp"],"vol-"]).wait()
-  def new_track_hook(self):
-    if self.muted == False:
-      global osd
-      osd.show(2)
 ##### End class musicplayer()
 
 def network_listener():
@@ -1536,12 +1545,13 @@ def main(args):
   music = None
   if start_music == True:
     music = musicplayer()
-    music.start()
+    music.play()
     pygame.register_quit(music.stop)
     osd.update_hook(music.osd_hook)
     if "lirc_amp" in rare_options.keys():
-      music.set_volume_for_real(1)
-      music.set_volume(0.1)
+      music.set_volume(1)
+      for i in xrange(0,10):
+        music.increment_volume(+0.01)
     else:
       music.set_volume(0.25)
   
@@ -1637,6 +1647,13 @@ def main(args):
   while running == True:
     try: events = pygame.event.get()
     except KeyboardInterrupt: events = [userquit()]
+    if not music == None:
+      new_track = music.get_now_playing()
+      if music.old_track != new_track:
+        music.old_track = new_track
+        osd.show(2)
+      elif music.get_state() == "Ended":
+        music.reconnect()
     for event in events:
       if event.type == pygame.JOYBUTTONDOWN:
         print event
@@ -1681,9 +1698,9 @@ def main(args):
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
           music.increment_channel(-1)
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT))):
-          music.prev()
+          music.previous_track()
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT))):
-          music.next()
+          music.next_track()
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_i) or (event.type == pygame.JOYBUTTONDOWN and (event.button == 7 or event.button == 10)):
           osd.toggle()
 

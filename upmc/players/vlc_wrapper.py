@@ -14,16 +14,20 @@ class capabilities:
   http = True
   dvd = True
 
-class Player():
+class Player(object):
   current_spu = -1
   def __init__(self, filename):
-    self.filename = filename
     self.start_time = -1
     self.vlc_instance = vlc.Instance("--no-video-title --no-keyboard-events")
     self.vlc_player = self.vlc_instance.media_player_new()
     self.vlc_player_em = self.vlc_player.event_manager()
     self.vlc_player.video_set_key_input(0)
-    self.vlc_media = self.vlc_instance.media_new(filename)
+    if filename != None:
+      self._load(filename)
+  def _load(self, filename):
+    self.filename = filename
+    print 'filename', filename
+    self.vlc_media = self.vlc_instance.media_new(filename, '--loop')
     self.vlc_media_em = self.vlc_media.event_manager()
     self.vlc_player.set_media(self.vlc_media)
   def set_xwindow(self, windowid):
@@ -85,30 +89,26 @@ class Player():
     return self.get_mute()
   def get_audio_track(self):
     # Return current audio track. Don't know how to handle this, probably a tuple including track # and description.
-    return self.vlc_player.audio_get_track()-1
+    return self.vlc_player.audio_get_track_description()[self.vlc_player.audio_get_track()]
   def set_audio_track(self, value):
     # Set audio track to value.
     # Return audio track
     if type(value) != int:
       raise TypeError("value must be an int")
-    self.vlc_player.audio_set_track(value+1)
+    self.vlc_player.audio_set_track(self.vlc_player.audio_get_track_description()[value][0])
     return self.get_audio_track()
   def increment_audio_track(self, value):
     # Set audio track to current audio track + value.
     # Return audio track.
-    count = self.vlc_player.audio_get_track_count()
-    new_value = self.vlc_player.audio_get_track()+value
-    print count, self.vlc_player.audio_get_track(), new_value
-    while new_value > count or new_value < 0:
-      print 'something'
-      if new_value > count:
-        print 'newvalue > count'
-        new_value -= count
-      elif new_value < 0:
-        print 'newvalue < 0'
-        new_value += count
-    print new_value
-    self.vlc_player.audio_set_track(new_value)
+    current_audio_track = self.vlc_player.audio_get_track()
+    if self.vlc_player.audio_get_track_count()-1 == 0:
+      return (0, "No audio tracks found")
+    elif current_audio_track == self.vlc_player.audio_get_track_count()-1 and value > 0:
+      self.vlc_player.audio_set_track(1)
+    elif current_audio_track == 0 and value < 0:
+      self.vlc_player.audio_set_track(self.vlc_player.audio_get_track_count()-1)
+    else:
+      self.vlc_player.audio_set_track(current_audio_track+value)
     return self.get_audio_track()
   def get_length(self):
     # Return length of media file in seconds.
@@ -161,7 +161,7 @@ class Player():
     spu = self.vlc_player.video_get_spu()
     if spu != 0 and spu != -1:
       self.current_spu = spu
-    return self.current_spu-1
+    return self.vlc_player.video_get_spu_description()[self.current_spu]
   def set_subtitles_track(self, value):
     # Set subtitles track to value.
     # Return subtitles track
@@ -172,16 +172,15 @@ class Player():
   def increment_subtitles_track(self, value):
     # Set subtitles track to current subtitles track + value.
     # Return subtitles track.
-    count = self.vlc_player.video_get_spu_count()
-    new_value = self.vlc_player.video_get_spu()+value
-    print count, new_value
-    while new_value > count or new_value < 0:
-      if new_value > count:
-        new_value -= count
-      elif new_value < 0:
-        new_value += count
-    print new_value
-    self.vlc_player.video_set_spu(new_value)
+    current_subtitles = self.vlc_player.video_get_spu()
+    if self.vlc_player.video_get_spu_count() == 0:
+      return (0, "No subtitles found")
+    elif current_subtitles == self.vlc_player.video_get_spu_count() and value > 0:
+      self.vlc_player.video_set_spu(0)
+    elif current_subtitles == 0 and value < 0:
+      self.vlc_player.video_set_spu(self.vlc_player.video_get_spu_count())
+    else:
+      self.vlc_player.video_set_spu(current_subtitles+value)
     return self.get_subtitles_track()
   def get_stream_title(self):
     return self.vlc_media.get_meta(vlc.Meta.Title)
@@ -202,7 +201,7 @@ class Player():
     if self.vlc_player.get_title() != 0 or self.vlc_player.get_title_count() <= 1:
       return False # Should almost certainly raise an exception here instead.
     else:
-      if type(key) != type(NAVIGATE_ENTER):
+      if type(key) == type(NAVIGATE_ENTER):
         if key in [NAVIGATE_ENTER, NAVIGATE_UP, NAVIGATE_DOWN, NAVIGATE_LEFT, NAVIGATE_RIGHT]:
           self.vlc_player.navigate(key)
           return True
@@ -211,5 +210,13 @@ class Player():
       else:
         raise TypeError("Key must be one of NAVIGATE_{ENTER,UP,DOWN,LEFT,RIGHT}")
 
-  def get_busy(self): # Stupid name.
-    return self.vlc_player.get_state() == vlc.State.Playing # This treats paused & stopped the same.
+  def get_state(self):
+    vlc_state = self.vlc_player.get_state()
+    if vlc_state == vlc.State.Playing:
+      return "Playing"
+    elif vlc_state == vlc.State.Paused:
+      return "Paused"
+    elif vlc_state == vlc.State.Ended:
+      return "Ended"
+    else:
+      return vlc_state
