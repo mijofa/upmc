@@ -10,7 +10,7 @@ Homepage: http://mike.fabre.id.au/
 
 Package: upmc
 Architecture: all
-Depends: ${misc:Depends}, python-pygame, mplayer, python-imdbpy, python-mpd, python-cairo, python-aosd, python-pylirc, vlc
+Depends: ${misc:Depends}, python-pygame, python-imdbpy, python-mpd, python-cairo, python-aosd, python-pylirc, vlc
 Recommends: ratpoison, lirc | inputlirc, xcompmgr
 Description: The Unnamed Python Media Center
   This is designed to run on dedicated media systems.
