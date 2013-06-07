@@ -1265,10 +1265,6 @@ class movieplayer(upmc.movie.Movie):
     new_volume = 0
     stop = False
     while stop == False:
-      old_volume = new_volume
-      new_volume = self.get_volume()
-      if old_volume != new_volume:
-        print old_volume, new_volume
       try: events = pygame.event.get()
       except KeyboardInterrupt: events = [userquit()]
       for event in events:

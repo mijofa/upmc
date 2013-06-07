@@ -17,13 +17,11 @@ if capabilities.music == True and capabilities.http == True:
 
 import mpd
 
-print Player, dir(Player)
 
 class Music(Player):
   old_track = None
   channel_num = 0
   def __init__(self, channel_num = 0):
-    print 'init', channel_num
     super(Music, self).__init__(None)
     self.mpc = mpd.MPDClient()
     self.connect(channel_num)

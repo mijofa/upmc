@@ -26,7 +26,6 @@ class Player(object):
       self._load(filename)
   def _load(self, filename):
     self.filename = filename
-    print 'filename', filename
     self.vlc_media = self.vlc_instance.media_new(filename, '--loop')
     self.vlc_media_em = self.vlc_media.event_manager()
     self.vlc_player.set_media(self.vlc_media)
