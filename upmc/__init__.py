@@ -112,21 +112,6 @@ def aosd_render(context, data):
     context.set_source_surface(image, 10, 10)
     context.paint()
 
-def render_textscroll(string, font, surface, text_color = (255,255,255), background = (0,0,0,0), update = False):
-  text = font.render(string, 1, text_color)
-  x_pos = 0
-  x_increment = -1
-  background = surface.copy()
-  while running == True:
-    surface.blit(background, (0,0))
-    surface.blit(text, (x_pos,0))
-#    if update == True:
-#      pygame.display.update()
-    x_pos += x_increment
-    if x_pos <= -(text.get_width()-screen.get_width()) or x_pos >= 0:
-      x_increment = -x_increment
-    time.sleep(0.01)
-
 def render_textrect(string, font, rect, text_color, background = (0,0,0,0), justification=0):
   """Returns a surface containing the passed text string, reformatted
   to fit within the given rect, word-wrapping as necessary. The text
@@ -406,6 +391,7 @@ class osd_thread():
         except: pass
         self.aosd.render()
         self.aosd.loop_once()
+        time.sleep(0.01)
     if not self.hook == None:
       hook_data = self.hook('cancel')
     self.aosd.hide()
