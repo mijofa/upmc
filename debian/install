@@ -1,16 +1,16 @@
-upmc/__main__.py    /usr/share/upmc/upmc/
-upmc/__init__.py    /usr/share/upmc/upmc/
-upmc/music.py       /usr/share/upmc/upmc/
-upmc/movie.py       /usr/share/upmc/upmc/
+upmc/__main__.py                  /usr/share/upmc/upmc/
+upmc/__init__.py                  /usr/share/upmc/upmc/
+upmc/music.py                     /usr/share/upmc/upmc/
+upmc/movie.py                     /usr/share/upmc/upmc/
+upmc/players/vlc_wrapper.py       /usr/share/upmc/upmc/players/
+upmc/players/__init__.py          /usr/share/upmc/upmc/players/
 
-network-remote.py   /usr/share/upmc/
-background.png      /usr/share/upmc/
-upmc_movie.py       /usr/share/upmc/
-upmc_music.py       /usr/share/upmc/
-dvd.jpg             /usr/share/upmc/
-imdb.py             /usr/share/upmc/
-vlc.py              /usr/share/upmc/
+network-remote.py                 /usr/share/upmc/
+background.png                    /usr/share/upmc/
+dvd.jpg                           /usr/share/upmc/
+imdb.py                           /usr/share/upmc/
+vlc.py                            /usr/share/upmc/
 
-upmc.desktop        /usr/share/applications/
+upmc.desktop                      /usr/share/applications/
 
-upmc.sh             /usr/bin/upmc
+bin/upmc                          /usr/bin/
