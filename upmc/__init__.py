@@ -1168,24 +1168,19 @@ class movieinfo():
     render_textrect('Movie player is running.\n\nPress the back button to quit.', pygame.font.Font(fontname, 63), screen.get_rect(), (255,255,255), screen, 3)
     pygame.display.update()
 
-    if not music == None and music.muted == False:
-      print "Muting"
+    music_state = None
+    if not music == None:
+      music_state = music.get_mute()
       music.set_mute(True)
       old_osd_hook = osd.get_hook()
-      startmusic = True
-    else:
-      startmusic = False
 
     osd.update(self['title'])
     self['watched'] = datetime.datetime.now().strftime('%Y-%m-%d, %H:%M') 
     movieplayer.start(self['filename'])
 
-    if startmusic == True:
-      print "Unmuting"
-      music.set_mute(False)
-      print "Unmuted"
+    if music_state != None:
+      music.set_mute(music_state)
       osd.update_hook(old_osd_hook)
-      print "Updated hook"
       if "lirc_amp" in rare_options.keys():
         music.set_volume(1)
         for i in xrange(0,10):
@@ -1589,9 +1584,9 @@ def main(args):
     screen.blit(surf, (0,0))
     render_textrect('Steam is still running.\n\nPress back key to kill Steam.', pygame.font.Font(fontname, 63), screen.get_rect(), (255,255,255), screen, 3)
     pygame.display.update()
-    startmusic = False
-    if not music == None and music.muted == False:
-      startmusic = True
+    music_state = None
+    if not music == None:
+      music_state = music.get_mute()
       music.set_mute(True)
     while steam.poll() == None:
       try: events = pygame.event.get()
@@ -1611,8 +1606,13 @@ def main(args):
       pygame.display.toggle_fullscreen()
     screen.blit(screenbkup, (0,0))
     pygame.display.update()
-    if startmusic == True:
-      music.set_mute(False)
+    if music_state != None:
+      music.set_mute(music_state)
+      osd.update_hook(old_osd_hook)
+      if "lirc_amp" in rare_options.keys():
+        music.set_volume(1)
+        for i in xrange(0,10):
+          music.increment_volume(+0.01)
     return steam.poll()
   
   menuitems = [('Videos', filemenu), ('Terminal', terminal), ("Steam", steam_big_picture), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
