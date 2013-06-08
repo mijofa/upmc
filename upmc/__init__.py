@@ -1168,6 +1168,8 @@ class movieinfo():
       music.set_mute(music_state)
       osd.update_hook(old_osd_hook)
       if "lirc_amp" in rare_options.keys():
+        for i in xrange(0,60):
+          music.increment_volume(-0.01)
         music.set_volume(1)
         for i in xrange(0,10):
           music.increment_volume(+0.01)
@@ -1554,6 +1556,8 @@ def main(args):
     pygame.register_quit(music.stop)
     osd.update_hook(music.osd_hook)
     if "lirc_amp" in rare_options.keys():
+      for i in xrange(0,60):
+        music.increment_volume(-0.01)
       music.set_volume(1)
       for i in xrange(0,10):
         music.increment_volume(+0.01)
@@ -1617,6 +1621,9 @@ def main(args):
     screen.blit(screenbkup, (0,0))
     pygame.display.update()
     if music_state != None:
+      if "lirc_amp" in rare_options.keys():
+        for i in xrange(0,60):
+          music.increment_volume(-0.01)
       music.set_mute(music_state)
       osd.update_hook(old_osd_hook)
       if "lirc_amp" in rare_options.keys():
