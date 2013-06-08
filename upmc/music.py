@@ -48,7 +48,6 @@ class Music(Player):
   def get_volume(self):
     ret_value = super(Music, self).get_volume()
     self.volume = ret_value
-    print 'volume: ', self.volume
     return ret_value
   def increment_channel(self, value):
     new_channel_num = self.channel_num+value
