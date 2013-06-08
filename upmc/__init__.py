@@ -1303,7 +1303,7 @@ class movieplayer(upmc.movie.Movie):
             save_hrs = int(save_pos/60.0/60.0)
             save_mins = int((save_pos-(save_hrs*60*60))/60)
             save_secs = int(save_pos-((save_hrs*60*60)+(save_mins*60)))
-            try: open(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'w').write('%s;%s\n# This line and everything below is ignored, it is only here so that you don\'t need to understand ^ that syntax.\nTime: %02d:%02d:%02d\nVolume: %d%%\n' % (save_pos, self.volume, save_hrs, save_mins, save_secs, self.volume))
+            try: open(os.path.dirname(self.filename)+'/.'+os.path.basename(self.filename)+'-'+os.uname()[1]+'.save', 'w').write('%s;%s\n# This line and everything below is ignored, it is only here so that you don\'t need to understand ^ that syntax.\nTime: %02d:%02d:%02d\nVolume: %d%%\n' % (save_pos, self.get_volume(), save_hrs, save_mins, save_secs, self.get_volume()))
             except IOError as e:
               if e.errno == 13:
                 self.osdnotification = "Permission denied."
