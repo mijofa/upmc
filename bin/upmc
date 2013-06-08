@@ -1,3 +1,4 @@
-#!/bin/sh
-cd /usr/share/upmc/
-python /usr/share/upmc/upmc "$@"
+#!/usr/bin/python
+import sys
+import upmc
+upmc.main(sys.argv)

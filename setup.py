@@ -13,8 +13,9 @@ if data != vlc_file.read():
   vlc_file.close()
 
 from distutils.core import setup
-setup(name='upmc',
-      version='1.0',
-      packages=['upmc'],
-      py_modules=['vlc', 'imdb'],
+setup(name = 'upmc',
+      version = '1.0',
+      py_modules = ['vlc'],
+      packages = ['upmc', 'upmc/players'],
+      scripts = ['bin/upmc'],
       )
