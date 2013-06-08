@@ -15,19 +15,18 @@ channel_urls = [
 if capabilities.music == True and capabilities.http == True:
   from players.vlc_wrapper import *
 
+import time
 import mpd
 
 
 class Music(Player):
   old_track = None
   channel_num = 0
+  volume = 0
   def __init__(self, channel_num = 0):
     super(Music, self).__init__(None)
     self.mpc = mpd.MPDClient()
     self.connect(channel_num)
-  def reconnect(self):
-    super(Music, self).stop()
-    super(Music, self).play()
   def connect(self, channel_num = 0):
     self.channel_num = channel_num
     url = channel_urls[self.channel_num]
@@ -42,10 +41,15 @@ class Music(Player):
   def get_channel(self):
     return self.channel_num
   def set_channel(self, value):
-    if value > 0 and value < len(channel_urls):
+    if value >= 0 and value < len(channel_urls):
       self.stop()
       self.connect(value)
       self.play()
+  def get_volume(self):
+    ret_value = super(Music, self).get_volume()
+    self.volume = ret_value
+    print 'volume: ', self.volume
+    return ret_value
   def increment_channel(self, value):
     new_channel_num = self.channel_num+value
     while not (new_channel_num >= 0 and new_channel_num < len(channel_urls)):
@@ -53,7 +57,9 @@ class Music(Player):
         new_channel_num += len(channel_urls)
       elif new_channel_num >= len(channel_urls):
         new_channel_num -= len(channel_urls)
-    return self.set_channel(new_channel_num)
+    ret_value = self.set_channel(new_channel_num)
+    self.set_volume(self.volume)
+    return ret_value
   def next_track(self):
     return self.mpc.next()
   def previous_track(self):
