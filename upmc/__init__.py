@@ -1192,12 +1192,40 @@ class movieplayer(upmc.movie.Movie):
     player.set_xwindow(pygame.display.get_wm_info()['window'])
     osd.update_hook(player.osd_hook)
     player.set_end_callback(player.stop)
+
+    volume = 0.75
+
+    if os.path.isfile(os.path.dirname(filename)+'/.'+os.path.basename(filename)+'-'+os.uname()[1]+'.save'):
+      savefile = os.path.dirname(filename)+'/.'+os.path.basename(filename)+'-'+os.uname()[1]+'.save'
+    elif os.path.isfile(os.path.dirname(filename)+'/'+filename+'-'+os.uname()[1]+'.save'):
+      savefile = os.path.dirname(filename)+'/'+filename+'-'+os.uname()[1]+'.save'
+    else:
+      savefile = None
+    if not savefile == None:
+      try: start_time = open(savefile, 'r').readline().strip('\n')
+      except IOError as e:
+        if e.errno == 13:
+          print "Permission denied when reading save file."
+          start_time = "0"
+        else:
+          raise e
+      if ';' in start_time:
+        volume = float(start_time.split(';')[1])
+        start_time = start_time.split(';')[0]
+      player.set_time(int(float(start_time)))
+      try: os.remove(savefile)
+      except OSError as e:
+        if e.errno == 30:
+          print "Unable to delete save file"
+        else:
+          raise e
+
     player.play()
     time.sleep(0.03) # This is needed because I can't set the volume before the movie starts... I don't like that way I've done this though. :/
     if "lirc_amp" in rare_options.keys():
       print player.set_volume(1)
     else:
-      print player.set_volume(0.75)
+      print player.set_volume(volume)
     player.loop()
 
     screen.blit(screenbkup, (0,0))
