@@ -1165,14 +1165,16 @@ class movieinfo():
     movieplayer.start(self['filename'])
 
     if music_state != None:
-      music.set_mute(music_state)
       osd.update_hook(old_osd_hook)
       if "lirc_amp" in rare_options.keys():
         for i in xrange(0,60):
           music.increment_volume(-0.01)
         music.set_volume(1)
+        music.set_mute(music_state)
         for i in xrange(0,10):
           music.increment_volume(+0.01)
+      else:
+        music.set_mute(music_state)
 
     screen.blit(screenbkup, (0,0))
     pygame.display.update()
