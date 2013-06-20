@@ -39,17 +39,21 @@ class Music(Player):
         raise e
     super(Music, self).stop()
   def get_channel(self):
+    self.mpc.ping()
     return self.channel_num
   def set_channel(self, value):
+    self.mpc.ping()
     if value >= 0 and value < len(channel_urls):
       self.stop()
       self.connect(value)
       self.play()
   def get_volume(self):
+    self.mpc.ping()
     ret_value = super(Music, self).get_volume()
     self.volume = ret_value
     return ret_value
   def increment_channel(self, value):
+    self.mpc.ping()
     new_channel_num = self.channel_num+value
     while not (new_channel_num >= 0 and new_channel_num < len(channel_urls)):
       if new_channel_num < 0:
@@ -64,3 +68,6 @@ class Music(Player):
   def previous_track(self):
     return self.mpc.previous()
   prev_track = previous_track
+  def get_now_playing(self):
+    self.mpc.ping()
+    return super(Music, self).get_now_playing()
