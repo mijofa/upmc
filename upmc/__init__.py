@@ -16,7 +16,6 @@ import threading
 import subprocess
 import ConfigParser
 
-import mpd
 import aosd
 import pylirc
 
@@ -1488,12 +1487,8 @@ def main(args):
   global windowed
   resolution = None
   windowed = False
-  global mpd_host
-  mpd_host = None
   global channels
   channels = [0]
-  global mpd_port
-  mpd_port = 6600
   global movie_args
   movie_args = None
   global rare_options
@@ -1501,7 +1496,7 @@ def main(args):
   start_music = False
 
   if len(args) > 1:
-    options, arguments = getopt.getopt(args[1:], 'w:m:o:', ["windowed=", "music", "options=", "channels=", "mpd-host=", "mpd-port=", "movie-args="])
+    options, arguments = getopt.getopt(args[1:], 'w:m:o:', ["windowed=", "music", "options=", "channels=", "movie-args="])
     for o, a in options:
       if o == "--windowed" or o == '-w':
         resolution = str(a)
@@ -1511,10 +1506,6 @@ def main(args):
           windowed = True
       elif o == "--channels":
         channels = range(0, int(a))
-      elif o == "--mpd-host":
-        mpd_host = str(a)
-      elif o == "--mpd-port":
-        mpd_host = int(a)
 #      elif o == "--movie-args":
 #        movie_args = str(a).split(' ')
       elif o == "--options" or o == "-o":

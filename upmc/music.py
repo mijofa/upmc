@@ -15,45 +15,38 @@ channel_urls = [
 if capabilities.music == True and capabilities.http == True:
   from players.vlc_wrapper import *
 
+import subprocess
 import time
-import mpd
 
 
 class Music(Player):
   old_track = None
   channel_num = 0
   volume = 0
+  mpd_port = mpd_zero_port
+  mpc_opts = ["--quiet"]
   def __init__(self, channel_num = 0):
     super(Music, self).__init__(None)
-    self.mpc = mpd.MPDClient()
     self.connect(channel_num)
   def connect(self, channel_num = 0):
     self.channel_num = channel_num
     url = channel_urls[self.channel_num]
     super(Music, self)._load(url)
-    self.mpc.connect(mpd_host, mpd_zero_port+channel_num)
-  def stop(self):
-    try: self.mpc.disconnect()
-    except mpd.ConnectionError as e:
-      if e.message != "Not connected":
-        raise e
-    super(Music, self).stop()
+    self.mpd_port = mpd_zero_port+channel_num
+  def reconnect(self):
+    super(Music, self)._load(channel_urls[self.channel_num])
   def get_channel(self):
-    self.mpc.ping()
     return self.channel_num
   def set_channel(self, value):
-    self.mpc.ping()
     if value >= 0 and value < len(channel_urls):
       self.stop()
       self.connect(value)
       self.play()
   def get_volume(self):
-    self.mpc.ping()
     ret_value = super(Music, self).get_volume()
     self.volume = ret_value
     return ret_value
   def increment_channel(self, value):
-    self.mpc.ping()
     new_channel_num = self.channel_num+value
     while not (new_channel_num >= 0 and new_channel_num < len(channel_urls)):
       if new_channel_num < 0:
@@ -64,10 +57,9 @@ class Music(Player):
     self.set_volume(self.volume)
     return ret_value
   def next_track(self):
-    return self.mpc.next()
+    print subprocess.check_output(["mpc"]+self.mpc_opts+["--host", str(mpd_host), "--port", str(self.mpd_port), "next"])
+#    return self.mpc.next()
   def previous_track(self):
-    return self.mpc.previous()
+    print subprocess.check_output(["mpc"]+self.mpc_opts+["--host", str(mpd_host), "--port", str(self.mpd_port), "prev"])
+#    return self.mpc.previous()
   prev_track = previous_track
-  def get_now_playing(self):
-    self.mpc.ping()
-    return super(Music, self).get_now_playing()
