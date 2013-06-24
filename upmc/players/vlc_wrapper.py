@@ -184,7 +184,10 @@ class Player(object):
   def get_stream_title(self):
     return self.vlc_media.get_meta(vlc.Meta.Title)
   def get_now_playing(self):
-    return self.vlc_media.get_meta(vlc.Meta.NowPlaying)
+    try: now_playing = self.vlc_media.get_meta(vlc.Meta.NowPlaying)
+    except UnicodeDecodeError as e:
+      now_playing = unicode(e.object, sys.getfilesystemencoding(), 'replace')
+    return now_playing
 
   def set_end_callback(self, callback = None, args = None):
     # The callback should probably do something like trigger a pygame event.
