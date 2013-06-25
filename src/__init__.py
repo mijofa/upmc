@@ -15,6 +15,7 @@ import mimetypes
 import threading
 import subprocess
 import ConfigParser
+import pkg_resources
 
 import aosd
 import pylirc
@@ -587,7 +588,14 @@ class filemenu():
     if directory.rstrip('/') == rootdir.rstrip('/'):
       self.items.append('dvd://')
       if not self.itemsinfo.has_key('dvd://'):
-        self.itemsinfo['dvd://'] = {'file': True, 'filename': 'dvd://', 'thumb': UPMC_DATADIR+'/dvd.jpg', 'title': "Play DVD"}
+        self.itemsinfo['dvd://'] = {'file': True, 'filename': 'dvd://', 'title': "Play DVD"}
+        if pkg_resources.resource_exists("upmc", "data/dvd.jpg") and not pkg_resources.resource_isdir("upmc", "data/dvd.jpg"):
+          # 'thumb': UPMC_DATADIR+'/dvd.jpg',
+          dvd_file = pkg_resources.resource_stream("upmc", "data/dvd.jpg")
+          try: 
+            self.itemsinfo['dvd://']['thumb'] = dvd_file
+          except:
+            dvd_file.close()
         self.itemsinfo['dvd://']['itemnum'] = self.items.index('dvd://')
   def render(self, rowoffset = 0):
     global screenupdates
@@ -1558,10 +1566,19 @@ def main(args):
       music.set_volume(0.25)
   
   global background
-  try: background = pygame.transform.scale(pygame.image.load(UPMC_DATADIR+'/background.png'), screen.get_size()).convert() # Resize the background image to fill the window.
-  except: # Failing that (no background image?) just create a completely blue background.
+  print 'background', pkg_resources.resource_exists("upmc", "data/background.png"), pkg_resources.resource_isdir("upmc", "data/background.png")
+  if pkg_resources.resource_exists("upmc", "data/background.png") and not pkg_resources.resource_isdir("upmc", "data/background.png"):
+    bg_file = pkg_resources.resource_stream("upmc", "data/background.png")
+    print bg_file
+    try: background = pygame.transform.scale(pygame.image.load(bg_file), screen.get_size()).convert() # Resize the background image to fill the window.
+    except: # Failing that (broken image?) just create a completely red background.
+      background = pygame.Surface(screen.get_size()).convert() 
+      background.fill((125,0,0))
+    finally:
+      bg_file.close()
+  else: # No background image, just create a completely blue background.
     background = pygame.Surface(screen.get_size()).convert() 
-    background.fill((125,0,0))
+    background.fill((0,0,125))
   pygame.mouse.set_visible(False)
   screen.blit(background, (0,0)) # Put the background on the window.
   pygame.display.update() # Update the display.

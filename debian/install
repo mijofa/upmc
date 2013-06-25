@@ -6,8 +6,8 @@
 #upmc/players/__init__.py          /usr/share/upmc/upmc/players/
 
 #network-remote.py                 /usr/share/upmc/
-background.png                    /usr/share/upmc/
-dvd.jpg                           /usr/share/upmc/
+#background.png                    /usr/share/upmc/
+#dvd.jpg                           /usr/share/upmc/
 #imdb.py                           /usr/share/upmc/
 #vlc.py                            /usr/share/upmc/
 
