@@ -1580,52 +1580,7 @@ def main(args):
       pygame.display.toggle_fullscreen()
     return term
 
-  def steam_big_picture():
-    global music
-    steam = subprocess.Popen(['steam','-silent','-bigpicture','steam://open/bigpicture'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE)
-    screenbkup = screen.copy()
-    if windowed == False:
-      pygame.display.toggle_fullscreen()
-    surf = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
-    surf.fill((0,0,0,225))
-    screen.blit(surf, (0,0))
-    render_textrect('Steam is still running.\n\nPress back key to kill Steam.', pygame.font.Font(fontname, 63), screen.get_rect(), (255,255,255), screen, 3)
-    pygame.display.update()
-    music_state = None
-    if not music == None:
-      music_state = music.get_mute()
-      music.set_mute(True)
-    while steam.poll() == None:
-      try: events = pygame.event.get()
-      except KeyboardInterrupt: events = [userquit()]
-      for event in events:
-        if event.type == pygame.QUIT:
-          pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
-          pygame.quit()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-          if steam.poll() == None:
-            subprocess.Popen(['steam','-shutdown']).wait()
-          if steam.poll() == None:
-            steam.terminate()
-          if steam.poll() == None:
-            steam.kill()
-    if windowed == False:
-      pygame.display.toggle_fullscreen()
-    screen.blit(screenbkup, (0,0))
-    pygame.display.update()
-    if music_state != None:
-      if "lirc_amp" in rare_options.keys():
-        for i in xrange(0,60):
-          music.increment_volume(-0.01)
-      music.set_mute(music_state)
-      osd.update_hook(old_osd_hook)
-      if "lirc_amp" in rare_options.keys():
-        music.set_volume(1)
-        for i in xrange(0,10):
-          music.increment_volume(+0.01)
-    return steam.poll()
-  
-  menuitems = [('Videos', filemenu), ('Terminal', terminal), ("Steam", steam_big_picture), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
+  menuitems = [('Videos', filemenu), ('Terminal', terminal), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
 #  menuitems = [('Videos', filemenu), ('Terminal', terminal), ('Quit', userquit)] # Update this with extra menu items, this should be a list containing one tuple per item, the tuple should contain the menu text and the function that is to be run when that option gets selected.
   menu = textmenu(menuitems)
   menu.keyselect(True)
