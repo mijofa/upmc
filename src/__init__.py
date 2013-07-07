@@ -1553,9 +1553,6 @@ def main(args):
   music = None
   if start_music == True:
     music = musicplayer()
-    music.play()
-    pygame.register_quit(music.stop)
-    osd.update_hook(music.osd_hook)
     if "lirc_amp" in rare_options.keys():
       for i in xrange(0,60):
         music.increment_volume(-0.01)
@@ -1564,6 +1561,9 @@ def main(args):
         music.increment_volume(+0.01)
     else:
       music.set_volume(0.25)
+    music.play()
+    pygame.register_quit(music.stop)
+    osd.update_hook(music.osd_hook)
   
   global background
   print 'background', pkg_resources.resource_exists("upmc", "data/background.png"), pkg_resources.resource_isdir("upmc", "data/background.png")

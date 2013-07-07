@@ -1,4 +1,5 @@
 import vlc
+import time
 
 # player.get_meta(vlc.Meta.Title)
 
@@ -15,10 +16,11 @@ class capabilities:
   dvd = True
 
 class Player(object):
+  volume = 75
   current_spu = -1
   def __init__(self, filename):
     self.start_time = -1
-    self.vlc_instance = vlc.Instance("--no-video-title --no-keyboard-events")
+    self.vlc_instance = vlc.Instance("--no-video-title --no-keyboard-events --volume 1")
     self.vlc_player = self.vlc_instance.media_player_new()
     self.vlc_player_em = self.vlc_player.event_manager()
     self.vlc_player.video_set_key_input(0)
@@ -37,10 +39,13 @@ class Player(object):
       raise TypeError("windowid must be an int.")
   def play(self):
     self.vlc_player.play()
+    while self.vlc_player.get_state() == vlc.State.Opening: pass # This is bad.
     self.vlc_player.video_set_spu(1)
     if self.start_time > 0: # VLC won't let me set the time before I start playing, this is a workaround. self.set_time sets this variable if the media stream is not running.
       self.vlc_player.set_time(self.start_time)
       self.start_time = 0
+    time.sleep(0.01) # I'd rather not use a delay like this.
+    self.set_volume(self.volume)
   def stop(self):
     self.vlc_player.stop()
   def get_pause(self):
@@ -66,7 +71,8 @@ class Player(object):
     # Set volume to value.
     # Return current volume.
     self.vlc_player.audio_set_volume(int(value*100.0)) # Should I be treating 200% as max or 100% ?
-    return self.get_volume()
+    self.volume = self.get_volume()
+    return self.volume
   def increment_volume(self, value):
     # Increment volume by value.
     # Return current volume.
