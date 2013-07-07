@@ -39,12 +39,15 @@ class Player(object):
       raise TypeError("windowid must be an int.")
   def play(self):
     self.vlc_player.play()
-    while self.vlc_player.get_state() == vlc.State.Opening: pass # FIXME This is almost certainly the wrong way to do this, although if VLC does get stuck in opening state I've probably got other problems.
+    # This is a horrible way to do this.
+    ## I need to wait for it to switch from opening to anything else, the problem is it starts as something other than opening, so I need to wait for it to switch to opening first.
+    while self.vlc_player.get_state() != vlc.State.Opening: pass # FIXME: Busy loops like this are wrong.
+    while self.vlc_player.get_state() == vlc.State.Opening: pass # FIXME: Busy loops like this are wrong.
     self.vlc_player.video_set_spu(1)
     if self.start_time > 0: # VLC won't let me set the time before I start playing, this is a workaround. self.set_time sets this variable if the media stream is not running.
       self.vlc_player.set_time(self.start_time)
       self.start_time = 0
-    time.sleep(0.01) # I'd rather not use a delay like this.
+    time.sleep(0.01) # I'd rather not use a delay like this, but without this it will sometimes fail to set the volume. I don't know what this is waiting for though.
     self.set_volume(self.volume)
   def stop(self):
     self.vlc_player.stop()
