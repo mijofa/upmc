@@ -20,7 +20,7 @@ class Player(object):
   current_spu = -1
   def __init__(self, filename):
     self.start_time = -1
-    self.vlc_instance = vlc.Instance("--no-video-title --no-keyboard-events --volume 1")
+    self.vlc_instance = vlc.Instance("--no-video-title --no-keyboard-events")
     self.vlc_player = self.vlc_instance.media_player_new()
     self.vlc_player_em = self.vlc_player.event_manager()
     self.vlc_player.video_set_key_input(0)
@@ -39,7 +39,7 @@ class Player(object):
       raise TypeError("windowid must be an int.")
   def play(self):
     self.vlc_player.play()
-    while self.vlc_player.get_state() == vlc.State.Opening: pass # This is bad.
+    while self.vlc_player.get_state() == vlc.State.Opening: pass # FIXME This is almost certainly the wrong way to do this, although if VLC does get stuck in opening state I've probably got other problems.
     self.vlc_player.video_set_spu(1)
     if self.start_time > 0: # VLC won't let me set the time before I start playing, this is a workaround. self.set_time sets this variable if the media stream is not running.
       self.vlc_player.set_time(self.start_time)
