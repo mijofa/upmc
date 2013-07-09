@@ -825,24 +825,24 @@ class filemenu():
           running = False
           pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
           pygame.quit()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_UP) or (event.type == pygame.JOYHATMOTION and event.value[1] == 1):
           self.keyselect(0)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN) or (event.type == pygame.JOYHATMOTION and event.value[1] == -1):
           self.keyselect(1)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT) or (event.type == pygame.JOYHATMOTION and event.value[0] == -1):
           self.keyselect(2)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT) or (event.type == pygame.JOYHATMOTION and event.value[0] == 1):
           self.keyselect(3)
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_KP_ENTER:
           print self.itemsinfo[self.selected[1]]
           info = movieinfo(self.itemsinfo[self.selected[1]])
           info.action()
-        elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
+        elif (event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE)) or (event.type == pygame.JOYBUTTONDOWN and event.button == 0):
   #        print self.itemsinfo[self.selected[1]]
   #        info = movieinfo(self.itemsinfo[self.selected[1]])
   #        info.action()
           self.action(self.selected[-1])
-        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3):
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3) or (event.type == pygame.JOYBUTTONDOWN and event.button == 1):
           if self.action('../') == pygame.QUIT:
             screen.blit(background, (0,0)) # Put the background on the window.
             pygame.display.update() # Update the display.
@@ -887,11 +887,11 @@ class filemenu():
             music.increment_channel(+1)
           elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
             music.increment_channel(-1)
-          elif event.type == pygame.KEYDOWN and event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
+          elif event.type == pygame.KEYDOWN and (event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT))):
             music.previous_track()
-          elif event.type == pygame.KEYDOWN and event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
+          elif event.type == pygame.KEYDOWN and (event.key == pygame.K_GREATER or (event.key == pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT))):
             music.next_track()
-          elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
+          elif (event.type == pygame.KEYDOWN and event.key == pygame.K_i) or (event.type == pygame.JOYBUTTONDOWN and (event.button == 7 or event.button == 10)):
             osd.toggle()
         else:
           if android:
@@ -1114,9 +1114,9 @@ class movieinfo():
           running = False
           pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
           pygame.quit()
-        elif event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE):
+        elif (event.type == pygame.KEYDOWN and (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER or event.key == pygame.K_SPACE)) or (event.type == pygame.JOYBUTTONDOWN and event.button == 0):
           self.action()
-        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3):
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3) or (event.type == pygame.JOYBUTTONDOWN and event.button == 1):
           return
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
           self.action()
@@ -1134,11 +1134,11 @@ class movieinfo():
             music.increment_channel(+1)
           elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
             music.increment_channel(-1)
-          elif event.type == pygame.KEYDOWN and event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
+          elif event.type == pygame.KEYDOWN and (event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT))):
             music.previous_track()
-          elif event.type == pygame.KEYDOWN and event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT)):
+          elif event.type == pygame.KEYDOWN and (event.key == pygame.K_GREATER or (event.key == pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT))):
             music.next_track()
-          elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
+          elif (event.type == pygame.KEYDOWN and event.key == pygame.K_i) or (event.type == pygame.JOYBUTTONDOWN and (event.button == 7 or event.button == 10)):
             osd.toggle()
   def action(self):
     ## This checking of whether the file exists should be done somehow, although it's not important, and I don't know how to easily do it for URLs & files.
@@ -1299,34 +1299,34 @@ class movieplayer(upmc.movie.Movie):
           pygame.event.post(pygame.event.Event(pygame.QUIT, {}))
           try: self.stop()
           except: break
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (event.type == pygame.JOYBUTTONDOWN and event.button == 1):
           self.stop()
           stop = True
           break
-        elif (event.type == pygame.KEYDOWN and (event.key == pygame.K_SPACE or event.key == pygame.K_p)) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1):
+        elif (event.type == pygame.KEYDOWN and (event.key == pygame.K_SPACE or event.key == pygame.K_p)) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1) or (event.type == pygame.JOYBUTTONDOWN and event.button == 0):
           self.osdtype = 'time'
           osd.show(2)
           self.toggle_pause()
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_UP) or (event.type == pygame.JOYHATMOTION and event.value[1] == 1):
           if self.dvd_navigate(upmc.movie.NAVIGATE_UP) != True:
             osd.show(2)
             self.increment_time(600)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN) or (event.type == pygame.JOYHATMOTION and event.value[1] == -1):
           if self.dvd_navigate(upmc.movie.NAVIGATE_DOWN) != True:
             osd.show(2)
             self.increment_time(-590)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT) or (event.type == pygame.JOYHATMOTION and event.value[0] == -1):
           if self.dvd_navigate(upmc.movie.NAVIGATE_LEFT) != True:
             osd.show(2)
             self.increment_time(-20)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT) or (event.type == pygame.JOYHATMOTION and event.value[0] == 1):
           if self.dvd_navigate(upmc.movie.NAVIGATE_RIGHT) != True:
             osd.show(2)
             self.increment_time(30)
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 2:
           osd.show(2)
           self.increment_time(-20)
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_i or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3):
+        elif (event.type == pygame.KEYDOWN and event.key == pygame.K_i) or (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3) or (event.type == pygame.JOYBUTTONDOWN and (event.button == 7 or event.button == 10)):
           osd.toggle()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
           self.osdnotification = "Subtitles %s: %s" % self.increment_subtitles_track(1)
@@ -1681,7 +1681,7 @@ def main(args):
           music.increment_channel(-1)
         elif event.type == pygame.KEYDOWN and (event.key == pygame.K_LESS or (event.key == pygame.K_COMMA and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT))):
           music.previous_track()
-        elif event.type == pygame.KEYDOWN and (event.key == pygame.K_GREATER or (pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT))):
+        elif event.type == pygame.KEYDOWN and (event.key == pygame.K_GREATER or (event.key == pygame.K_PERIOD and (event.mod & pygame.KMOD_LSHIFT or event.mod & pygame.KMOD_RSHIFT))):
           music.next_track()
         elif (event.type == pygame.KEYDOWN and event.key == pygame.K_i) or (event.type == pygame.JOYBUTTONDOWN and (event.button == 7 or event.button == 10)):
           osd.toggle()
