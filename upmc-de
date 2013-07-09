@@ -2,11 +2,9 @@
 xrandr --output DVI-I-1 --off --output HDMI-0 --auto # Pygame is horrible with multi-displays.
 export PYTHONPATH=/usr/lib/pyshared/python2.7 # Some bug in 12.10 and 13.04 is causing this directory to not be included in Python's default path.
 
-xfwm4 --replace --daemon --compositor=off # Still not sure which WM I'll stick with, but this seems to work for now.
-## I could probably turn on the compositor above, instead of running a separate compositor below.
-sudo setup_xboxdrv & # Start the xboxdrv daemon so that the wireless Xbox 360 controllers work
+xfwm4 --replace --daemon --compositor=on # Still not sure which WM I'll stick with, but this seems to work for now.
 
-xcompmgr & # Enable compositing so that the OSD works.
+sudo setup_xboxdrv & # Start the xboxdrv daemon so that the wireless Xbox 360 controllers work
 
 ## Remap some of the media keys, because UPMC ignores them.
 xmodmap -e 'keycode 172 = space'
@@ -14,7 +12,7 @@ xmodmap -e 'keycode 122 = 9'
 xmodmap -e 'keycode 123 = 0'
 xmodmap -e 'keycode 166 = Escape'
 
-#~/vcs/upmc/main.py --music-url "http://music/ch%02d.mp3" --channels 3 /srv/media/Video # Finally, start UPMC
-x-terminal-emulator #DEBUG#
+upmc --music /srv/media/Video # Finally, start UPMC
+#x-terminal-emulator #DEBUG#
 
 sudo setup_xboxdrv --shutdown # Stop the xboxdrv daemon.
