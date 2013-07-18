@@ -1,19 +1,26 @@
 #!/usr/bin/python
 
+import os.path
 import urllib2
 try:
   url = urllib2.urlopen("http://git.videolan.org/?p=vlc/bindings/python.git;a=blob_plain;f=generated/vlc.py;hb=HEAD")
   data = url.read()
   url.close()
-  vlc_file = open("vlc.py", 'r+')
-  if data != vlc_file.read():
-    vlc_file.seek(0)
+  updatevlc = False
+  if updatevlc != ""  and os.path.exists("vlc.py") and os.path.isfile("vlc.py"):
+    vlc_file = open("vlc.py", 'r+')
+    if data != vlc_file.read():
+      updatevlc = True
+  else:
     vlc_file = open("vlc.py", 'w')
+    updatevlc = True
+  if updatevlc == True:
+    vlc_file.seek(0)
     vlc_file.write(data)
     vlc_file.flush()
     vlc_file.close()
-except:
-  print "Can not update vlc.py"
+except Exception as e:
+  print "Can not update vlc.py:", e
 
 from distutils.core import setup
 setup(name = "upmc",
